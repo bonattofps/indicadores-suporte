@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Gestão de Indicadores</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">SG</span>
+          <div>
+            <strong>Sistema de Gestão</strong>
+            <span>Indicadores NOC</span>
+          </div>
+        </div>
+
+        <nav class="nav-stack" aria-label="Navegação">
+          <a class="active" href="#overview">Overview</a>
+          <a href="#colaboradores">Colaboradores</a>
+          <a href="#ranking">Ranking</a>
+          <a href="#dados">Tabela</a>
+        </nav>
+
+        <div class="status-card">
+          <span class="pulse"></span>
+          <div>
+            <strong id="fileStatus">Aguardando importação</strong>
+            <span>CSV ou XLSX no navegador</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Dashboard corporativa</p>
+            <h1>Sistema de Gestão de Indicadores</h1>
+          </div>
+
+          <div class="actions">
+            <label class="file-control">
+              <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+              Importar arquivo
+            </label>
+            <button id="exportCsv" class="ghost-button" type="button">Exportar CSV</button>
+          </div>
+        </header>
+
+        <section class="control-band" aria-label="Filtros">
+          <div class="segmented" id="weekFilter" role="tablist" aria-label="Semana">
+            <button class="active" type="button" data-week="ULTIMA SEMANA">Última Semana</button>
+            <button type="button" data-week="1° SEMANA">1ª Semana</button>
+            <button type="button" data-week="2° SEMANA">2ª Semana</button>
+            <button type="button" data-week="3° SEMANA">3ª Semana</button>
+            <button type="button" data-week="4° SEMANA">4ª Semana</button>
+          </div>
+
+          <div class="view-toggle" id="teamToggle" aria-label="Equipe">
+            <button class="active" type="button" data-team="N1">N1</button>
+            <button type="button" data-team="N2">N2</button>
+          </div>
+        </section>
+
+        <section id="overview" class="kpi-grid" aria-label="Indicadores principais"></section>
+
+        <section class="dashboard-grid">
+          <article class="panel panel-wide">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Evolução semanal</p>
+                <h2>Indicadores gerais</h2>
+              </div>
+              <select id="lineMetric" aria-label="Indicador do gráfico de linha"></select>
+            </div>
+            <div class="chart-wrap line-chart">
+              <canvas id="lineChart"></canvas>
+            </div>
+          </article>
+
+          <article id="colaboradores" class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Distribuição</p>
+                <h2>Por colaborador</h2>
+              </div>
+              <select id="pieMetric" aria-label="Métrica do gráfico de pizza"></select>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="pieChart"></canvas>
+            </div>
+          </article>
+
+          <article id="ranking" class="panel panel-wide">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Ranking automático</p>
+                <h2>Colaboradores por abertura</h2>
+              </div>
+              <select id="barMetric" aria-label="Métrica do ranking"></select>
+            </div>
+            <div class="chart-wrap bar-chart">
+              <canvas id="barChart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel insight-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Metas</p>
+                <h2>Status operacional</h2>
+              </div>
+            </div>
+            <div id="goalList" class="goal-list"></div>
+          </article>
+        </section>
+
+        <section id="dados" class="panel table-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Base filtrada</p>
+              <h2>Tabela dinâmica</h2>
+            </div>
+            <input id="searchInput" class="search" type="search" placeholder="Buscar colaborador" />
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

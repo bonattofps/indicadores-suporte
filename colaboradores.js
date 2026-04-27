@@ -106,6 +106,7 @@ const els = {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
+  loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
   els.teamTabs.addEventListener("click", (event) => {
     const button = event.target.closest("button");
@@ -136,6 +137,27 @@ async function handleImport(event) {
 
   try {
     const rows = await readWorkbookRows(file);
+    sessionStorage.setItem("indicadoresWorkbookRows", JSON.stringify(rows));
+    applyCollaboratorRows(rows);
+    fillMetricSelect();
+    render();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível importar colaboradores. Confira se a planilha segue o modelo da matriz.");
+  }
+}
+
+function loadImportedRows() {
+  const savedRows = sessionStorage.getItem("indicadoresWorkbookRows");
+  if (!savedRows) return;
+  try {
+    applyCollaboratorRows(JSON.parse(savedRows));
+  } catch (error) {
+    sessionStorage.removeItem("indicadoresWorkbookRows");
+  }
+}
+
+function applyCollaboratorRows(rows) {
     const n2Index = rows.findIndex((row) => normalize(row[0]).includes("EQUIPE DE COLABORADORES N2"));
     const n1Index = rows.findIndex((row) => normalize(row[0]).includes("EQUIPE DE COLABORADORES N1"));
 
@@ -156,13 +178,6 @@ async function handleImport(event) {
         teams[teamKey].rows = teams[teamKey].rowsByWeek.ultima;
       }
     });
-
-    fillMetricSelect();
-    render();
-  } catch (error) {
-    console.error(error);
-    alert("Não foi possível importar colaboradores. Confira se a planilha segue o modelo da matriz.");
-  }
 }
 
 function parseWeeklyBlocks(rows) {

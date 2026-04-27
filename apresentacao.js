@@ -6,30 +6,31 @@ const weeks = [
   { key: "s4", label: "4ª Semana" }
 ];
 
-let data = [
-  { name: "Tempo Médio de Atendimento - OPA", type: "time", values: { ultima: "00:44:37", s1: "00:50:25", s2: "00:51:27", s3: "00:45:18", s4: "00:38:55" } },
-  { name: "Tempo Médio de Resposta ao Cliente - OPA", type: "time", values: { ultima: "00:02:06", s1: "00:02:58", s2: "00:03:38", s3: "00:02:19", s4: "00:02:31" } },
-  { name: "Tempo Médio de Resposta do Cliente - OPA", type: "time", values: { ultima: "00:04:01", s1: "00:04:52", s2: "00:05:12", s3: "00:04:34", s4: "00:04:23" } },
-  { name: "Quantidade de atendimento realizado pela IA - OPA", type: "number", values: { ultima: 9841, s1: 7049, s2: 8025, s3: 9777, s4: 6284 } },
-  { name: "Qualidade Percebida na Avaliação Geral - OPA", type: "score", values: { ultima: 4.47, s1: 4.50, s2: 4.53, s3: 4.53, s4: 4.51 } },
-  { name: "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2", type: "percent", values: { ultima: 0.99, s1: 0.97, s2: 0.98, s3: 0.99, s4: 0.99 } },
-  { name: "Quantidade de Atendimentos Realizados pela Equipe - N2", type: "number", values: { ultima: 405, s1: 404, s2: 409, s3: 404, s4: 495 } },
-  { name: "Quantidade de Atendimentos que foi a campo - IXC", type: "number", values: { ultima: 627, s1: 534, s2: 566, s3: 612, s4: 569 } },
-  { name: "Quantidade de Atendimentos Solucionados - IXC", type: "number", values: { ultima: 1636, s1: 2104, s2: 1768, s3: 2138, s4: 1888 } },
-  { name: "Quantidade de Atendimentos realizados - IXC", type: "number", values: { ultima: 2263, s1: 2638, s2: 2334, s3: 2750, s4: 2457 } },
-  { name: "Quantidade de Pesquisa de Satisfação Realizados - IXC", type: "number", values: { ultima: 48, s1: 59, s2: 175, s3: 89, s4: 85 } },
-  { name: "Qualidade Percebida na Satisfação em % - IXC", type: "percent", values: { ultima: 0.99, s1: 0.98, s2: 0.98, s3: 0.99, s4: 0.99 } },
-  { name: "Taxa de Cliente que entrou em contato com o suporte em %", type: "percent", values: { ultima: 0.0277, s1: 0.0335, s2: 0.0295, s3: 0.0348, s4: 0.0310 } },
-  { name: "Quantidade Total de Cliente UNI - IXC", type: "number", values: { ultima: 78663, s1: 78857, s2: 79018, s3: 79072, s4: 79195 } }
+const metricDefinitions = [
+  ["Tempo Médio de Atendimento - OPA", "time"],
+  ["Tempo Médio de Resposta ao Cliente - OPA", "time"],
+  ["Tempo Médio de Resposta do Cliente - OPA", "time"],
+  ["Quantidade de atendimento realizado pela IA - OPA", "number"],
+  ["Qualidade Percebida na Avaliação Geral - OPA", "score"],
+  ["Taxa de Cumprimento de SLA em (%) Ativação de Login - N2", "percent"],
+  ["Quantidade de Atendimentos Realizados pela Equipe - N2", "number"],
+  ["Quantidade de Atendimentos que foi a campo - IXC", "number"],
+  ["Quantidade de Atendimentos Solucionados - IXC", "number"],
+  ["Quantidade de Atendimentos realizados - IXC", "number"],
+  ["Quantidade de Pesquisa de Satisfação Realizados - IXC", "number"],
+  ["Qualidade Percebida na Satisfação em % - IXC", "percent"],
+  ["Taxa de Cliente que entrou em contato com o suporte em %", "percent"],
+  ["Quantidade Total de Cliente UNI - IXC", "number"]
 ];
 
-data = data.map((metric) => ({ ...metric, values: emptyWeekValues() }));
+let data = metricDefinitions.map(([name, type]) => ({ name, type, values: emptyWeekValues() }));
 
 let selectedWeek = "ultima";
 let charts = {};
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
+  loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
   document.querySelector("#weekTabs").addEventListener("click", (event) => {
     const button = event.target.closest("button");
@@ -49,6 +50,26 @@ async function handleImport(event) {
 
   try {
     const rows = await readWorkbookRows(file);
+    sessionStorage.setItem("indicadoresWorkbookRows", JSON.stringify(rows));
+    applyGeneralRows(rows);
+    render();
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível importar a planilha. Confira se o arquivo segue o modelo da matriz.");
+  }
+}
+
+function loadImportedRows() {
+  const savedRows = sessionStorage.getItem("indicadoresWorkbookRows");
+  if (!savedRows) return;
+  try {
+    applyGeneralRows(JSON.parse(savedRows));
+  } catch (error) {
+    sessionStorage.removeItem("indicadoresWorkbookRows");
+  }
+}
+
+function applyGeneralRows(rows) {
     const importedRows = rows
       .filter((row) => clean(row[0]) && !normalizeText(row[0]).includes("METRICA MATRIZ"))
       .slice(0, data.length);
@@ -69,12 +90,6 @@ async function handleImport(event) {
         }
       };
     });
-
-    render();
-  } catch (error) {
-    console.error(error);
-    alert("Não foi possível importar a planilha. Confira se o arquivo segue o modelo da matriz.");
-  }
 }
 
 async function readWorkbookRows(file) {

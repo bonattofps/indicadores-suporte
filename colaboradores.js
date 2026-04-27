@@ -69,6 +69,9 @@ const teams = {
   }
 };
 
+teams.N1.rows = [];
+teams.N2.rows = [];
+
 Object.values(teams).forEach((team) => {
   if (team.headers.includes("Atendimento OPASuite")) {
     team.rows = team.rows.map((row) => row.length > team.headers.length

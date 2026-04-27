@@ -23,6 +23,8 @@ let data = [
   { name: "Quantidade Total de Cliente UNI - IXC", type: "number", values: { ultima: 78663, s1: 78857, s2: 79018, s3: 79072, s4: 79195 } }
 ];
 
+data = data.map((metric) => ({ ...metric, values: emptyWeekValues() }));
+
 let selectedWeek = "ultima";
 let charts = {};
 
@@ -148,9 +150,11 @@ function renderSummary() {
   const total = byName("Quantidade de Atendimentos realizados - IXC").values[selectedWeek];
   const field = byName("Quantidade de Atendimentos que foi a campo - IXC").values[selectedWeek];
   const customers = byName("Quantidade Total de Cliente UNI - IXC").values[selectedWeek];
+  const solvedNumber = Number(solved);
+  const totalNumber = Number(total);
 
   const items = [
-    ["Resolutividade IXC", `${((solved / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`],
+    ["Resolutividade IXC", totalNumber ? `${((solvedNumber / totalNumber) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "-"],
     ["Atendimentos a campo", format(field, "number")],
     ["Clientes UNI", format(customers, "number")],
     ["Semana", weeks.find((week) => week.key === selectedWeek).label]
@@ -234,6 +238,7 @@ function lineDataset(label, metric, color) {
 
 function goalStatus(metric) {
   const value = metric.values[selectedWeek];
+  if (value === "" || value === null || value === undefined) return { label: "Sem dados", className: "warn" };
   const number = toNumber(value);
   if (metric.type === "time") {
     if (timeToSeconds(value) <= 45 * 60) return { label: "Dentro", className: "good" };
@@ -284,6 +289,7 @@ function byName(name) {
 }
 
 function format(value, type) {
+  if (value === "" || value === null || value === undefined) return "-";
   if (type === "percent") return `${(value * 100).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
   if (type === "score") return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (type === "number") return value.toLocaleString("pt-BR");
@@ -326,6 +332,7 @@ function normalizeImportedValue(value, type, metricName = "") {
 
 function chartNumber(metric, weekKey) {
   const value = metric.values[weekKey];
+  if (value === "" || value === null || value === undefined) return null;
   const number = Number(value);
   if (isLargeCountMetric(metric.name) && number > 0 && number < 100) return Math.round(number * 1000);
   return number;
@@ -369,6 +376,10 @@ function clean(value) {
 
 function normalizeText(value) {
   return clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+
+function emptyWeekValues() {
+  return { ultima: "", s1: "", s2: "", s3: "", s4: "" };
 }
 
 function setupTheme() {

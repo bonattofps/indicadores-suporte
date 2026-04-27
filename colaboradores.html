@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indicadores de Colaboradores</title>
+    <link rel="stylesheet" href="colaboradores.css" />
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Métrica Matriz - Colaboradores</p>
+          <h1>Desempenho N1 e N2</h1>
+        </div>
+        <div class="switcher">
+          <a href="apresentacao.html">Indicadores Gerais</a>
+          <a class="active" href="colaboradores.html">Colaboradores</a>
+          <button id="themeToggle" type="button">Tema escuro</button>
+        </div>
+        <label class="file-action">
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+          Importar CSV/XLSX
+        </label>
+      </header>
+
+      <section class="filters">
+        <div class="tabs" id="teamTabs">
+          <button class="active" type="button" data-team="N1">Equipe N1</button>
+          <button type="button" data-team="N2">Equipe N2</button>
+        </div>
+        <div class="tabs" id="weekTabs">
+          <button class="active" type="button" data-week="ultima">Última Semana</button>
+          <button type="button" data-week="s1">1ª Semana</button>
+          <button type="button" data-week="s2">2ª Semana</button>
+          <button type="button" data-week="s3">3ª Semana</button>
+          <button type="button" data-week="s4">4ª Semana</button>
+        </div>
+        <label class="search-box"><span>Buscar</span><input id="searchInput" type="search" placeholder="Nome do colaborador" /></label>
+      </section>
+
+      <section class="kpis" id="kpiBoard"></section>
+
+      <section class="grid">
+        <article class="panel wide">
+          <div class="panel-head">
+            <div><p class="eyebrow">Ranking</p><h2>Melhores colaboradores</h2></div>
+            <select id="metricSelect" aria-label="Métrica do ranking"></select>
+          </div>
+          <div class="chart-box"><canvas id="rankingChart"></canvas></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Atenção semanal</p><h2 id="improveTitle">Precisa melhorar</h2></div></div>
+          <div class="improve-list" id="improveList"></div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-head"><div><p class="eyebrow">Mapa de metas</p><h2>Status por colaborador</h2></div></div>
+          <div class="table-scroll">
+            <table>
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Resumo</p><h2>Distribuição de status</h2></div></div>
+          <div class="chart-box compact"><canvas id="statusChart"></canvas></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="colaboradores.js"></script>
+  </body>
+</html>

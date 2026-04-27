@@ -9,9 +9,10 @@ const WEEK_LABELS = {
 
 const teams = {
   N2: {
-    headers: ["Colaborador", "Ativação de Novo Login", "O.S Aberta a Campo", "Atendimento Externo", "Atendimento Interno"],
+    headers: ["Colaborador", "Ativação de Novo Login", "Suporte Interno", "O.S Aberta a Campo", "Atendimento Externo", "Atendimento Interno"],
     goals: {
       "Ativação de Novo Login": { target: 20, direction: "up" },
+      "Suporte Interno": { target: 0, direction: "up" },
       "O.S Aberta a Campo": { target: 8, direction: "up" },
       "Atendimento Externo": { target: 40, direction: "up" },
       "Atendimento Interno": { target: 5, direction: "up" }
@@ -85,6 +86,13 @@ Object.values(teams).forEach((team) => {
     s2: [],
     s3: [],
     s4: []
+  };
+  team.goalsByWeek = {
+    ultima: { ...team.goals },
+    s1: { ...team.goals },
+    s2: { ...team.goals },
+    s3: { ...team.goals },
+    s4: { ...team.goals }
   };
 });
 
@@ -177,14 +185,21 @@ function applyCollaboratorRows(rows) {
     const imported = parseWeeklyBlocks(rows);
     ["N1", "N2"].forEach((teamKey) => {
       const weeks = imported[teamKey];
-      const lastWeek = [...WEEK_ORDER].reverse().find((week) => weeks[week]?.length);
+      const lastWeek = [...WEEK_ORDER].reverse().find((week) => weeks.rows[week]?.length);
       if (lastWeek) {
         teams[teamKey].rowsByWeek = {
-          ultima: weeks[lastWeek],
-          s1: weeks.s1 || [],
-          s2: weeks.s2 || [],
-          s3: weeks.s3 || [],
-          s4: weeks.s4 || []
+          ultima: weeks.rows[lastWeek],
+          s1: weeks.rows.s1 || [],
+          s2: weeks.rows.s2 || [],
+          s3: weeks.rows.s3 || [],
+          s4: weeks.rows.s4 || []
+        };
+        teams[teamKey].goalsByWeek = {
+          ultima: weeks.goals[lastWeek] || teams[teamKey].goals,
+          s1: weeks.goals.s1 || teams[teamKey].goals,
+          s2: weeks.goals.s2 || teams[teamKey].goals,
+          s3: weeks.goals.s3 || teams[teamKey].goals,
+          s4: weeks.goals.s4 || teams[teamKey].goals
         };
         teams[teamKey].rows = teams[teamKey].rowsByWeek.ultima;
       }
@@ -195,8 +210,8 @@ function applyCollaboratorRows(rows) {
 
 function parseWeeklyBlocks(rows) {
   const imported = {
-    N1: { s1: [], s2: [], s3: [], s4: [] },
-    N2: { s1: [], s2: [], s3: [], s4: [] }
+    N1: { rows: { s1: [], s2: [], s3: [], s4: [] }, goals: { s1: null, s2: null, s3: null, s4: null } },
+    N2: { rows: { s1: [], s2: [], s3: [], s4: [] }, goals: { s1: null, s2: null, s3: null, s4: null } }
   };
   const counters = { N1: 0, N2: 0 };
 
@@ -209,7 +224,9 @@ function parseWeeklyBlocks(rows) {
 
     const week = detectBlockWeek(rows, index, counters[team]);
     counters[team] += 1;
-    imported[team][week] = parseBlock(rows, index, team);
+    const parsed = parseBlock(rows, index, team);
+    imported[team].rows[week] = parsed.rows;
+    imported[team].goals[week] = parsed.goals;
   });
 
   return imported;
@@ -229,7 +246,8 @@ async function readWorkbookRows(file) {
 
 function parseBlock(rows, startIndex, team) {
   const parsed = [];
-  const columnMap = team === "N1" ? buildN1ColumnMap(rows[startIndex]) : null;
+  const columnMap = team === "N1" ? buildN1ColumnMap(rows[startIndex]) : buildN2ColumnMap(rows[startIndex]);
+  let goals = null;
 
   for (let i = startIndex + 1; i < rows.length; i += 1) {
     const row = rows[i];
@@ -238,10 +256,21 @@ function parseBlock(rows, startIndex, team) {
 
     if (!name) break;
     if (normalized.includes("EQUIPE DE COLABORADORES") || normalized.includes("METRICA MATRIZ")) break;
-    if (["TOTAL", "META COLETIVA", "META INDIVIDUAL"].some((word) => normalized.includes(word))) continue;
+    if (normalized.includes("META INDIVIDUAL")) {
+      goals = parseGoalsRow(row, team, columnMap);
+      continue;
+    }
+    if (["TOTAL", "META COLETIVA"].some((word) => normalized.includes(word))) continue;
 
     if (team === "N2") {
-      parsed.push([name, normalizeImportedValue(row[1]), normalizeImportedValue(row[2]), normalizeImportedValue(row[3]), normalizeImportedValue(row[4])]);
+      parsed.push([
+        name,
+        normalizeImportedValue(row[columnMap.login]),
+        normalizeImportedValue(row[columnMap.suporteInterno]),
+        normalizeImportedValue(row[columnMap.osCampo]),
+        normalizeImportedValue(row[columnMap.externo]),
+        normalizeImportedValue(row[columnMap.interno])
+      ]);
     } else {
       parsed.push([
         name,
@@ -256,7 +285,49 @@ function parseBlock(rows, startIndex, team) {
     }
   }
 
-  return parsed.length ? parsed : teams[team].rows;
+  return { rows: parsed.length ? parsed : teams[team].rows, goals: goals || teams[team].goals };
+}
+
+function parseGoalsRow(row, team, columnMap) {
+  const goals = {};
+  if (team === "N2") {
+    goals["Ativação de Novo Login"] = { target: normalizeImportedValue(row[columnMap.login]), direction: "up" };
+    goals["Suporte Interno"] = { target: normalizeImportedValue(row[columnMap.suporteInterno]), direction: "up" };
+    goals["O.S Aberta a Campo"] = { target: normalizeImportedValue(row[columnMap.osCampo]), direction: "up" };
+    goals["Atendimento Externo"] = { target: normalizeImportedValue(row[columnMap.externo]), direction: "up" };
+    goals["Atendimento Interno"] = { target: normalizeImportedValue(row[columnMap.interno]), direction: "up" };
+    return goals;
+  }
+
+  goals["Registros Operacional"] = { target: normalizeImportedValue(row[columnMap.operacional]), direction: "up" };
+  goals["Registro Financeiro"] = { target: normalizeImportedValue(row[columnMap.financeiro]), direction: "up" };
+  goals["O.S Aberta a Campo"] = { target: normalizeImportedValue(row[columnMap.osCampo]), direction: "up" };
+  goals["Atendimento OPASuite"] = { target: normalizeImportedValue(row[columnMap.opaSuite]), direction: "up" };
+  goals["Avaliação Individual"] = { target: normalizeImportedValue(row[columnMap.avaliacao]), direction: "up" };
+  goals["Tempo Médio de Atendimento"] = { target: normalizeImportedValue(row[columnMap.tma], "time"), direction: "down" };
+  goals["Tempo Médio de Resposta"] = { target: normalizeImportedValue(row[columnMap.tmr], "time"), direction: "down" };
+  return goals;
+}
+
+function buildN2ColumnMap(headerRow) {
+  const map = {
+    login: 1,
+    suporteInterno: 2,
+    osCampo: 3,
+    externo: 4,
+    interno: 5
+  };
+
+  headerRow.forEach((cell, index) => {
+    const header = normalize(cell);
+    if (header.includes("ATIVACAO") || header.includes("NOVO LOGIN")) map.login = index;
+    if (header.includes("SUPORTE INTERNO")) map.suporteInterno = index;
+    if (header.includes("O S ABERTA") || header.includes("OS ABERTA")) map.osCampo = index;
+    if (header.includes("ATENDIMENTO EXTERNO")) map.externo = index;
+    if (header.includes("ATENDIMENTO INTERNO")) map.interno = index;
+  });
+
+  return map;
 }
 
 function buildN1ColumnMap(headerRow) {
@@ -406,13 +477,14 @@ function renderMiniList(items, emptyMessage) {
 function renderActionPlan() {
   const rows = rowsAsObjects();
   const actions = [];
+  const goals = currentGoals();
   rows.forEach((row) => {
     const misses = scoreRow(row).misses;
     if (!misses.length) return;
     actions.push({
       colaborador: row.Colaborador,
       metrics: misses.map((metric) => {
-        const goal = teams[currentTeam].goals[metric];
+        const goal = goals[metric];
         return `${metric}: atual ${formatCell(row[metric])} / meta ${formatCell(goal.target)}`;
       }).join(" | "),
       action: [...new Set(misses.map(actionForMetric))].join(" ")
@@ -452,7 +524,7 @@ function renderTable() {
       <tr>
         ${headers.map((header) => `<td class="${cellClass(row, header)}">${formatCell(row[header])}</td>`).join("")}
         <td class="neutral-cell"><span class="badge ${badge.className}">${badge.label}</span></td>
-        <td class="neutral-cell">${result.misses.slice(0, 2).join(", ") || "Dentro da meta"}</td>
+        <td class="neutral-cell">${result.misses.join(", ") || "Dentro da meta"}</td>
       </tr>
     `;
   }).join("");
@@ -506,7 +578,7 @@ function renderStatusChart() {
 }
 
 function scoreRow(row) {
-  const goals = teams[currentTeam].goals;
+  const goals = currentGoals();
   let score = 0;
   const misses = [];
 
@@ -522,16 +594,20 @@ function scoreRow(row) {
 
 function cellClass(row, header) {
   if (header === "Colaborador") return "neutral-cell";
-  const goal = teams[currentTeam].goals[header];
+  const goal = currentGoals()[header];
   if (!goal) return "neutral-cell";
   return `${metricStatus(row[header], goal)}-cell`;
+}
+
+function currentGoals() {
+  return teams[currentTeam].goalsByWeek?.[currentWeek] || teams[currentTeam].goals;
 }
 
 function metricStatus(value, goal) {
   const number = metricValue(value);
   const target = metricValue(goal.target);
   if (!Number.isFinite(number) || !Number.isFinite(target)) return "warn";
-  if (goal.direction === "down" && number <= target) return "good";
+  if (goal.direction === "down") return number <= target ? "good" : "bad";
   if (goal.direction === "up" && number >= target) return "good";
   const ratio = goal.direction === "up" ? number / target : target / Math.max(number, 1);
   return ratio >= 0.8 ? "warn" : "bad";
@@ -544,12 +620,15 @@ function statusBadge(result) {
 
 function metricValue(value) {
   if (typeof value === "number") return value;
-  if (/^\d{2}:\d{2}:\d{2}$/.test(String(value))) return timeToSeconds(value);
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(String(value))) return timeToSeconds(value);
   return Number(value);
 }
 
 function timeToSeconds(value) {
-  const [hours, minutes, seconds] = value.split(":").map(Number);
+  const parts = String(value).split(":").map(Number);
+  const hours = parts.length === 3 ? parts[0] : 0;
+  const minutes = parts.length === 3 ? parts[1] : parts[0];
+  const seconds = parts.length === 3 ? parts[2] : parts[1];
   return hours * 3600 + minutes * 60 + seconds;
 }
 
@@ -598,7 +677,7 @@ function normalizeImportedValue(value, type = "number") {
   const text = clean(value);
   if (!text || normalize(text) === "S R") return 0;
   if (type === "time") {
-    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) return text.length === 5 ? `00:${text}` : text;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) return normalizeTimeLabel(text);
     const number = parseLocaleNumber(text);
     return Number.isFinite(number) ? excelTimeToLabel(number) : "00:00:00";
   }
@@ -626,6 +705,14 @@ function excelTimeToLabel(value) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function normalizeTimeLabel(value) {
+  const parts = String(value).split(":").map(Number);
+  const hours = parts.length === 3 ? parts[0] : 0;
+  const minutes = parts.length === 3 ? parts[1] : parts[0];
+  const seconds = parts.length === 3 ? parts[2] : parts[1];
   return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
@@ -712,6 +799,13 @@ function clearImportedData() {
   ["N1", "N2"].forEach((teamKey) => {
     teams[teamKey].rows = [];
     teams[teamKey].rowsByWeek = { ultima: [], s1: [], s2: [], s3: [], s4: [] };
+    teams[teamKey].goalsByWeek = {
+      ultima: { ...teams[teamKey].goals },
+      s1: { ...teams[teamKey].goals },
+      s2: { ...teams[teamKey].goals },
+      s3: { ...teams[teamKey].goals },
+      s4: { ...teams[teamKey].goals }
+    };
   });
   els.importStatus.textContent = "Nenhuma planilha importada nesta aba.";
   els.validationList.innerHTML = "";

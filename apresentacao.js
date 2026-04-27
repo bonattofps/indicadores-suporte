@@ -391,7 +391,7 @@ function normalizeImportedValue(value, type, metricName = "") {
   const text = clean(value);
   if (!text || normalizeText(text) === "S R") return type === "time" ? "00:00:00" : 0;
   if (type === "time") {
-    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) return text.length === 5 ? `00:${text}` : text;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(text)) return normalizeTimeLabel(text);
     const number = parseLocaleNumber(text);
     return Number.isFinite(number) ? excelTimeToLabel(number) : "00:00:00";
   }
@@ -444,6 +444,14 @@ function excelTimeToLabel(value) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function normalizeTimeLabel(value) {
+  const parts = String(value).split(":").map(Number);
+  const hours = parts.length === 3 ? parts[0] : 0;
+  const minutes = parts.length === 3 ? parts[1] : parts[0];
+  const seconds = parts.length === 3 ? parts[2] : parts[1];
   return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 

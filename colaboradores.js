@@ -263,7 +263,7 @@ function buildN1ColumnMap(headerRow) {
     if (header.includes("REGISTRO FINANCEIRO")) map.financeiro = index;
     if (header.includes("O S ABERTA") || header.includes("OS ABERTA")) map.osCampo = index;
     if (header.includes("OPASUITE")) map.opaSuite = index;
-    if (header.includes("AVALIACAO INDIVIDUAL")) map.avaliacao = index;
+    if (header.includes("AVALIACAO INDIVIDUAL") || header.includes("AVALIA O INDIVIDUAL") || header.includes("AVALIA")) map.avaliacao = index;
     if (header.includes("TEMPO MEDIO") && header.includes("ATENDIMENTO")) map.tma = index;
     if (header.includes("TEMPO MEDIO") && header.includes("RESPOSTA")) map.tmr = index;
   });
@@ -446,9 +446,8 @@ function metricStatus(value, goal) {
 }
 
 function statusBadge(result) {
-  if (result.misses.length <= 1) return { label: "Bom", className: "good" };
-  if (result.misses.length <= 3) return { label: "Atenção", className: "warn" };
-  return { label: "Crítico", className: "bad" };
+  if (result.misses.length >= 1) return { label: "Crítico", className: "bad" };
+  return { label: "Bom", className: "good" };
 }
 
 function metricValue(value) {
@@ -483,7 +482,18 @@ function chartOptions() {
 }
 
 function normalize(value) {
-  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Ã‡/g, "C")
+    .replace(/Ã£/g, "A")
+    .replace(/Ã©/g, "E")
+    .replace(/Ã‰/g, "E")
+    .replace(/Ã¡/g, "A")
+    .replace(/Ã“/g, "O")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .toUpperCase()
+    .trim();
 }
 
 function shortName(name) {

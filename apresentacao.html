@@ -3,20 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Indicadores Gerais - Apresentação</title>
+    <title>SGP - Sistema Gestão do Suporte</title>
     <link rel="stylesheet" href="apresentacao.css" />
   </head>
   <body>
     <main class="presentation">
       <header class="hero">
         <div>
-          <p class="eyebrow">Métrica Matriz - 2026</p>
+          <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
           <h1>Indicadores Gerais</h1>
         </div>
         <div class="view-switcher">
           <a class="active" href="apresentacao.html">Indicadores Gerais</a>
           <a href="colaboradores.html">Colaboradores</a>
-          <button id="themeToggle" type="button">Tema escuro</button>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">☾</button>
+          <button id="reportButton" type="button">Exportar relatório</button>
         </div>
         <div class="week-tabs" id="weekTabs">
           <button class="active" type="button" data-week="ultima">Última Semana</button>
@@ -30,6 +31,10 @@
           Importar CSV/XLSX
         </label>
       </header>
+
+      <section class="notice" id="importStatus">Nenhuma planilha importada nesta aba.</section>
+      <section class="executive-strip" id="executiveSummary"></section>
+      <section class="validation-list" id="validationList"></section>
 
       <section class="kpi-board" id="kpiBoard"></section>
 

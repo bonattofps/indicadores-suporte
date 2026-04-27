@@ -143,6 +143,71 @@ body[data-theme="dark"] td {
   color: #dfe8f2;
 }
 
+.notice,
+.validation-list {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #cfe2ee;
+  border-radius: 8px;
+  color: #567086;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.validation-list:empty {
+  display: none;
+}
+
+.executive-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.insight-card {
+  padding: 14px;
+  border: 1px solid #cfe2ee;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(20, 75, 110, 0.08);
+}
+
+.insight-card span {
+  display: block;
+  color: #567086;
+  font-size: 0.78rem;
+}
+
+.insight-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #102033;
+}
+
+body[data-theme="dark"] .notice,
+body[data-theme="dark"] .validation-list,
+body[data-theme="dark"] .insight-card {
+  border-color: #2b3947;
+  background: linear-gradient(180deg, rgba(24, 33, 43, 0.98), rgba(14, 19, 26, 0.98));
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34);
+}
+
+body[data-theme="dark"] .notice,
+body[data-theme="dark"] .validation-list,
+body[data-theme="dark"] .insight-card span {
+  color: #91a0b2;
+}
+
+body[data-theme="dark"] .insight-card strong {
+  color: #edf4fb;
+}
+
+@media (max-width: 720px) {
+  .executive-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
 .presentation {
   width: 100%;
   margin: 0 auto;

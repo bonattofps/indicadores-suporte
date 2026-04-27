@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
   loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
+  document.querySelector("#reportButton").addEventListener("click", () => window.print());
   document.querySelector("#weekTabs").addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
@@ -51,6 +52,8 @@ async function handleImport(event) {
   try {
     const rows = await readWorkbookRows(file);
     sessionStorage.setItem("indicadoresWorkbookRows", JSON.stringify(rows));
+    sessionStorage.setItem("indicadoresWorkbookName", file.name);
+    sessionStorage.setItem("indicadoresImportedAt", new Date().toLocaleString("pt-BR"));
     applyGeneralRows(rows);
     render();
   } catch (error) {
@@ -90,6 +93,8 @@ function applyGeneralRows(rows) {
         }
       };
     });
+    updateImportStatus(rows);
+    renderValidation(importedRows);
 }
 
 async function readWorkbookRows(file) {
@@ -102,10 +107,26 @@ async function readWorkbookRows(file) {
 
 function render() {
   renderKpis();
+  renderExecutiveSummary();
   renderGoals();
   renderSummary();
   renderTable();
   renderCharts();
+}
+
+function renderExecutiveSummary() {
+  const total = byName("Quantidade de Atendimentos realizados - IXC").values[selectedWeek];
+  const solved = byName("Quantidade de Atendimentos Solucionados - IXC").values[selectedWeek];
+  const tma = byName("Tempo Médio de Atendimento - OPA").values[selectedWeek];
+  const ia = byName("Quantidade de atendimento realizado pela IA - OPA").values[selectedWeek];
+  const resolved = Number(total) ? `${((Number(solved) / Number(total)) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "-";
+
+  document.querySelector("#executiveSummary").innerHTML = [
+    ["Semana", weeks.find((week) => week.key === selectedWeek).label],
+    ["Resolutividade IXC", resolved],
+    ["TMA - OPA", format(tma, "time")],
+    ["IA - OPA", format(ia, "number")]
+  ].map(([label, value]) => `<article class="insight-card"><span>${label}</span><strong>${value}</strong></article>`).join("");
 }
 
 function renderKpis() {
@@ -120,16 +141,15 @@ function renderKpis() {
   document.querySelector("#kpiBoard").innerHTML = kpis.map((name) => {
     const metric = byName(name);
     const current = metric.values[selectedWeek];
-    const first = metric.values.s1;
-    const delta = Number.isFinite(toNumber(current)) && Number.isFinite(toNumber(first))
-      ? toNumber(current) - toNumber(first)
-      : 0;
+    const baseWeek = comparisonWeekKey();
+    const base = metric.values[baseWeek];
+    const delta = deltaValue(current, base, metric.type, metric.name);
 
     return `
       <article class="kpi">
         <div class="label">${name}</div>
         <div class="value">${format(current, metric.type)}</div>
-        <div class="change">${deltaLabel(delta, metric.type)} vs. 1ª Semana</div>
+        <div class="change">${deltaLabel(delta, metric.type)} vs. ${weekLabel(baseWeek)}</div>
       </article>
     `;
   }).join("");
@@ -312,18 +332,52 @@ function format(value, type) {
 }
 
 function deltaLabel(delta, type) {
+  if (delta === null || delta === undefined || Number.isNaN(delta)) return "Sem dados";
   if (!delta) return "Sem variação";
-  const signal = delta > 0 ? "+" : "";
-  return `${signal}${format(Math.abs(delta), type).replace("-", "")}`;
+  if (type === "time") return `${delta > 0 ? "+" : "-"}${secondsToTime(Math.abs(delta))}`;
+  const signal = delta > 0 ? "+" : "-";
+  return `${signal}${Math.abs(delta).toLocaleString("pt-BR", { maximumFractionDigits: type === "percent" ? 2 : 0 })}`;
 }
 
 function toNumber(value) {
   return typeof value === "number" ? value : NaN;
 }
 
+function deltaValue(current, base, type, metricName = "") {
+  if (current === "" || base === "" || current === null || base === null || current === undefined || base === undefined) return null;
+  if (type === "time") return timeToSeconds(current) - timeToSeconds(base);
+  const currentNumber = normalizeMetricNumber(current, metricName);
+  const baseNumber = normalizeMetricNumber(base, metricName);
+  return Number.isFinite(currentNumber) && Number.isFinite(baseNumber) ? currentNumber - baseNumber : null;
+}
+
+function normalizeMetricNumber(value, metricName) {
+  const number = Number(value);
+  if (isLargeCountMetric(metricName) && number > 0 && number < 100) return Math.round(number * 1000);
+  return number;
+}
+
+function comparisonWeekKey() {
+  if (selectedWeek === "ultima") return "s4";
+  const order = ["s1", "s2", "s3", "s4"];
+  const index = order.indexOf(selectedWeek);
+  return index > 0 ? order[index - 1] : "s1";
+}
+
+function weekLabel(key) {
+  return weeks.find((week) => week.key === key)?.label || "semana anterior";
+}
+
 function timeToSeconds(value) {
   const [hours, minutes, seconds] = value.split(":").map(Number);
   return hours * 3600 + minutes * 60 + seconds;
+}
+
+function secondsToTime(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 function normalizeImportedValue(value, type, metricName = "") {
@@ -357,6 +411,7 @@ function isLargeCountMetric(name) {
   return [
     "Quantidade de Atendimentos realizados - IXC",
     "Quantidade de Atendimentos Solucionados - IXC",
+    "Quantidade de atendimento realizado pela IA - OPA",
     "Quantidade Total de Cliente UNI - IXC"
   ].includes(name);
 }
@@ -397,15 +452,33 @@ function emptyWeekValues() {
   return { ultima: "", s1: "", s2: "", s3: "", s4: "" };
 }
 
+function updateImportStatus(rows) {
+  const status = document.querySelector("#importStatus");
+  if (!status) return;
+  const name = sessionStorage.getItem("indicadoresWorkbookName") || "Planilha importada";
+  const importedAt = sessionStorage.getItem("indicadoresImportedAt") || new Date().toLocaleString("pt-BR");
+  status.textContent = `${name} importada em ${importedAt}. ${rows.length} linhas lidas.`;
+}
+
+function renderValidation(importedRows) {
+  const validation = document.querySelector("#validationList");
+  if (!validation) return;
+  const warnings = [];
+  metricDefinitions.forEach(([name], index) => {
+    if (!importedRows[index]) warnings.push(`Indicador não encontrado: ${name}`);
+  });
+  validation.innerHTML = warnings.map((warning) => `<div>${warning}</div>`).join("");
+}
+
 function setupTheme() {
   const button = document.querySelector("#themeToggle");
   const savedTheme = localStorage.getItem("indicadores-theme") || "light";
   document.body.dataset.theme = savedTheme;
-  button.textContent = savedTheme === "dark" ? "Tema claro" : "Tema escuro";
+  button.textContent = savedTheme === "dark" ? "☀" : "☾";
   button.addEventListener("click", () => {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     document.body.dataset.theme = nextTheme;
     localStorage.setItem("indicadores-theme", nextTheme);
-    button.textContent = nextTheme === "dark" ? "Tema claro" : "Tema escuro";
+    button.textContent = nextTheme === "dark" ? "☀" : "☾";
   });
 }

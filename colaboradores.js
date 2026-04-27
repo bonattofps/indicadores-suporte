@@ -98,16 +98,25 @@ const els = {
   search: document.querySelector("#searchInput"),
   metricSelect: document.querySelector("#metricSelect"),
   kpiBoard: document.querySelector("#kpiBoard"),
+  importStatus: document.querySelector("#importStatus"),
+  executiveSummary: document.querySelector("#executiveSummary"),
+  validationList: document.querySelector("#validationList"),
   improveList: document.querySelector("#improveList"),
   improveTitle: document.querySelector("#improveTitle"),
+  topGoodList: document.querySelector("#topGoodList"),
+  topCriticalList: document.querySelector("#topCriticalList"),
+  actionHead: document.querySelector("#actionHead"),
+  actionBody: document.querySelector("#actionBody"),
   tableHead: document.querySelector("#tableHead"),
   tableBody: document.querySelector("#tableBody")
 };
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
+  loadSavedGoals();
   loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
+  document.querySelector("#reportButton").addEventListener("click", () => window.print());
   els.teamTabs.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
@@ -138,6 +147,8 @@ async function handleImport(event) {
   try {
     const rows = await readWorkbookRows(file);
     sessionStorage.setItem("indicadoresWorkbookRows", JSON.stringify(rows));
+    sessionStorage.setItem("indicadoresWorkbookName", file.name);
+    sessionStorage.setItem("indicadoresImportedAt", new Date().toLocaleString("pt-BR"));
     applyCollaboratorRows(rows);
     fillMetricSelect();
     render();
@@ -178,6 +189,8 @@ function applyCollaboratorRows(rows) {
         teams[teamKey].rows = teams[teamKey].rowsByWeek.ultima;
       }
     });
+    updateImportStatus(rows);
+    renderValidation(rows);
 }
 
 function parseWeeklyBlocks(rows) {
@@ -279,15 +292,17 @@ function fillMetricSelect() {
 
 function render() {
   renderKpis();
+  renderExecutiveSummary();
   renderImproveList();
+  renderTopLists();
   renderTable();
+  renderActionPlan();
   renderRankingChart();
-  renderStatusChart();
 }
 
-function rowsAsObjects() {
+function rowsAsObjects(weekKey = currentWeek) {
   const team = teams[currentTeam];
-  const weekRows = team.rowsByWeek?.[currentWeek] || [];
+  const weekRows = team.rowsByWeek?.[weekKey] || [];
   return weekRows.map((row) => Object.fromEntries(team.headers.map((header, index) => [header, row[index]])));
 }
 
@@ -298,8 +313,8 @@ function filteredRows() {
 
 function renderKpis() {
   const scored = rowsAsObjects().map((row) => ({ row, result: scoreRow(row) }));
-  const good = scored.filter((item) => item.result.misses.length <= 1).length;
-  const bad = scored.filter((item) => item.result.misses.length >= 4).length;
+  const good = scored.filter((item) => item.result.misses.length === 0).length;
+  const bad = scored.filter((item) => item.result.misses.length >= 1).length;
   const best = [...scored].sort((a, b) => b.result.score - a.result.score)[0];
   const worst = [...scored].sort((a, b) => b.result.misses.length - a.result.misses.length || a.result.score - b.result.score)[0];
 
@@ -314,6 +329,25 @@ function renderKpis() {
       <strong>${value}</strong>
     </article>
   `).join("");
+}
+
+function renderExecutiveSummary() {
+  const rows = rowsAsObjects();
+  const scored = rows.map((row) => ({ row, result: scoreRow(row) }));
+  const critical = scored.filter((item) => item.result.misses.length).length;
+  const best = [...scored].sort((a, b) => b.result.score - a.result.score)[0]?.row.Colaborador || "-";
+  const previousRows = rowsAsObjects(previousWeekKey());
+  const metric = els.metricSelect.value;
+  const currentTotal = rows.reduce((sum, row) => sum + metricValue(row[metric]), 0);
+  const previousTotal = previousRows.reduce((sum, row) => sum + metricValue(row[metric]), 0);
+  const delta = previousTotal ? (((currentTotal - previousTotal) / previousTotal) * 100).toFixed(1) : "-";
+
+  els.executiveSummary.innerHTML = [
+    ["Semana", WEEK_LABELS[currentWeek]],
+    ["Críticos", critical],
+    ["Melhor desempenho", best],
+    ["Evolução vs anterior", delta === "-" ? "-" : `${delta}%`]
+  ].map(([label, value]) => `<article class="insight-card"><span>${label}</span><strong>${value}</strong></article>`).join("");
 }
 
 function renderImproveList() {
@@ -339,6 +373,64 @@ function renderImproveList() {
       <strong>${item.row.Colaborador}</strong>
       <span>${item.result.misses.slice(0, 3).join(", ")}</span>
     </div>
+  `).join("");
+}
+
+function renderTopLists() {
+  const scored = rowsAsObjects().map((row) => ({ row, result: scoreRow(row) }));
+  const good = [...scored]
+    .filter((item) => !item.result.misses.length)
+    .sort((a, b) => b.result.score - a.result.score)
+    .slice(0, 5);
+  const critical = [...scored]
+    .filter((item) => item.result.misses.length)
+    .sort((a, b) => b.result.misses.length - a.result.misses.length || a.result.score - b.result.score)
+    .slice(0, 5);
+
+  els.topGoodList.innerHTML = renderMiniList(good, "Sem colaboradores 100% dentro da meta nesta semana.");
+  els.topCriticalList.innerHTML = renderMiniList(critical, "Sem críticos nesta semana.");
+}
+
+function renderMiniList(items, emptyMessage) {
+  if (!items.length) {
+    return `<div class="improve-item"><strong>${emptyMessage}</strong><span>${WEEK_LABELS[currentWeek]}</span></div>`;
+  }
+  return items.map((item) => `
+    <div class="improve-item">
+      <strong>${item.row.Colaborador}</strong>
+      <span>${item.result.misses.length ? item.result.misses.join(", ") : "Dentro da meta"}</span>
+    </div>
+  `).join("");
+}
+
+function renderActionPlan() {
+  const rows = rowsAsObjects();
+  const actions = [];
+  rows.forEach((row) => {
+    const misses = scoreRow(row).misses;
+    if (!misses.length) return;
+    actions.push({
+      colaborador: row.Colaborador,
+      metrics: misses.map((metric) => {
+        const goal = teams[currentTeam].goals[metric];
+        return `${metric}: atual ${formatCell(row[metric])} / meta ${formatCell(goal.target)}`;
+      }).join(" | "),
+      action: [...new Set(misses.map(actionForMetric))].join(" ")
+    });
+  });
+
+  els.actionHead.innerHTML = `<tr><th>Colaborador</th><th>Precisa melhorar</th><th>Ação sugerida</th></tr>`;
+  if (!actions.length) {
+    els.actionBody.innerHTML = `<tr><td class="neutral-cell" colspan="3">Nenhum plano de ação necessário para ${WEEK_LABELS[currentWeek]}.</td></tr>`;
+    return;
+  }
+
+  els.actionBody.innerHTML = actions.map((item) => `
+    <tr>
+      <td>${item.colaborador}</td>
+      <td>${item.metrics}</td>
+      <td>${item.action}</td>
+    </tr>
   `).join("");
 }
 
@@ -541,15 +633,74 @@ function clean(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function previousWeekKey() {
+  if (currentWeek === "ultima") return "s3";
+  const index = WEEK_ORDER.indexOf(currentWeek);
+  return index > 0 ? WEEK_ORDER[index - 1] : currentWeek;
+}
+
+function actionForMetric(metric) {
+  if (metric.includes("Tempo Médio")) return "Revisar fila, priorização e tempo de resposta individual.";
+  if (metric.includes("Avaliação")) return "Analisar atendimentos mal avaliados e reforçar padrão de qualidade.";
+  if (metric.includes("O.S")) return "Acompanhar abertura de campo e aderência ao processo.";
+  if (metric.includes("OPASuite")) return "Revisar produtividade no OPASuite e distribuição de demandas.";
+  if (metric.includes("Financeiro") || metric.includes("Operacional")) return "Checar volume de registros e meta diária.";
+  return "Acompanhar indicador com feedback semanal.";
+}
+
+function updateImportStatus(rows) {
+  if (!els.importStatus) return;
+  const name = sessionStorage.getItem("indicadoresWorkbookName") || "Planilha importada";
+  const importedAt = sessionStorage.getItem("indicadoresImportedAt") || new Date().toLocaleString("pt-BR");
+  const weeksFound = WEEK_ORDER.filter((week) => teams.N1.rowsByWeek[week]?.length || teams.N2.rowsByWeek[week]?.length).length;
+  els.importStatus.textContent = `${name} importada em ${importedAt}. ${weeksFound} semana(s) de colaboradores encontrada(s). ${rows.length} linhas lidas.`;
+}
+
+function renderValidation(rows) {
+  if (!els.validationList) return;
+  const warnings = [];
+  ["N1", "N2"].forEach((teamKey) => {
+    WEEK_ORDER.forEach((week) => {
+      if (!teams[teamKey].rowsByWeek[week]?.length) warnings.push(`${teamKey}: ${WEEK_LABELS[week]} sem dados.`);
+    });
+  });
+  if (!rows.some((row) => normalize(row.join(" ")).includes("AVALIACAO"))) warnings.push("Coluna Avaliação Individual não identificada.");
+  els.validationList.innerHTML = warnings.map((warning) => `<div>${warning}</div>`).join("");
+}
+
+function loadSavedGoals() {
+  const saved = localStorage.getItem("indicadores-colaborador-metas");
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    Object.keys(parsed).forEach((teamKey) => {
+      Object.assign(teams[teamKey].goals, parsed[teamKey]);
+    });
+  } catch {
+    localStorage.removeItem("indicadores-colaborador-metas");
+  }
+}
+
+function configureGoals() {
+  const metric = prompt(`Digite a métrica para alterar:\n${Object.keys(teams[currentTeam].goals).join("\n")}`);
+  if (!metric || !teams[currentTeam].goals[metric]) return;
+  const current = teams[currentTeam].goals[metric].target;
+  const target = prompt(`Nova meta para ${metric}:`, current);
+  if (!target) return;
+  teams[currentTeam].goals[metric].target = /^\d{1,2}:\d{2}(:\d{2})?$/.test(target) ? target : normalizeImportedValue(target);
+  localStorage.setItem("indicadores-colaborador-metas", JSON.stringify({ N1: teams.N1.goals, N2: teams.N2.goals }));
+  render();
+}
+
 function setupTheme() {
   const button = document.querySelector("#themeToggle");
   const savedTheme = localStorage.getItem("indicadores-theme") || "light";
   document.body.dataset.theme = savedTheme;
-  button.textContent = savedTheme === "dark" ? "Tema claro" : "Tema escuro";
+  button.textContent = savedTheme === "dark" ? "☀" : "☾";
   button.addEventListener("click", () => {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     document.body.dataset.theme = nextTheme;
     localStorage.setItem("indicadores-theme", nextTheme);
-    button.textContent = nextTheme === "dark" ? "Tema claro" : "Tema escuro";
+    button.textContent = nextTheme === "dark" ? "☀" : "☾";
   });
 }

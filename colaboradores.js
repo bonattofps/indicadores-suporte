@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadSavedGoals();
   loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
-  document.querySelector("#reportButton").addEventListener("click", () => window.print());
+  document.querySelector("#clearButton").addEventListener("click", clearImportedData);
   els.teamTabs.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
@@ -703,4 +703,17 @@ function setupTheme() {
     localStorage.setItem("indicadores-theme", nextTheme);
     button.textContent = nextTheme === "dark" ? "☀" : "☾";
   });
+}
+
+function clearImportedData() {
+  sessionStorage.removeItem("indicadoresWorkbookRows");
+  sessionStorage.removeItem("indicadoresWorkbookName");
+  sessionStorage.removeItem("indicadoresImportedAt");
+  ["N1", "N2"].forEach((teamKey) => {
+    teams[teamKey].rows = [];
+    teams[teamKey].rowsByWeek = { ultima: [], s1: [], s2: [], s3: [], s4: [] };
+  });
+  els.importStatus.textContent = "Nenhuma planilha importada nesta aba.";
+  els.validationList.innerHTML = "";
+  render();
 }

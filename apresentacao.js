@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
   loadImportedRows();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
-  document.querySelector("#reportButton").addEventListener("click", () => window.print());
+  document.querySelector("#clearButton").addEventListener("click", clearImportedData);
   document.querySelector("#weekTabs").addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
@@ -133,9 +133,14 @@ function renderKpis() {
   const kpis = [
     "Quantidade de Atendimentos realizados - IXC",
     "Quantidade de Atendimentos Solucionados - IXC",
+    "Quantidade de Atendimentos que foi a campo - IXC",
     "Tempo Médio de Resposta ao Cliente - OPA",
     "Tempo Médio de Atendimento - OPA",
-    "Quantidade de atendimento realizado pela IA - OPA"
+    "Quantidade de atendimento realizado pela IA - OPA",
+    "Qualidade Percebida na Avaliação Geral - OPA",
+    "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2",
+    "Qualidade Percebida na Satisfação em % - IXC",
+    "Taxa de Cliente que entrou em contato com o suporte em %"
   ];
 
   document.querySelector("#kpiBoard").innerHTML = kpis.map((name) => {
@@ -144,12 +149,14 @@ function renderKpis() {
     const baseWeek = comparisonWeekKey();
     const base = metric.values[baseWeek];
     const delta = deltaValue(current, base, metric.type, metric.name);
+    const trendClass = trendStatus(delta, metric);
 
     return `
       <article class="kpi">
         <div class="label">${name}</div>
         <div class="value">${format(current, metric.type)}</div>
-        <div class="change">${deltaLabel(delta, metric.type)} vs. ${weekLabel(baseWeek)}</div>
+        <div class="previous">Anterior: ${format(base, metric.type)}</div>
+        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${weekLabel(baseWeek)}</div>
       </article>
     `;
   }).join("");
@@ -481,4 +488,21 @@ function setupTheme() {
     localStorage.setItem("indicadores-theme", nextTheme);
     button.textContent = nextTheme === "dark" ? "☀" : "☾";
   });
+}
+
+function clearImportedData() {
+  sessionStorage.removeItem("indicadoresWorkbookRows");
+  sessionStorage.removeItem("indicadoresWorkbookName");
+  sessionStorage.removeItem("indicadoresImportedAt");
+  data = metricDefinitions.map(([name, type]) => ({ name, type, values: emptyWeekValues() }));
+  document.querySelector("#importStatus").textContent = "Nenhuma planilha importada nesta aba.";
+  document.querySelector("#validationList").innerHTML = "";
+  render();
+}
+
+function trendStatus(delta, metric) {
+  if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return "trend-neutral";
+  const lowerIsBetter = metric.type === "time" || metric.name.includes("Taxa de Cliente");
+  const improved = lowerIsBetter ? delta < 0 : delta > 0;
+  return improved ? "trend-good" : "trend-bad";
 }

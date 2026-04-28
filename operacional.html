@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Sistema Gestão do Suporte</title>
+    <link rel="stylesheet" href="operacional.css" />
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+          <h1>Reincidência Operacional</h1>
+        </div>
+        <div class="switcher">
+          <a href="apresentacao.html">Indicadores Gerais</a>
+          <a href="colaboradores.html">Colaboradores</a>
+          <a class="active" href="operacional.html">Reincidência</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">☾</button>
+          <button id="clearButton" type="button">Limpar</button>
+        </div>
+        <label class="file-action">
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+          Importar CSV/XLSX
+        </label>
+      </header>
+
+      <section class="notice" id="importStatus">Tentando carregar o relatório operacional da pasta do site.</section>
+      <section class="executive-strip" id="summaryStrip"></section>
+      <section class="comparison-strip" id="comparisonStrip"></section>
+
+      <section class="filters">
+        <input id="clientSearch" type="search" placeholder="Buscar cliente" />
+        <select id="monthFilter" aria-label="Mês">
+          <option value="all">Todos os meses</option>
+        </select>
+        <select id="periodFilter" aria-label="Período">
+          <option value="all">Todo o período</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+        </select>
+      </section>
+
+      <section class="grid">
+        <article class="panel wide">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Ranking</p>
+              <h2>Clientes com mais reincidência</h2>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="clientChart"></canvas>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Clientes</p>
+              <h2>Mapa de reincidência</h2>
+            </div>
+          </div>
+          <div class="table-scroll compact-table">
+            <table>
+              <thead id="clientHead"></thead>
+              <tbody id="clientBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel full-width">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Leitura rápida</p>
+              <h2 id="detailTitle">Análise do cliente</h2>
+            </div>
+          </div>
+          <div class="detail-metrics" id="detailMetrics"></div>
+          <div class="client-analysis">
+            <section class="detail-panel">
+              <h3>Suportes que atenderam</h3>
+              <div class="detail-list" id="supportBreakdown"></div>
+            </section>
+            <section class="detail-panel">
+              <h3>Mesmo suporte repetiu atendimento</h3>
+              <div class="table-scroll compact-table">
+                <table>
+                  <thead id="repeatHead"></thead>
+                  <tbody id="repeatBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="panel full-width">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Detalhe</p>
+              <h2>Atendimentos do cliente</h2>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead id="ticketHead"></thead>
+              <tbody id="ticketBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="operacional.js"></script>
+  </body>
+</html>

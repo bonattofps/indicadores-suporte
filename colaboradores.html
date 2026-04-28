@@ -3,20 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SGP - Sistema Gestão do Suporte</title>
-    <link rel="stylesheet" href="colaboradores.css" />
+    <title>SGP - Sistema Gestao do Suporte</title>
+    <link rel="stylesheet" href="colaboradores.css?v=20260428-8" />
   </head>
   <body>
     <main class="screen">
       <header class="header">
         <div>
-          <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
           <h1>Desempenho N1 e N2</h1>
         </div>
         <div class="switcher">
           <a href="apresentacao.html">Indicadores Gerais</a>
           <a class="active" href="colaboradores.html">Colaboradores</a>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">☾</button>
+          <a href="operacional.html">Reincidencia</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">◐</button>
           <button id="clearButton" type="button">Limpar</button>
         </div>
         <label class="file-action">
@@ -25,7 +26,7 @@
         </label>
       </header>
 
-      <section class="notice" id="importStatus">Nenhuma planilha importada nesta aba.</section>
+      <section class="notice" id="importStatus">Nenhuma planilha importada neste navegador.</section>
       <section class="executive-strip" id="executiveSummary"></section>
       <section class="validation-list" id="validationList"></section>
 
@@ -34,14 +35,26 @@
           <button class="active" type="button" data-team="N1">Equipe N1</button>
           <button type="button" data-team="N2">Equipe N2</button>
         </div>
+
+        <label class="month-filter">
+          <span>Mes</span>
+          <select id="monthSelect" aria-label="Selecionar mes">
+            <option value="">Selecione o mes</option>
+          </select>
+        </label>
+
         <div class="tabs" id="weekTabs">
-          <button class="active" type="button" data-week="ultima">Última Semana</button>
-          <button type="button" data-week="s1">1ª Semana</button>
-          <button type="button" data-week="s2">2ª Semana</button>
-          <button type="button" data-week="s3">3ª Semana</button>
-          <button type="button" data-week="s4">4ª Semana</button>
+          <button class="active" type="button" data-week="ultima">Ultima Semana</button>
+          <button type="button" data-week="s1">1a Semana</button>
+          <button type="button" data-week="s2">2a Semana</button>
+          <button type="button" data-week="s3">3a Semana</button>
+          <button type="button" data-week="s4">4a Semana</button>
         </div>
-        <label class="search-box"><span>Buscar</span><input id="searchInput" type="search" placeholder="Nome do colaborador" /></label>
+
+        <label class="search-box">
+          <span>Buscar</span>
+          <input id="searchInput" type="search" placeholder="Nome do colaborador" />
+        </label>
       </section>
 
       <section class="kpis" id="kpiBoard"></section>
@@ -49,19 +62,32 @@
       <section class="grid">
         <article class="panel wide">
           <div class="panel-head">
-            <div><p class="eyebrow">Ranking</p><h2>Melhores colaboradores</h2></div>
-            <select id="metricSelect" aria-label="Métrica do ranking"></select>
+            <div>
+              <p class="eyebrow">Ranking</p>
+              <h2>Melhores colaboradores</h2>
+            </div>
+            <select id="metricSelect" aria-label="Metrica do ranking"></select>
           </div>
           <div class="chart-box"><canvas id="rankingChart"></canvas></div>
         </article>
 
         <article class="panel">
-          <div class="panel-head"><div><p class="eyebrow">Atenção semanal</p><h2 id="improveTitle">Precisa melhorar</h2></div></div>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Atencao semanal</p>
+              <h2 id="improveTitle">Precisa melhorar</h2>
+            </div>
+          </div>
           <div class="improve-list" id="improveList"></div>
         </article>
 
         <article class="panel full-width">
-          <div class="panel-head"><div><p class="eyebrow">Mapa de metas</p><h2>Status por colaborador</h2></div></div>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Mapa de metas</p>
+              <h2>Status por colaborador</h2>
+            </div>
+          </div>
           <div class="table-scroll">
             <table>
               <thead id="tableHead"></thead>
@@ -71,18 +97,33 @@
         </article>
 
         <article class="panel">
-          <div class="panel-head"><div><p class="eyebrow">Reconhecimento</p><h2>Top 5 melhores</h2></div></div>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Reconhecimento</p>
+              <h2>Top 5 melhores</h2>
+            </div>
+          </div>
           <div class="improve-list" id="topGoodList"></div>
         </article>
 
         <article class="panel">
-          <div class="panel-head"><div><p class="eyebrow">Cobrança</p><h2>Top 5 críticos</h2></div></div>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Cobranca</p>
+              <h2>Top 5 criticos</h2>
+            </div>
+          </div>
           <div class="improve-list" id="topCriticalList"></div>
         </article>
       </section>
 
       <section class="panel table-panel">
-        <div class="panel-head"><div><p class="eyebrow">Gestão semanal</p><h2>Plano de ação automático</h2></div></div>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Gestao semanal</p>
+            <h2>Plano de acao automatico</h2>
+          </div>
+        </div>
         <div class="table-scroll">
           <table>
             <thead id="actionHead"></thead>
@@ -94,6 +135,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="colaboradores.js"></script>
+    <script src="colaboradores.js?v=20260428-8"></script>
   </body>
 </html>

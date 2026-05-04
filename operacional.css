@@ -130,6 +130,7 @@ h2 { font-size: 1.05rem; }
 table { width: 100%; min-width: 980px; border-collapse: collapse; }
 .compact-table table { min-width: 620px; }
 th, td { padding: 11px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+td.observation-cell { white-space: normal; min-width: 520px; max-width: 980px; line-height: 1.45; }
 th { color: #17435d; background: #bfe7f3; font-size: 0.74rem; text-transform: uppercase; }
 tr.is-active td { background: #e9f8ef; }
 tbody tr { cursor: pointer; }

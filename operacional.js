@@ -2,9 +2,12 @@ const operationalState = {
   rows: [],
   filteredRows: [],
   selectedClient: "",
+  selectedSupport: "",
   selectedMonthKey: "all",
   charts: {}
 };
+
+const OPERATIONAL_STORAGE_KEY = "operationalRowsV2";
 
 const EXCLUDED_OPERATIONAL_CLIENTS = new Set([
   normalizeHeader("UNI SERVICOS DE TECNOLOGIA DA INFORMACAO LTDA")
@@ -28,7 +31,9 @@ const operationalEls = {
   repeatBody: document.querySelector("#repeatBody"),
   ticketHead: document.querySelector("#ticketHead"),
   ticketBody: document.querySelector("#ticketBody"),
-  detailTitle: document.querySelector("#detailTitle")
+  detailTitle: document.querySelector("#detailTitle"),
+  supportRankHead: document.querySelector("#supportRankHead"),
+  supportRankBody: document.querySelector("#supportRankBody")
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -42,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function tryAutoLoadOperational() {
-  const saved = sessionStorage.getItem("operationalRows");
+  const saved = sessionStorage.getItem(OPERATIONAL_STORAGE_KEY);
   if (saved) {
     operationalState.rows = JSON.parse(saved);
     operationalEls.importStatus.textContent = "Relatório operacional carregado da sessão atual.";
@@ -51,6 +56,8 @@ async function tryAutoLoadOperational() {
   }
 
   const candidates = [
+    "Relatorio Operacional.pdf",
+    "relatorio operacional.pdf",
     "relatorio atendimento operacional.csv",
     "relatorio operacional.csv",
     "relatorio atendimento operacional.xlsx",
@@ -64,7 +71,10 @@ async function tryAutoLoadOperational() {
       const response = await fetch(fileName, { cache: "no-store" });
       if (!response.ok) continue;
       const buffer = await response.arrayBuffer();
-      applyOperationalRows(parseOperationalWorkbook(buffer, "array"));
+      const rows = fileName.toLowerCase().endsWith(".pdf")
+        ? await parseOperationalPdf(buffer)
+        : parseOperationalWorkbook(buffer, "array");
+      applyOperationalRows(rows);
       operationalEls.importStatus.textContent = `${fileName} carregado automaticamente da pasta do site.`;
       return;
     } catch {
@@ -80,13 +90,20 @@ async function handleOperationalImport(event) {
   const file = event.target.files[0];
   if (!file) return;
   try {
-    const buffer = await file.arrayBuffer();
-    applyOperationalRows(parseOperationalWorkbook(buffer, "array"));
+    const rows = await parseOperationalFile(file);
+    applyOperationalRows(rows);
     operationalEls.importStatus.textContent = `${file.name} importado com sucesso.`;
   } catch (error) {
     console.error(error);
     operationalEls.importStatus.textContent = "Não foi possível ler o relatório operacional.";
   }
+}
+
+async function parseOperationalFile(file) {
+  const buffer = await file.arrayBuffer();
+  return file.name.toLowerCase().endsWith(".pdf")
+    ? await parseOperationalPdf(buffer)
+    : parseOperationalWorkbook(buffer, "array");
 }
 
 function parseOperationalWorkbook(content, type) {
@@ -122,10 +139,12 @@ function parseOperationalWorkbook(content, type) {
         protocolo: record.protocolo,
         diagnostico: record.diagnostico,
         login: record.login,
-        descricao: record.descricao
+        descricao: record.descricao,
+        observacao: firstFilled(record.observacao, record.obs, record.mensagem, record.descricao, record.diagnostico)
       };
 
       if (!parsed.cliente || !parsed.assunto) return;
+      if (isIgnoredOperationalSubject(parsed.assunto)) return;
       if (!normalizeHeader(parsed.assunto).includes("registro_de_atendimento_operacional")) return;
       if (EXCLUDED_OPERATIONAL_CLIENTS.has(normalizeHeader(parsed.cliente))) return;
       collectedRows.push(parsed);
@@ -135,11 +154,70 @@ function parseOperationalWorkbook(content, type) {
   return collectedRows;
 }
 
+function isIgnoredOperationalSubject(value) {
+  const subject = normalizeHeader(value);
+  return subject.includes("ia_triagem");
+}
+
+async function parseOperationalPdf(buffer) {
+  const pdfjs = await waitForPdfJs();
+  const documentTask = pdfjs.getDocument({ data: buffer });
+  const pdf = await documentTask.promise;
+  const collectedRows = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = content.items.map((item) => item.str || "").join("\n");
+    collectedRows.push(...parseOperationalPdfPage(text));
+  }
+
+  return collectedRows;
+}
+
+function parseOperationalPdfPage(text) {
+  const chunks = text.split(/(?=\n?(?:Usu.rio:|Sem Usu.rio Operador\s*\nID:))/g);
+  return chunks.reduce((rows, chunk) => {
+    const subjectMatch = chunk.match(/Descri.*?o do Assunto:\s*([\s\S]*?)\s*Status:/i);
+    if (!subjectMatch) return rows;
+
+    const usuarioMatch = chunk.match(/Usu.rio:\s*([\s\S]*?)\s*\nID:/);
+    const assunto = clean(subjectMatch[1]);
+    if (isIgnoredOperationalSubject(assunto)) return rows;
+    if (!normalizeHeader(assunto).includes("registro_de_atendimento_operacional")) return rows;
+
+    const clienteMatch = chunk.match(/Cliente:\s*([\s\S]*?)\s*Descri.*?o do Assunto:/i);
+    if (!clienteMatch) return rows;
+
+    const cliente = clean(clienteMatch[1]);
+    if (!cliente || EXCLUDED_OPERATIONAL_CLIENTS.has(normalizeHeader(cliente))) return rows;
+
+    const mensagemMatch = chunk.match(/Mensagem:\s*([\s\S]*)/);
+    const mensagem = mensagemMatch ? mensagemMatch[1] : "";
+    const observacaoMatch = mensagem.match(/Obs:\s*([\s\S]*)/);
+    const observacao = clean((observacaoMatch ? observacaoMatch[1] : mensagem).split(/\n(?:Usu.rio:|Sem Usu.rio Operador\s*\nID:)/)[0]);
+
+    rows.push({
+      cliente,
+      assunto,
+      criadoEm: firstMatch(chunk, /Abertura:\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/),
+      usuario: usuarioMatch ? clean(usuarioMatch[1]) : "Sem Usuario Operador",
+      protocolo: clean(firstMatch(chunk, /Protocolo:\s*([\s\S]*?)\s*Cliente:/)),
+      diagnostico: "",
+      login: "",
+      observacao
+    });
+
+    return rows;
+  }, []);
+}
+
 function applyOperationalRows(rows) {
   operationalState.rows = rows;
-  sessionStorage.setItem("operationalRows", JSON.stringify(rows));
+  sessionStorage.setItem(OPERATIONAL_STORAGE_KEY, JSON.stringify(rows));
   const months = availableMonths(rows);
   operationalState.selectedMonthKey = months.at(-1)?.key || "all";
+  operationalState.selectedSupport = "";
   operationalState.selectedClient = topRecurringClients(rows)[0]?.cliente || "";
   renderOperational();
 }
@@ -150,6 +228,8 @@ function renderOperational() {
   renderOperationalSummary();
   renderOperationalComparison();
   renderOperationalChart();
+  renderReincidenceDayChart();
+  renderReincidenceSupportRanking();
   renderClientTable();
   renderClientDetail();
 }
@@ -236,6 +316,57 @@ function renderOperationalChart() {
   });
 }
 
+function renderReincidenceDayChart() {
+  const dayRows = dayTotals(operationalState.filteredRows).slice(0, 8);
+  operationalState.charts.day?.destroy();
+  operationalState.charts.day = new Chart(document.querySelector("#dayChart"), {
+    type: "doughnut",
+    data: {
+      labels: dayRows.map((item) => item.day),
+      datasets: [{
+        data: dayRows.map((item) => item.total),
+        backgroundColor: ["#009c67", "#45b7e8", "#f2b84b", "#d64545", "#7a63d8", "#1f7a8c", "#92c56e", "#f27f5d"],
+        borderColor: document.body.dataset.theme === "dark" ? "#111821" : "#ffffff",
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: document.body.dataset.theme === "dark" ? "#dfe8f2" : "#567086" }
+        }
+      }
+    }
+  });
+}
+
+function renderReincidenceSupportRanking() {
+  const ranking = supportTotals(reincidenceRows(operationalState.filteredRows)).slice(0, 12);
+  operationalEls.supportRankHead.innerHTML = "<tr><th>Suporte</th><th>Reincidencias abertas</th></tr>";
+  operationalEls.supportRankBody.innerHTML = ranking.length
+    ? ranking.map((item) => `
+      <tr class="${item.name === operationalState.selectedSupport ? "is-active" : ""}" data-support="${escapeHtml(item.name)}">
+        <td>${item.name}</td>
+        <td>${item.total}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="2">Nenhuma reincidencia encontrada nos filtros atuais.</td></tr>';
+
+  operationalEls.supportRankBody.querySelectorAll("tr[data-support]").forEach((row) => {
+    row.addEventListener("click", () => {
+      operationalState.selectedSupport = row.dataset.support;
+      operationalState.selectedClient = "";
+      renderReincidenceSupportRanking();
+      renderClientTable();
+      renderClientDetail();
+      operationalEls.detailTitle.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
 function renderClientTable() {
   const topClients = topRecurringClients(operationalState.filteredRows);
   operationalEls.clientHead.innerHTML = "<tr><th>Cliente</th><th>Total</th><th>Maior suporte</th><th>Repetição do mesmo suporte</th></tr>";
@@ -255,7 +386,9 @@ function renderClientTable() {
   operationalEls.clientBody.querySelectorAll("tr[data-client]").forEach((row) => {
     row.addEventListener("click", () => {
       operationalState.selectedClient = row.dataset.client;
+      operationalState.selectedSupport = "";
       renderClientTable();
+      renderReincidenceSupportRanking();
       renderClientDetail();
     });
   });
@@ -357,6 +490,28 @@ function supportTotals(rows) {
     grouped.set(name, (grouped.get(name) || 0) + 1);
   });
   return [...grouped.entries()].map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
+}
+
+function reincidenceRows(rows) {
+  const totalsByClient = new Map();
+  rows.forEach((row) => {
+    totalsByClient.set(row.cliente, (totalsByClient.get(row.cliente) || 0) + 1);
+  });
+  return rows.filter((row) => (totalsByClient.get(row.cliente) || 0) > 1);
+}
+
+function dayTotals(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const date = parseBrDate(row.criadoEm);
+    if (!date) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const label = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const current = grouped.get(key) || { key, day: label, total: 0 };
+    current.total += 1;
+    grouped.set(key, current);
+  });
+  return [...grouped.values()].sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
 }
 
 function repeatedSupportClientPairs(rows) {
@@ -492,11 +647,7 @@ function parseBrDate(value) {
     let day = Number(left);
     let month = Number(right);
 
-    if (day <= 12 && month > 12) {
-      day = Number(right);
-      month = Number(left);
-    } else if (day <= 12 && month <= 12) {
-      // prioridade para o layout do relatório operacional atual (MM/DD/YYYY)
+    if (month > 12 && day <= 12) {
       day = Number(right);
       month = Number(left);
     }
@@ -513,6 +664,18 @@ function parseBrDate(value) {
   }
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatOperationalDate(value) {
+  const date = parseBrDate(value);
+  if (!date) return value || "-";
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function findOperationalHeaderIndex(rows) {
@@ -551,9 +714,11 @@ function escapeHtml(value) {
 
 function clearOperationalData() {
   sessionStorage.removeItem("operationalRows");
+  sessionStorage.removeItem(OPERATIONAL_STORAGE_KEY);
   operationalState.rows = [];
   operationalState.filteredRows = [];
   operationalState.selectedClient = "";
+  operationalState.selectedSupport = "";
   operationalState.selectedMonthKey = "all";
   operationalEls.importStatus.textContent = "Importe o relatório atendimento operacional para analisar reincidência.";
   renderOperational();
@@ -561,8 +726,150 @@ function clearOperationalData() {
 
 function handleMonthChange(event) {
   operationalState.selectedMonthKey = event.target.value;
+  operationalState.selectedSupport = "";
   operationalState.selectedClient = topRecurringClients(filterOperationalRows())[0]?.cliente || "";
   renderOperational();
+}
+
+function renderClientDetail() {
+  if (operationalState.selectedSupport) {
+    renderSupportDetail();
+    return;
+  }
+
+  const selectedClient = operationalState.selectedClient;
+  const clientRows = operationalState.filteredRows.filter((row) => row.cliente === selectedClient);
+  operationalEls.detailTitle.textContent = selectedClient ? `Analise de ${selectedClient}` : "Analise do cliente";
+  renderClientMetrics(clientRows, selectedClient);
+
+  const breakdown = supportTotals(clientRows);
+  operationalEls.supportBreakdown.innerHTML = breakdown.length
+    ? breakdown.map((item) => `
+      <div class="detail-item">
+        <strong>${item.name}</strong>
+        <span>${item.total} atendimento(s) para este cliente</span>
+        <span>${item.total > 1 ? "Reincidencia com o mesmo suporte" : "Atendimento unico no periodo"}</span>
+      </div>
+    `).join("")
+    : '<div class="detail-item"><strong>Selecione um cliente</strong><span>O detalhamento dos suportes aparece aqui.</span></div>';
+
+  const repeatedSupports = repeatedSupportClientPairs(clientRows);
+  operationalEls.repeatHead.innerHTML = "<tr><th>Suporte</th><th>Atendimentos</th><th>Status</th></tr>";
+  operationalEls.repeatBody.innerHTML = repeatedSupports.length
+    ? repeatedSupports.map((item) => `
+      <tr>
+        <td>${item.support}</td>
+        <td>${item.total}</td>
+        <td><span class="status-badge ${item.total > 1 ? "critical" : "good"}">${item.total > 1 ? "Repetiu" : "Unico"}</span></td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="3">Nenhum atendimento encontrado para o cliente selecionado.</td></tr>';
+
+  operationalEls.ticketHead.innerHTML = "<tr><th>Data</th><th>Suporte</th><th>Protocolo</th><th>Observacao</th></tr>";
+  if (!clientRows.length) {
+    operationalEls.ticketBody.innerHTML = '<tr><td colspan="4">Nenhum atendimento encontrado para o cliente selecionado.</td></tr>';
+    return;
+  }
+
+  operationalEls.ticketBody.innerHTML = clientRows
+    .slice()
+    .sort((a, b) => (parseBrDate(b.criadoEm) || 0) - (parseBrDate(a.criadoEm) || 0))
+    .map((row) => `
+      <tr>
+        <td>${formatOperationalDate(row.criadoEm)}</td>
+        <td>${row.usuario || "-"}</td>
+        <td>${row.protocolo || "-"}</td>
+        <td class="observation-cell">${row.observacao || row.descricao || row.diagnostico || "-"}</td>
+      </tr>
+    `).join("");
+}
+
+function renderSupportDetail() {
+  const selectedSupport = operationalState.selectedSupport;
+  const supportRows = reincidenceRows(operationalState.filteredRows)
+    .filter((row) => (row.usuario || "Nao informado") === selectedSupport);
+  const clientRanking = topRecurringClients(supportRows);
+
+  operationalEls.detailTitle.textContent = `Registros operacionais de ${selectedSupport}`;
+  operationalEls.detailMetrics.innerHTML = [
+    ["Suporte", shorten(selectedSupport, 42), ""],
+    ["Reincidencias abertas", supportRows.length, "Somente clientes repetidos no periodo"],
+    ["Clientes reincidentes", uniqueCount(supportRows.map((row) => row.cliente)), ""],
+    ["Maior cliente", clientRanking[0]?.cliente ? shorten(clientRanking[0].cliente, 42) : "-", clientRanking[0] ? `${clientRanking[0].total} atendimento(s)` : ""]
+  ].map(([label, value, note = ""]) => `
+    <article class="metric-chip">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      ${note ? `<small>${note}</small>` : ""}
+    </article>
+  `).join("");
+
+  operationalEls.supportBreakdown.innerHTML = clientRanking.length
+    ? clientRanking.slice(0, 8).map((item) => `
+      <div class="detail-item">
+        <strong>${item.cliente}</strong>
+        <span>${item.total} atendimento(s) reincidente(s)</span>
+        <span>${item.repeatedSupportText}</span>
+      </div>
+    `).join("")
+    : '<div class="detail-item"><strong>Nenhum registro</strong><span>Esse suporte nao possui reincidencia nos filtros atuais.</span></div>';
+
+  operationalEls.repeatHead.innerHTML = "<tr><th>Cliente</th><th>Atendimentos</th><th>Status</th></tr>";
+  operationalEls.repeatBody.innerHTML = clientRanking.length
+    ? clientRanking.map((item) => `
+      <tr data-client-detail="${escapeHtml(item.cliente)}">
+        <td>${item.cliente}</td>
+        <td>${item.total}</td>
+        <td><span class="status-badge ${item.total > 1 ? "critical" : "good"}">${item.total > 1 ? "Reincidente" : "Unico"}</span></td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="3">Nenhum registro encontrado para o suporte selecionado.</td></tr>';
+
+  operationalEls.repeatBody.querySelectorAll("tr[data-client-detail]").forEach((row) => {
+    row.addEventListener("click", () => {
+      operationalState.selectedClient = row.dataset.clientDetail;
+      operationalState.selectedSupport = "";
+      renderReincidenceSupportRanking();
+      renderClientTable();
+      renderClientDetail();
+      operationalEls.ticketHead.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  operationalEls.ticketHead.innerHTML = "<tr><th>Data</th><th>Cliente</th><th>Protocolo</th><th>Observacao</th></tr>";
+  operationalEls.ticketBody.innerHTML = supportRows.length
+    ? supportRows
+      .slice()
+      .sort((a, b) => (parseBrDate(b.criadoEm) || 0) - (parseBrDate(a.criadoEm) || 0))
+      .map((row) => `
+        <tr>
+          <td>${formatOperationalDate(row.criadoEm)}</td>
+          <td>${row.cliente || "-"}</td>
+          <td>${row.protocolo || "-"}</td>
+          <td class="observation-cell">${row.observacao || row.descricao || row.diagnostico || "-"}</td>
+        </tr>
+      `).join("")
+    : '<tr><td colspan="4">Nenhum registro encontrado para o suporte selecionado.</td></tr>';
+}
+
+function firstMatch(value, pattern) {
+  const match = String(value || "").match(pattern);
+  return match ? match[1] : "";
+}
+
+function waitForPdfJs() {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (window.pdfjsLib) {
+        clearInterval(timer);
+        resolve(window.pdfjsLib);
+      } else if (Date.now() - startedAt > 8000) {
+        clearInterval(timer);
+        reject(new Error("PDF.js nao carregou."));
+      }
+    }, 50);
+  });
 }
 
 function setupTheme() {

@@ -445,7 +445,7 @@ function renderMonthlyComparison() {
 
   container.innerHTML = `
     <div class="monthly-cards">
-      ${renderMonthlyCard("Mensal", currentMonth.label)}
+      ${renderMonthlyCard("Mês atual", currentMonth.label)}
       ${renderMonthlyCard("Mês anterior", previousMonth?.label || "-")}
       ${renderMonthlyCard("Indicadores comparados", rows.length)}
       ${renderMonthlyCard("Sem dados anteriores", rows.filter((row) => row.previousValue === "").length)}
@@ -455,8 +455,8 @@ function renderMonthlyComparison() {
         <thead>
           <tr>
             <th>Indicador</th>
-            <th>Mês anterior</th>
-            <th>Mensal</th>
+            <th>${previousMonth?.label || "Mês anterior"}</th>
+            <th>${currentMonth.label}</th>
             <th>Variação</th>
           </tr>
         </thead>

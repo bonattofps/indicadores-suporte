@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
-    <link rel="stylesheet" href="operacional.css" />
+    <link rel="stylesheet" href="operacional.css?v=20260518-2" />
   </head>
   <body>
     <main class="screen">
@@ -41,6 +41,31 @@
           <option value="7">Últimos 7 dias</option>
           <option value="30">Últimos 30 dias</option>
         </select>
+      </section>
+
+      <section class="range-filter-panel">
+        <div>
+          <p class="eyebrow">Comparativo por data</p>
+          <h2>Período exibido vs período comparado</h2>
+        </div>
+        <label>
+          <span>Período exibido</span>
+          <div>
+            <input id="rangeAStart" type="date" aria-label="Início do período exibido" />
+            <input id="rangeAEnd" type="date" aria-label="Fim do período exibido" />
+          </div>
+        </label>
+        <label>
+          <span>Comparar com</span>
+          <div>
+            <input id="rangeBStart" type="date" aria-label="Início do período comparado" />
+            <input id="rangeBEnd" type="date" aria-label="Fim do período comparado" />
+          </div>
+        </label>
+        <div class="range-actions">
+          <button id="applyRangeButton" type="button">Aplicar</button>
+          <button id="clearRangeButton" type="button">Limpar datas</button>
+        </div>
       </section>
 
       <section class="grid">
@@ -147,6 +172,6 @@
       window.pdfjsLib = pdfjsLib;
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="operacional.js"></script>
+    <script src="operacional.js?v=20260518-2"></script>
   </body>
 </html>

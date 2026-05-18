@@ -4,6 +4,10 @@ const operationalState = {
   selectedClient: "",
   selectedSupport: "",
   selectedMonthKey: "all",
+  rangeAStart: "",
+  rangeAEnd: "",
+  rangeBStart: "",
+  rangeBEnd: "",
   charts: {}
 };
 
@@ -21,6 +25,12 @@ const operationalEls = {
   clientSearch: document.querySelector("#clientSearch"),
   monthFilter: document.querySelector("#monthFilter"),
   periodFilter: document.querySelector("#periodFilter"),
+  rangeAStart: document.querySelector("#rangeAStart"),
+  rangeAEnd: document.querySelector("#rangeAEnd"),
+  rangeBStart: document.querySelector("#rangeBStart"),
+  rangeBEnd: document.querySelector("#rangeBEnd"),
+  applyRangeButton: document.querySelector("#applyRangeButton"),
+  clearRangeButton: document.querySelector("#clearRangeButton"),
   summaryStrip: document.querySelector("#summaryStrip"),
   comparisonStrip: document.querySelector("#comparisonStrip"),
   detailMetrics: document.querySelector("#detailMetrics"),
@@ -43,6 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
   operationalEls.clientSearch.addEventListener("input", renderOperational);
   operationalEls.monthFilter.addEventListener("change", handleMonthChange);
   operationalEls.periodFilter.addEventListener("change", renderOperational);
+  operationalEls.applyRangeButton.addEventListener("click", applyCustomRanges);
+  operationalEls.clearRangeButton.addEventListener("click", clearCustomRanges);
   tryAutoLoadOperational();
 });
 
@@ -245,6 +257,7 @@ function filterOperationalRows() {
     if (monthKey !== "all") {
       if (!createdAt || monthKeyFromDate(createdAt) !== monthKey) return false;
     }
+    if (hasPrimaryRange()) return dateInRange(createdAt, operationalState.rangeAStart, operationalState.rangeAEnd);
     if (period === "all") return true;
     if (!createdAt) return false;
     const days = Number(period);
@@ -274,6 +287,10 @@ function renderOperationalSummary() {
 }
 
 function renderOperationalComparison() {
+  if (hasComparisonRanges()) {
+    renderCustomRangeComparison();
+    return;
+  }
   const currentRows = rowsByMonthKey(operationalState.selectedMonthKey);
   const previousKey = previousMonthKey(operationalState.selectedMonthKey);
   const previousRows = rowsByMonthKey(previousKey);
@@ -284,6 +301,23 @@ function renderOperationalComparison() {
     comparisonMetricCard("Registros operacionais", currentRows.length, previousRows.length),
     comparisonMetricCard("Clientes reincidentes", currentRecurring.filter((item) => item.total > 1).length, previousRecurring.filter((item) => item.total > 1).length),
     comparisonMetricCard("Mesmo suporte repetiu", repeatedSupportCases(currentRows).length, repeatedSupportCases(previousRows).length)
+  ];
+  operationalEls.comparisonStrip.innerHTML = cards.join("");
+}
+
+function renderCustomRangeComparison() {
+  const currentRows = rowsByDateRange(operationalState.rangeAStart, operationalState.rangeAEnd);
+  const previousRows = rowsByDateRange(operationalState.rangeBStart, operationalState.rangeBEnd);
+  const currentRecurring = topRecurringClients(currentRows);
+  const previousRecurring = topRecurringClients(previousRows);
+  const periodALabel = formatRangeLabel(operationalState.rangeAStart, operationalState.rangeAEnd);
+  const periodBLabel = formatRangeLabel(operationalState.rangeBStart, operationalState.rangeBEnd);
+  const cards = [
+    comparisonPeriodCard("Período A", "Exibido na dashboard", periodALabel),
+    comparisonPeriodCard("Período B", "Base de comparação", periodBLabel),
+    comparisonMetricCard("Registros operacionais", currentRows.length, previousRows.length, "Período A vs Período B"),
+    comparisonMetricCard("Clientes reincidentes", currentRecurring.filter((item) => item.total > 1).length, previousRecurring.filter((item) => item.total > 1).length, "Período A vs Período B"),
+    comparisonMetricCard("Mesmo suporte repetiu", repeatedSupportCases(currentRows).length, repeatedSupportCases(previousRows).length, "Período A vs Período B")
   ];
   operationalEls.comparisonStrip.innerHTML = cards.join("");
 }
@@ -584,17 +618,27 @@ function comparisonCard(label, value, note = "") {
   `;
 }
 
-function comparisonMetricCard(label, current, previous) {
+function comparisonPeriodCard(label, role, value) {
+  return `
+    <article class="comparison-card period-card">
+      <span>${label}</span>
+      <strong>${value || "-"}</strong>
+      <small>${role}</small>
+    </article>
+  `;
+}
+
+function comparisonMetricCard(label, current, previous, comparisonLabel = "mês anterior") {
   const delta = current - previous;
   const deltaClass = delta === 0 ? "neutral" : delta > 0 ? "bad" : "good";
   const deltaLabel = previous || delta === 0
-    ? `${delta > 0 ? "+" : ""}${delta.toLocaleString("pt-BR")} vs. mês anterior`
+    ? `${delta > 0 ? "+" : ""}${delta.toLocaleString("pt-BR")} vs. ${comparisonLabel}`
     : "Sem base anterior";
   return `
     <article class="comparison-card">
       <span>${label}</span>
       <strong>${Number(current).toLocaleString("pt-BR")}</strong>
-      <small>Anterior: ${Number(previous || 0).toLocaleString("pt-BR")}</small>
+      <small>Período B: ${Number(previous || 0).toLocaleString("pt-BR")}</small>
       <div class="comparison-delta ${deltaClass}">${deltaLabel}</div>
     </article>
   `;
@@ -666,6 +710,64 @@ function parseBrDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function rowsByDateRange(start, end) {
+  return operationalState.rows.filter((row) => dateInRange(parseBrDate(row.criadoEm), start, end));
+}
+
+function dateInRange(date, start, end) {
+  if (!date || !start || !end) return false;
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T23:59:59`);
+  return date >= startDate && date <= endDate;
+}
+
+function hasPrimaryRange() {
+  return Boolean(operationalState.rangeAStart && operationalState.rangeAEnd);
+}
+
+function hasComparisonRanges() {
+  return Boolean(
+    operationalState.rangeAStart
+    && operationalState.rangeAEnd
+    && operationalState.rangeBStart
+    && operationalState.rangeBEnd
+  );
+}
+
+function formatRangeLabel(start, end) {
+  if (!start || !end) return "-";
+  return `${formatInputDate(start)} a ${formatInputDate(end)}`;
+}
+
+function formatInputDate(value) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function applyCustomRanges() {
+  operationalState.rangeAStart = operationalEls.rangeAStart.value;
+  operationalState.rangeAEnd = operationalEls.rangeAEnd.value;
+  operationalState.rangeBStart = operationalEls.rangeBStart.value;
+  operationalState.rangeBEnd = operationalEls.rangeBEnd.value;
+  operationalState.selectedSupport = "";
+  operationalState.selectedClient = topRecurringClients(filterOperationalRows())[0]?.cliente || "";
+  renderOperational();
+}
+
+function clearCustomRanges() {
+  operationalState.rangeAStart = "";
+  operationalState.rangeAEnd = "";
+  operationalState.rangeBStart = "";
+  operationalState.rangeBEnd = "";
+  operationalEls.rangeAStart.value = "";
+  operationalEls.rangeAEnd.value = "";
+  operationalEls.rangeBStart.value = "";
+  operationalEls.rangeBEnd.value = "";
+  operationalState.selectedSupport = "";
+  operationalState.selectedClient = topRecurringClients(filterOperationalRows())[0]?.cliente || "";
+  renderOperational();
+}
+
 function formatOperationalDate(value) {
   const date = parseBrDate(value);
   if (!date) return value || "-";
@@ -720,6 +822,14 @@ function clearOperationalData() {
   operationalState.selectedClient = "";
   operationalState.selectedSupport = "";
   operationalState.selectedMonthKey = "all";
+  operationalState.rangeAStart = "";
+  operationalState.rangeAEnd = "";
+  operationalState.rangeBStart = "";
+  operationalState.rangeBEnd = "";
+  operationalEls.rangeAStart.value = "";
+  operationalEls.rangeAEnd.value = "";
+  operationalEls.rangeBStart.value = "";
+  operationalEls.rangeBEnd.value = "";
   operationalEls.importStatus.textContent = "Importe o relatório atendimento operacional para analisar reincidência.";
   renderOperational();
 }

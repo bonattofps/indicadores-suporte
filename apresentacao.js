@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   collaboratorWorkbook: "indicadoresCollaboratorWorkbookV1"
 };
 
+
 const metricDefinitions = [
   { name: "Tempo Médio de Atendimento - OPA", type: "time", aliases: ["tempo medio de atendimento - opa", "tempo medio de atendimento - fluctuS", "tempo medio de atendimento"] },
   { name: "Tempo Médio de Resposta ao Cliente - OPA", type: "time", aliases: ["tempo medio de resposta ao cliente - opa", "tempo medio de resposta ao cliente - fluctuS", "tempo medio de resposta ao cliente"] },
@@ -261,12 +262,14 @@ function render() {
   renderMonthOptions();
   renderPeriodTabs();
   renderExecutiveSummary();
+  renderExecutiveInsights();
   renderValidation();
   renderKpis();
   renderGoals();
   renderSummary();
   renderTable();
   renderMonthlyComparison();
+  renderWeeklyComparison();
   renderCharts();
 }
 
@@ -293,39 +296,111 @@ function renderPeriodTabs() {
 }
 
 function renderExecutiveSummary() {
-  const month = getCurrentMonth();
-  const total = currentMetric("Quantidade de Atendimentos realizados - IXC")?.values?.[state.selectedPeriod];
-  const solved = currentMetric("Quantidade de Atendimentos Solucionados - IXC")?.values?.[state.selectedPeriod];
-  const tma = currentMetric("Tempo Médio de Atendimento - OPA")?.values?.[state.selectedPeriod];
-  const ia = currentMetric("Quantidade de atendimento realizado pela IA - OPA")?.values?.[state.selectedPeriod];
-  const resolved = Number(total) ? `${((Number(solved) / Number(total)) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "-";
+  const macroNames = [
+    "Qualidade Percebida na Avaliação Geral - OPA",
+    "Tempo Médio de Resposta ao Cliente - OPA",
+    "Tempo Médio de Atendimento - OPA",
+    "Quantidade de Atendimentos que foi a campo - IXC",
+    "Quantidade de Atendimentos Solucionados - IXC"
+  ];
+  const basePeriod = comparisonPeriodKey();
 
-  document.querySelector("#executiveSummary").innerHTML = [
-    ["Mês", month?.label || "-"],
-    ["Período", currentPeriodLabel()],
-    ["Resolutividade IXC", resolved],
-    ["TMA - OPA", format(tma, "time")],
-    ["IA - OPA", format(ia, "number")]
-  ].map(([label, value]) => `<article class="insight-card"><span>${label}</span><strong>${value}</strong></article>`).join("");
+  document.querySelector("#executiveSummary").innerHTML = macroNames.map((name) => {
+    const metric = name === "Resolutividade IXC"
+      ? resolutividadeMetric()
+      : currentMetric(name) || emptyMetric(name, inferMetricType(name));
+    const current = metric.values[state.selectedPeriod];
+    const base = metric.values[basePeriod];
+    const delta = deltaValue(current, base, metric.type, metric.name);
+    const trendClass = trendStatus(delta, metric);
+    const status = goalStatus(metric);
+
+    return `
+      <article class="insight-card macro-card status-${status.className}">
+        <div class="macro-head">
+          <span>${name}</span>
+          <div class="macro-status ${status.className}">${status.label}</div>
+        </div>
+        <strong>${format(current, metric.type)}</strong>
+        <small>Anterior: ${format(base, metric.type)}</small>
+        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${periodLabel(basePeriod)}</div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderExecutiveInsights() {
+  const container = document.querySelector("#executiveInsights");
+  if (!container) return;
+  const rows = comparisonRows([
+    "Qualidade Percebida na Avaliação Geral - OPA",
+    "Tempo Médio de Resposta ao Cliente - OPA",
+    "Tempo Médio de Atendimento - OPA",
+    "Taxa de Cliente que entrou em contato com o suporte em %",
+    "Quantidade de Atendimentos Solucionados - IXC",
+    "Quantidade de Atendimentos realizados - IXC",
+    "Quantidade de Atendimentos que foi a campo - IXC",
+    "Quantidade de atendimento realizado pela IA - OPA",
+    "Quantidade de Atendimentos Realizados pela Equipe - N2",
+    "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2",
+    "Resolutividade IXC"
+  ]);
+
+  if (!rows.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const alerts = rows
+    .filter((row) => row.trendClass === "trend-bad")
+    .sort((a, b) => b.impact - a.impact)
+    .slice(0, 3);
+  const improvements = rows
+    .filter((row) => row.trendClass === "trend-good")
+    .sort((a, b) => b.impact - a.impact)
+    .slice(0, 3);
+  const critical = alerts[0];
+  const best = improvements[0];
+
+  container.innerHTML = `
+    <article class="insight-note executive-note">
+      <p class="eyebrow">Resumo executivo</p>
+      <h3>${critical ? "Ponto de atenção" : "Cenário estável"}</h3>
+      <p>${critical
+        ? `${escapeHtml(critical.metric.name)} variou ${deltaLabel(critical.delta, critical.metric.type)} vs. ${periodLabel(critical.basePeriod)}.`
+        : `Não há piora relevante contra ${periodLabel(comparisonPeriodKey())}.`}</p>
+      ${best ? `<small>Melhor evolução: ${escapeHtml(best.metric.name)} (${deltaLabel(best.delta, best.metric.type)}).</small>` : ""}
+    </article>
+    <article class="insight-note alert">
+      <p class="eyebrow">Prioridade</p>
+      <h3>Top alertas</h3>
+      ${insightList(alerts, "Sem alertas relevantes no período.")}
+    </article>
+    <article class="insight-note success">
+      <p class="eyebrow">Evolução</p>
+      <h3>Top melhorias</h3>
+      ${insightList(improvements, "Sem melhorias comparáveis no período.")}
+    </article>
+  `;
 }
 
 function renderKpis() {
   const metricNames = [
     "Quantidade de Atendimentos realizados - IXC",
-    "Quantidade de Atendimentos Solucionados - IXC",
-    "Quantidade de Atendimentos que foi a campo - IXC",
-    "Tempo Médio de Resposta ao Cliente - OPA",
-    "Tempo Médio de Atendimento - OPA",
     "Quantidade de atendimento realizado pela IA - OPA",
-    "Qualidade Percebida na Avaliação Geral - OPA",
+    "Quantidade de Atendimentos Realizados pela Equipe - N2",
+    "Quantidade de Pesquisa de Satisfação Realizados - IXC",
+    "Quantidade Total de Cliente UNI - IXC",
     "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2",
-    "Qualidade Percebida na Satisfação em % - IXC",
-    "Taxa de Cliente que entrou em contato com o suporte em %"
+    "Taxa de Cliente que entrou em contato com o suporte em %",
+    "Resolutividade IXC"
   ];
 
   const basePeriod = comparisonPeriodKey();
   document.querySelector("#kpiBoard").innerHTML = metricNames.map((name) => {
-    const metric = currentMetric(name) || emptyMetric(name, inferMetricType(name));
+    const metric = name === "Resolutividade IXC"
+      ? resolutividadeMetric()
+      : currentMetric(name) || emptyMetric(name, inferMetricType(name));
     const current = metric.values[state.selectedPeriod];
     const base = metric.values[basePeriod];
     const delta = deltaValue(current, base, metric.type, metric.name);
@@ -439,7 +514,7 @@ function renderMonthlyComparison() {
     const previousMetric = previousMonth?.metrics.find((item) => item.name === name) || emptyMetric(name, metric.type);
     const currentValue = monthlyMetricValue(metric, currentMonth.periods);
     const previousValue = previousMonth ? monthlyMetricValue(previousMetric, previousMonth.periods) : "";
-    const delta = monthlyDelta(currentValue, previousValue, metric.type);
+    const delta = monthlyDelta(currentValue, previousValue, metric.type, metric.name);
     return { metric, currentValue, previousValue, delta };
   });
 
@@ -475,6 +550,73 @@ function renderMonthlyComparison() {
   `;
 }
 
+function renderWeeklyComparison() {
+  const container = document.querySelector("#weeklyComparison");
+  if (!container) return;
+
+  const month = getCurrentMonth();
+  const currentPeriod = getPeriods().find((period) => period.key === state.selectedPeriod);
+  const previousKey = comparisonPeriodKey();
+  const previousPeriod = getPeriods().find((period) => period.key === previousKey);
+
+  if (!month || !currentPeriod || !previousPeriod || currentPeriod.key === previousPeriod.key) {
+    container.innerHTML = '<div class="empty-state">Selecione uma semana com período anterior para comparar.</div>';
+    return;
+  }
+
+  const comparisonNames = [
+    "Quantidade de Atendimentos realizados - IXC",
+    "Quantidade de Atendimentos Solucionados - IXC",
+    "Quantidade de Atendimentos que foi a campo - IXC",
+    "Quantidade de atendimento realizado pela IA - OPA",
+    "Quantidade de Atendimentos Realizados pela Equipe - N2",
+    "Tempo Médio de Atendimento - OPA",
+    "Tempo Médio de Resposta ao Cliente - OPA",
+    "Qualidade Percebida na Avaliação Geral - OPA",
+    "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2",
+    "Taxa de Cliente que entrou em contato com o suporte em %"
+  ];
+
+  const rows = comparisonNames.map((name) => {
+    const metric = currentMetric(name) || emptyMetric(name, inferMetricType(name));
+    const previousValue = metric.values[previousPeriod.key];
+    const currentValue = metric.values[currentPeriod.key];
+    const delta = monthlyDelta(currentValue, previousValue, metric.type, metric.name);
+    return { metric, previousValue, currentValue, delta };
+  }).filter((row) => row.previousValue !== "" || row.currentValue !== "");
+
+  container.innerHTML = `
+    <div class="monthly-cards">
+      ${renderMonthlyCard("Mês", month.label)}
+      ${renderMonthlyCard("Semana atual", currentPeriod.label)}
+      ${renderMonthlyCard("Semana anterior", previousPeriod.label)}
+      ${renderMonthlyCard("Indicadores comparados", rows.length)}
+    </div>
+    <div class="table-scroll monthly-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Indicador</th>
+            <th>${previousPeriod.label}</th>
+            <th>${currentPeriod.label}</th>
+            <th>Variação</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td>${row.metric.name}</td>
+              <td>${format(row.previousValue, row.metric.type)}</td>
+              <td>${format(row.currentValue, row.metric.type)}</td>
+              <td><span class="monthly-delta ${monthlyTrendClass(row.delta, row.metric)}">${monthlyDeltaLabel(row.delta, row.metric.type)}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderMonthlyCard(label, value) {
   return `
     <article class="monthly-card">
@@ -487,6 +629,11 @@ function renderMonthlyCard(label, value) {
 function renderCharts() {
   const periods = getPeriods();
   const labels = periods.map((period) => period.label);
+  const barColors = [
+    { background: "rgba(0, 96, 170, 0.86)", border: "#004b86" },
+    { background: "rgba(0, 142, 91, 0.86)", border: "#006f47" },
+    { background: "rgba(214, 135, 0, 0.88)", border: "#a86500" }
+  ];
   const ixcMetrics = [
     currentMetric("Quantidade de Atendimentos realizados - IXC") || emptyMetric("Quantidade de Atendimentos realizados - IXC", "number"),
     currentMetric("Quantidade de Atendimentos Solucionados - IXC") || emptyMetric("Quantidade de Atendimentos Solucionados - IXC", "number"),
@@ -501,10 +648,12 @@ function renderCharts() {
       datasets: ixcMetrics.map((metric, index) => ({
         label: metric.name.replace("Quantidade de ", ""),
         data: periods.map((period) => chartNumber(metric, period.key)),
-        backgroundColor: ["rgba(57, 169, 255, 0.72)", "rgba(32, 199, 123, 0.72)", "rgba(242, 184, 75, 0.72)"][index],
-        borderColor: ["#39a9ff", "#20c77b", "#f2b84b"][index],
-        borderWidth: 1,
-        borderRadius: 6
+        backgroundColor: barColors[index].background,
+        borderColor: barColors[index].border,
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 72
       }))
     },
     options: chartOptions()
@@ -516,9 +665,9 @@ function renderCharts() {
     data: {
       labels,
       datasets: [
-        lineDataset("IA - OPA", currentMetric("Quantidade de atendimento realizado pela IA - OPA") || emptyMetric("Quantidade de atendimento realizado pela IA - OPA", "number"), "#39a9ff"),
-        lineDataset("Equipe N2", currentMetric("Quantidade de Atendimentos Realizados pela Equipe - N2") || emptyMetric("Quantidade de Atendimentos Realizados pela Equipe - N2", "number"), "#b491ff"),
-        lineDataset("Pesquisa IXC", currentMetric("Quantidade de Pesquisa de Satisfação Realizados - IXC") || emptyMetric("Quantidade de Pesquisa de Satisfação Realizados - IXC", "number"), "#f2b84b")
+        lineDataset("IA - OPA", currentMetric("Quantidade de atendimento realizado pela IA - OPA") || emptyMetric("Quantidade de atendimento realizado pela IA - OPA", "number"), "#006dbe"),
+        lineDataset("Equipe N2", currentMetric("Quantidade de Atendimentos Realizados pela Equipe - N2") || emptyMetric("Quantidade de Atendimentos Realizados pela Equipe - N2", "number"), "#6e46d6"),
+        lineDataset("Pesquisa IXC", currentMetric("Quantidade de Pesquisa de Satisfa??o Realizados - IXC") || emptyMetric("Quantidade de Pesquisa de Satisfa??o Realizados - IXC", "number"), "#c47a00")
       ]
     },
     options: chartOptions()
@@ -530,9 +679,14 @@ function lineDataset(label, metric, color) {
     label,
     data: getPeriods().map((period) => chartNumber(metric, period.key)),
     borderColor: color,
-    backgroundColor: `${color}24`,
-    pointRadius: 4,
-    tension: 0.35,
+    backgroundColor: `${color}2b`,
+    pointBackgroundColor: "#ffffff",
+    pointBorderColor: color,
+    pointBorderWidth: 3,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    borderWidth: 3,
+    tension: 0.32,
     fill: true
   };
 }
@@ -566,22 +720,48 @@ function goalStatus(metric) {
 
 function chartOptions() {
   const dark = document.body.dataset.theme === "dark";
+  const axisColor = dark ? "#d7e2ee" : "#244a63";
+  const gridColor = dark ? "rgba(145,160,178,0.22)" : "rgba(78, 121, 150, 0.18)";
   return {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
     plugins: {
-      legend: { labels: { color: dark ? "#dfe8f2" : "#26516d", boxWidth: 12 } },
+      legend: {
+        position: "top",
+        labels: {
+          color: axisColor,
+          boxWidth: 12,
+          boxHeight: 12,
+          usePointStyle: true,
+          font: { size: 12, weight: "700" },
+          padding: 18
+        }
+      },
       tooltip: {
-        backgroundColor: dark ? "#111821" : "#ffffff",
-        borderColor: dark ? "#2b3947" : "#cfe2ee",
+        backgroundColor: dark ? "#05080d" : "#ffffff",
+        borderColor: dark ? "#4a6074" : "#8bbbd4",
         borderWidth: 1,
         titleColor: dark ? "#edf4fb" : "#102033",
-        bodyColor: dark ? "#edf4fb" : "#102033"
+        bodyColor: dark ? "#edf4fb" : "#102033",
+        titleFont: { weight: "800" },
+        bodyFont: { weight: "700" },
+        padding: 12,
+        displayColors: true
       }
     },
     scales: {
-      x: { ticks: { color: dark ? "#91a0b2" : "#567086" }, grid: { color: dark ? "rgba(43,57,71,0.8)" : "rgba(207, 226, 238, 0.8)" } },
-      y: { beginAtZero: true, ticks: { color: dark ? "#91a0b2" : "#567086" }, grid: { color: dark ? "rgba(43,57,71,0.8)" : "rgba(207, 226, 238, 0.8)" } }
+      x: {
+        ticks: { color: axisColor, font: { size: 11, weight: "700" } },
+        grid: { color: gridColor, drawTicks: false },
+        border: { color: dark ? "#405366" : "#a7c9dc" }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: axisColor, font: { size: 11, weight: "700" } },
+        grid: { color: gridColor, drawTicks: false },
+        border: { color: dark ? "#405366" : "#a7c9dc" }
+      }
     }
   };
 }
@@ -623,6 +803,8 @@ function setupTheme() {
 function clearImportedData() {
   Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   Object.values(STORAGE_KEYS).forEach((key) => sessionStorage.removeItem(key));
+  localStorage.removeItem("indicadoresGoogleSheetsTabsV1");
+  sessionStorage.removeItem("indicadoresGoogleSheetsTabsV1");
   localStorage.removeItem("indicadoresWorkbookName");
   localStorage.removeItem("indicadoresImportedAt");
   sessionStorage.removeItem("indicadoresWorkbookName");
@@ -903,6 +1085,27 @@ function currentMetric(name) {
   return currentMetrics().find((metric) => metric.name === name);
 }
 
+function resolutividadeMetric() {
+  const solvedMetric = currentMetric("Quantidade de Atendimentos Solucionados - IXC");
+  const totalMetric = currentMetric("Quantidade de Atendimentos realizados - IXC");
+  const values = {};
+
+  getPeriods().forEach((period) => {
+    const solved = normalizeMetricNumber(solvedMetric?.values?.[period.key], solvedMetric?.name || "");
+    const total = normalizeMetricNumber(totalMetric?.values?.[period.key], totalMetric?.name || "");
+    values[period.key] = Number.isFinite(total) && total > 0 && Number.isFinite(solved)
+      ? solved / total
+      : "";
+  });
+
+  return {
+    name: "Resolutividade IXC",
+    type: "percent",
+    values,
+    matched: Boolean(solvedMetric && totalMetric)
+  };
+}
+
 function getCurrentMonth() {
   return state.months[state.selectedMonth] || null;
 }
@@ -936,7 +1139,10 @@ function getPreviousMonth() {
 
 function monthlyMetricValue(metric, periods) {
   const explicitMonthly = periods.find((period) => normalizeText(period.label).includes("MENSAL"));
-  if (explicitMonthly) return metric.values[explicitMonthly.key] ?? "";
+  if (explicitMonthly) {
+    const value = metric.values[explicitMonthly.key] ?? "";
+    return metric.type === "number" ? normalizeMetricNumber(value, metric.name) : value;
+  }
 
   const usablePeriods = periods.filter((period) => {
     const label = normalizeText(period.label);
@@ -950,7 +1156,8 @@ function monthlyMetricValue(metric, periods) {
 
   if (!values.length) return "";
   if (metric.type === "number") {
-    return values.reduce((sum, value) => sum + Number(value || 0), 0);
+    const total = values.reduce((sum, value) => sum + Number(value || 0), 0);
+    return normalizeMetricNumber(total, metric.name);
   }
   if (metric.type === "time") {
     const totalSeconds = values.reduce((sum, value) => sum + timeToSeconds(value), 0);
@@ -960,11 +1167,11 @@ function monthlyMetricValue(metric, periods) {
   return total / values.length;
 }
 
-function monthlyDelta(current, previous, type) {
+function monthlyDelta(current, previous, type, metricName = "") {
   if (current === "" || previous === "" || current === null || previous === null || current === undefined || previous === undefined) return null;
   if (type === "time") return timeToSeconds(current) - timeToSeconds(previous);
-  const currentNumber = Number(current);
-  const previousNumber = Number(previous);
+  const currentNumber = normalizeMetricNumber(current, metricName);
+  const previousNumber = normalizeMetricNumber(previous, metricName);
   return Number.isFinite(currentNumber) && Number.isFinite(previousNumber) ? currentNumber - previousNumber : null;
 }
 
@@ -1015,6 +1222,9 @@ function deltaLabel(delta, type) {
   if (!delta) return "Sem variação";
   if (type === "time") return `${delta > 0 ? "+" : "-"}${secondsToTime(Math.abs(delta))}`;
   const signal = delta > 0 ? "+" : "-";
+  if (type === "percent") {
+    return `${signal}${(Math.abs(delta) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} p.p.`;
+  }
   return `${signal}${Math.abs(delta).toLocaleString("pt-BR", { maximumFractionDigits: type === "percent" ? 2 : 0 })}`;
 }
 
@@ -1024,6 +1234,49 @@ function deltaValue(current, base, type, metricName = "") {
   const currentNumber = normalizeMetricNumber(current, metricName);
   const baseNumber = normalizeMetricNumber(base, metricName);
   return Number.isFinite(currentNumber) && Number.isFinite(baseNumber) ? currentNumber - baseNumber : null;
+}
+
+function comparisonRows(names) {
+  const basePeriod = comparisonPeriodKey();
+  return names.map((name) => {
+    const metric = name === "Resolutividade IXC"
+      ? resolutividadeMetric()
+      : currentMetric(name) || emptyMetric(name, inferMetricType(name));
+    const current = metric.values[state.selectedPeriod];
+    const base = metric.values[basePeriod];
+    const delta = deltaValue(current, base, metric.type, metric.name);
+    if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return null;
+    return {
+      metric,
+      current,
+      base,
+      basePeriod,
+      delta,
+      trendClass: trendStatus(delta, metric),
+      impact: deltaImpact(delta, metric.type)
+    };
+  }).filter(Boolean);
+}
+
+function deltaImpact(delta, type) {
+  const value = Math.abs(delta);
+  if (type === "time") return value / 60;
+  if (type === "percent") return value * 100;
+  return value;
+}
+
+function insightList(rows, emptyText) {
+  if (!rows.length) return `<p class="muted-line">${emptyText}</p>`;
+  return `
+    <ol class="insight-list">
+      ${rows.map((row) => `
+        <li>
+          <strong>${escapeHtml(row.metric.name)}</strong>
+          <span class="${row.trendClass}">${deltaLabel(row.delta, row.metric.type)} vs. ${periodLabel(row.basePeriod)}</span>
+        </li>
+      `).join("")}
+    </ol>
+  `;
 }
 
 function normalizeMetricNumber(value, metricName) {
@@ -1079,7 +1332,9 @@ function chartNumber(metric, periodKey) {
 function isLargeCountMetric(name) {
   return [
     "Quantidade de Atendimentos realizados - IXC",
+    "Quantidade de Atendimentos que foi a campo - IXC",
     "Quantidade de Atendimentos Solucionados - IXC",
+    "Quantidade de Pesquisa de Satisfação Realizados - IXC",
     "Quantidade de atendimento realizado pela IA - OPA",
     "Quantidade Total de Cliente UNI - IXC",
     "Quantidade de Atendimentos Realizados pela Equipe - N2"

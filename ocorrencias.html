@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Ocorrências Mensais</title>
-    <link rel="stylesheet" href="ocorrencias.css" />
+    <link rel="stylesheet" href="ocorrencias.css?v=20260518-2" />
   </head>
   <body>
     <main class="screen">
@@ -38,9 +38,10 @@
         </label>
         <label>
           <span>Buscar</span>
-          <input id="searchInput" type="search" placeholder="Ocorrência, cidade ou motivo" />
+          <input id="searchInput" type="search" placeholder="Ocorrência, filial, cidade ou motivo" />
         </label>
       </section>
+      <section class="active-filters" id="activeFilters"></section>
 
       <section class="executive-strip" id="summaryStrip"></section>
 
@@ -82,6 +83,7 @@
               <thead>
                 <tr>
                   <th>Data</th>
+                  <th>Filial</th>
                   <th>Cidade</th>
                   <th>Ocorrência</th>
                   <th>Motivo</th>
@@ -97,6 +99,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="ocorrencias.js"></script>
+    <script src="ocorrencias.js?v=20260518-2"></script>
   </body>
 </html>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
-    <link rel="stylesheet" href="apresentacao.css?v=20260428-9" />
+    <link rel="stylesheet" href="apresentacao.css?v=20260518-2" />
   </head>
   <body>
     <main class="presentation">
@@ -34,9 +34,18 @@
       </header>
 
       <section class="notice" id="importStatus">Nenhuma planilha importada neste navegador.</section>
+      <div class="section-heading">
+        <p class="eyebrow">Visão executiva</p>
+        <h2>MACRO PRINCIPAIS</h2>
+      </div>
       <section class="executive-strip" id="executiveSummary"></section>
+      <section class="executive-insights" id="executiveInsights"></section>
       <section class="validation-list" id="validationList"></section>
 
+      <div class="section-heading micro-heading">
+        <p class="eyebrow">Operação</p>
+        <h2>MICRO DE ACOMPANHAMENTO</h2>
+      </div>
       <section class="kpi-board" id="kpiBoard"></section>
 
       <section class="content-grid">
@@ -68,14 +77,27 @@
         </div>
       </section>
 
+      <div class="section-heading compare-heading">
+        <p class="eyebrow">An?lise semanal</p>
+        <h2>COMPARATIVO SEMANAL</h2>
+      </div>
       <section class="panel table-panel">
-        <div class="panel-head"><div><p class="eyebrow">Comparativo mensal</p><h2>Mês atual vs mês anterior</h2></div></div>
+        <div class="panel-head"><div><p class="eyebrow">Semana selecionada</p><h2>Semana selecionada vs semana anterior</h2></div></div>
+        <div class="monthly-comparison" id="weeklyComparison"></div>
+      </section>
+
+      <div class="section-heading compare-heading">
+        <p class="eyebrow">An?lise mensal</p>
+        <h2>COMPARATIVO MENSAL</h2>
+      </div>
+      <section class="panel table-panel">
+        <div class="panel-head"><div><p class="eyebrow">M?s selecionado</p><h2>M?s atual vs m?s anterior</h2></div></div>
         <div class="monthly-comparison" id="monthlyComparison"></div>
       </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="apresentacao.js?v=20260428-9"></script>
+    <script src="apresentacao.js?v=20260518-2"></script>
   </body>
 </html>

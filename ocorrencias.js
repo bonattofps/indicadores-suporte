@@ -2,6 +2,8 @@ const occurrenceState = {
   workbook: {},
   monthOrder: [],
   selectedMonth: "",
+  selectedCity: "",
+  selectedReason: "",
   filteredRows: [],
   charts: {}
 };
@@ -15,6 +17,7 @@ const els = {
   importStatus: document.querySelector("#importStatus"),
   monthSelect: document.querySelector("#monthSelect"),
   searchInput: document.querySelector("#searchInput"),
+  activeFilters: document.querySelector("#activeFilters"),
   summaryStrip: document.querySelector("#summaryStrip"),
   occurrenceBody: document.querySelector("#occurrenceBody"),
   exportButton: document.querySelector("#exportButton")
@@ -26,6 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
   els.clearButton.addEventListener("click", clearData);
   els.monthSelect.addEventListener("change", () => {
     occurrenceState.selectedMonth = els.monthSelect.value;
+    occurrenceState.selectedCity = "";
+    occurrenceState.selectedReason = "";
     render();
   });
   els.searchInput.addEventListener("input", render);
@@ -100,6 +105,7 @@ function parseWorkbook(content, type) {
       records.push({
         occurrence,
         date: firstFilled(record.data),
+        branch: firstFilled(record.filial) || "-",
         city,
         reason: reason || "-",
         downtime: firstFilled(record.tempo_off, record.tempo) || "-"
@@ -118,6 +124,8 @@ function applyWorkbook(parsed, message) {
   occurrenceState.workbook = parsed.workbook;
   occurrenceState.monthOrder = parsed.monthOrder;
   occurrenceState.selectedMonth = parsed.monthOrder.at(-1) || "";
+  occurrenceState.selectedCity = "";
+  occurrenceState.selectedReason = "";
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
   els.importStatus.textContent = `${message} ${totalRows(parsed.workbook).toLocaleString("pt-BR")} ocorrência(s) lida(s).`;
   render();
@@ -126,6 +134,7 @@ function applyWorkbook(parsed, message) {
 function render() {
   renderMonthOptions();
   occurrenceState.filteredRows = filterRows();
+  renderActiveFilters();
   renderSummary();
   renderCharts();
   renderTable();
@@ -143,20 +152,52 @@ function filterRows() {
   const search = normalizeText(els.searchInput.value);
   if (!month) return [];
   return month.records.filter((row) => {
+    if (occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
+    if (occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!search) return true;
-    return [row.occurrence, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
+    return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
+  });
+}
+
+function renderActiveFilters() {
+  const filters = [
+    occurrenceState.selectedCity ? { key: "city", label: `Cidade: ${occurrenceState.selectedCity}` } : null,
+    occurrenceState.selectedReason ? { key: "reason", label: `Motivo: ${occurrenceState.selectedReason}` } : null
+  ].filter(Boolean);
+
+  if (!filters.length) {
+    els.activeFilters.innerHTML = "";
+    return;
+  }
+
+  els.activeFilters.innerHTML = `
+    <span>Filtros do gráfico</span>
+    ${filters.map((filter) => `<button type="button" data-clear-filter="${filter.key}">${filter.label} ×</button>`).join("")}
+    <button type="button" class="clear-all" data-clear-filter="all">Limpar filtros</button>
+  `;
+
+  els.activeFilters.querySelectorAll("[data-clear-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.clearFilter;
+      if (key === "city" || key === "all") occurrenceState.selectedCity = "";
+      if (key === "reason" || key === "all") occurrenceState.selectedReason = "";
+      render();
+    });
   });
 }
 
 function renderSummary() {
   const rows = occurrenceState.filteredRows;
+  const branchRanking = rankBy(rows, "branch");
   const cityRanking = rankBy(rows, "city");
   const reasonRanking = rankBy(rows, "reason");
+  const criticalBranch = branchRanking[0];
   const criticalCity = cityRanking[0];
   const criticalReason = reasonRanking[0];
 
   els.summaryStrip.innerHTML = [
     ["Ocorrências no mês", rows.length.toLocaleString("pt-BR"), occurrenceState.workbook[occurrenceState.selectedMonth]?.label || "-"],
+    ["Filial mais crítica", criticalBranch?.name || "-", criticalBranch ? `${criticalBranch.total} ocorrência(s)` : ""],
     ["Cidade mais crítica", criticalCity?.name || "-", criticalCity ? `${criticalCity.total} ocorrência(s)` : ""],
     ["Motivo mais frequente", criticalReason?.name || "-", criticalReason ? `${criticalReason.total} ocorrência(s)` : ""],
     ["Cidades impactadas", uniqueCount(rows.map((row) => row.city)).toLocaleString("pt-BR"), ""]
@@ -175,7 +216,7 @@ function renderCharts() {
 }
 
 function renderCityChart() {
-  const rows = rankBy(occurrenceState.filteredRows, "city").slice(0, 12);
+  const rows = rankBy(baseRowsForCharts("city"), "city").slice(0, 12);
   occurrenceState.charts.city?.destroy();
   occurrenceState.charts.city = new Chart(document.querySelector("#cityChart"), {
     type: "bar",
@@ -190,12 +231,20 @@ function renderCityChart() {
         borderRadius: 6
       }]
     },
-    options: chartOptions(false)
+    options: {
+      ...chartOptions(false),
+      onClick: (_, elements) => {
+        const index = elements[0]?.index;
+        if (index === undefined) return;
+        occurrenceState.selectedCity = occurrenceState.selectedCity === rows[index].name ? "" : rows[index].name;
+        render();
+      }
+    }
   });
 }
 
 function renderReasonChart() {
-  const rows = rankBy(occurrenceState.filteredRows, "reason").slice(0, 8);
+  const rows = rankBy(baseRowsForCharts("reason"), "reason").slice(0, 8);
   occurrenceState.charts.reason?.destroy();
   occurrenceState.charts.reason = new Chart(document.querySelector("#reasonChart"), {
     type: "doughnut",
@@ -208,13 +257,33 @@ function renderReasonChart() {
         borderWidth: 2
       }]
     },
-    options: chartOptions(true)
+    options: {
+      ...chartOptions(true),
+      onClick: (_, elements) => {
+        const index = elements[0]?.index;
+        if (index === undefined) return;
+        occurrenceState.selectedReason = occurrenceState.selectedReason === rows[index].name ? "" : rows[index].name;
+        render();
+      }
+    }
+  });
+}
+
+function baseRowsForCharts(ignoreKey) {
+  const month = occurrenceState.workbook[occurrenceState.selectedMonth];
+  const search = normalizeText(els.searchInput.value);
+  if (!month) return [];
+  return month.records.filter((row) => {
+    if (ignoreKey !== "city" && occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
+    if (ignoreKey !== "reason" && occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
+    if (!search) return true;
+    return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
   });
 }
 
 function renderTable() {
   if (!occurrenceState.filteredRows.length) {
-    els.occurrenceBody.innerHTML = '<tr><td colspan="5">Nenhuma ocorrência encontrada para os filtros atuais.</td></tr>';
+    els.occurrenceBody.innerHTML = '<tr><td colspan="6">Nenhuma ocorrência encontrada para os filtros atuais.</td></tr>';
     return;
   }
 
@@ -224,6 +293,7 @@ function renderTable() {
     .map((row) => `
       <tr>
         <td>${formatDate(row.date)}</td>
+        <td>${row.branch}</td>
         <td>${row.city}</td>
         <td>${row.occurrence}</td>
         <td>${row.reason}</td>
@@ -235,8 +305,8 @@ function renderTable() {
 function exportFilteredCsv() {
   const rows = occurrenceState.filteredRows;
   if (!rows.length) return;
-  const header = ["Data", "Cidade", "Ocorrência", "Motivo", "Tempo off"];
-  const csvRows = [header, ...rows.map((row) => [formatDate(row.date), row.city, row.occurrence, row.reason, row.downtime])];
+  const header = ["Data", "Filial", "Cidade", "Ocorrência", "Motivo", "Tempo off"];
+  const csvRows = [header, ...rows.map((row) => [formatDate(row.date), row.branch, row.city, row.occurrence, row.reason, row.downtime])];
   const csv = csvRows.map((row) => row.map(csvCell).join(";")).join("\n");
   const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -329,6 +399,8 @@ function clearData() {
   occurrenceState.workbook = {};
   occurrenceState.monthOrder = [];
   occurrenceState.selectedMonth = "";
+  occurrenceState.selectedCity = "";
+  occurrenceState.selectedReason = "";
   occurrenceState.filteredRows = [];
   els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx para visualizar a dashboard.";
   render();

@@ -84,6 +84,87 @@ td.neutral-cell {
   background: #dff3f7;
 }
 
+/* Visual test - acabamento corporativo */
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.screen {
+  padding-top: 22px;
+}
+
+.header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(159, 197, 216, 0.42);
+}
+
+h1 {
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+
+.switcher,
+.filters {
+  padding: 4px;
+  border: 1px solid rgba(159, 197, 216, 0.52);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.switcher a,
+.switcher button,
+button,
+select,
+input,
+.file-action {
+  border-radius: 7px;
+  font-weight: 800;
+}
+
+.filters,
+.kpi,
+.panel,
+.improve-item {
+  border-color: rgba(159, 197, 216, 0.74);
+  box-shadow: 0 16px 34px rgba(15, 70, 105, 0.1);
+}
+
+.panel-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(159, 197, 216, 0.36);
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tbody tr:nth-child(even) td {
+  filter: saturate(0.92) brightness(1.02);
+}
+
+body[data-theme="dark"] .header {
+  border-color: #2b3947;
+}
+
+body[data-theme="dark"] .switcher,
+body[data-theme="dark"] .filters {
+  border-color: #2b3947;
+  background: rgba(18, 24, 32, 0.72);
+}
+
+body[data-theme="dark"] .filters,
+body[data-theme="dark"] .kpi,
+body[data-theme="dark"] .panel,
+body[data-theme="dark"] .improve-item {
+  border-color: #344659;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+
 .notice,
 .validation-list {
   margin-bottom: 14px;

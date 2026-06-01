@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Ocorrências Mensais</title>
-    <link rel="stylesheet" href="ocorrencias.css?v=20260520-3" />
+    <link rel="stylesheet" href="ocorrencias.css?v=20260601-1" />
   </head>
   <body>
     <main class="screen">
@@ -40,6 +40,15 @@
           <span>Buscar</span>
           <input id="searchInput" type="search" placeholder="Ocorrência, filial, cidade ou motivo" />
         </label>
+        <label>
+          <span>Data inicial</span>
+          <input id="dateStart" type="date" aria-label="Data inicial" />
+        </label>
+        <label>
+          <span>Data final</span>
+          <input id="dateEnd" type="date" aria-label="Data final" />
+        </label>
+        <button id="clearDateButton" class="date-clear" type="button">Limpar datas</button>
       </section>
       <section class="active-filters" id="activeFilters"></section>
 
@@ -74,7 +83,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Lista</p>
-              <h2>Ocorrências do mês</h2>
+              <h2>Ocorrências filtradas</h2>
             </div>
             <button id="exportButton" type="button">Exportar CSV</button>
           </div>
@@ -99,6 +108,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="ocorrencias.js?v=20260518-2"></script>
+    <script src="ocorrencias.js?v=20260601-1"></script>
   </body>
 </html>

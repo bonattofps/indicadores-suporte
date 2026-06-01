@@ -28,7 +28,7 @@ h1 { font-size: clamp(2rem, 4vw, 3.5rem); }
 h2 { font-size: 1.05rem; }
 .eyebrow { margin-bottom: 6px; color: var(--muted); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 
-.switcher a, .switcher button, .file-action, .filters input, .filters select, #exportButton {
+.switcher a, .switcher button, .file-action, .filters input, .filters select, #exportButton, .date-clear {
   min-height: 40px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -69,6 +69,20 @@ h2 { font-size: 1.05rem; }
 .filters { gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .filters label { display: grid; gap: 6px; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
 .filters input, .filters select { padding: 0 12px; min-width: 260px; }
+.date-clear {
+  align-self: end;
+  padding: 0 12px;
+  color: #8e2626;
+  background: rgba(214, 69, 69, 0.08);
+  border-color: rgba(214, 69, 69, 0.28);
+  font-weight: 800;
+  cursor: pointer;
+}
+.date-clear:hover {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
 .active-filters { display: flex; align-items: center; gap: 8px; min-height: 0; margin: -4px 0 18px; flex-wrap: wrap; }
 .active-filters:empty { display: none; }
 .active-filters span { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
@@ -122,12 +136,14 @@ body[data-theme="dark"] .switcher a,
 body[data-theme="dark"] .switcher button,
 body[data-theme="dark"] .filters input,
 body[data-theme="dark"] .filters select,
-body[data-theme="dark"] #exportButton { color: #dfe8f2; background: #121820; border-color: #2b3947; }
+body[data-theme="dark"] #exportButton,
+body[data-theme="dark"] .date-clear { color: #dfe8f2; background: #121820; border-color: #2b3947; }
 body[data-theme="dark"] .switcher a.active,
 body[data-theme="dark"] .switcher a:hover,
 body[data-theme="dark"] .switcher button:hover,
 body[data-theme="dark"] .file-action,
 body[data-theme="dark"] #exportButton:hover { color: #06130d; background: #21c07a; border-color: #21c07a; }
+body[data-theme="dark"] .date-clear:hover { color: #260607; background: #ef5d60; border-color: #ef5d60; }
 body[data-theme="dark"] .insight-card,
 body[data-theme="dark"] .panel,
 body[data-theme="dark"] .notice { border-color: #2b3947; background: linear-gradient(180deg, rgba(25, 34, 44, 0.98), rgba(13, 18, 25, 0.98)); color: #edf4fb; }
@@ -185,7 +201,8 @@ h1 {
 .filters input,
 .filters select,
 .file-action,
-#exportButton {
+#exportButton,
+.date-clear {
   border-radius: 7px;
   font-weight: 800;
 }

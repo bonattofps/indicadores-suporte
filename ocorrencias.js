@@ -4,6 +4,8 @@ const occurrenceState = {
   selectedMonth: "",
   selectedCity: "",
   selectedReason: "",
+  dateStart: "",
+  dateEnd: "",
   filteredRows: [],
   charts: {}
 };
@@ -17,6 +19,9 @@ const els = {
   importStatus: document.querySelector("#importStatus"),
   monthSelect: document.querySelector("#monthSelect"),
   searchInput: document.querySelector("#searchInput"),
+  dateStart: document.querySelector("#dateStart"),
+  dateEnd: document.querySelector("#dateEnd"),
+  clearDateButton: document.querySelector("#clearDateButton"),
   activeFilters: document.querySelector("#activeFilters"),
   summaryStrip: document.querySelector("#summaryStrip"),
   occurrenceBody: document.querySelector("#occurrenceBody"),
@@ -34,6 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
     render();
   });
   els.searchInput.addEventListener("input", render);
+  els.dateStart.addEventListener("change", handleDateFilterChange);
+  els.dateEnd.addEventListener("change", handleDateFilterChange);
+  els.clearDateButton.addEventListener("click", clearDateFilter);
   els.exportButton.addEventListener("click", exportFilteredCsv);
   tryAutoLoad();
 });
@@ -126,6 +134,10 @@ function applyWorkbook(parsed, message) {
   occurrenceState.selectedMonth = parsed.monthOrder.at(-1) || "";
   occurrenceState.selectedCity = "";
   occurrenceState.selectedReason = "";
+  occurrenceState.dateStart = "";
+  occurrenceState.dateEnd = "";
+  els.dateStart.value = "";
+  els.dateEnd.value = "";
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
   els.importStatus.textContent = `${message} ${totalRows(parsed.workbook).toLocaleString("pt-BR")} ocorrência(s) lida(s).`;
   render();
@@ -154,6 +166,7 @@ function filterRows() {
   return month.records.filter((row) => {
     if (occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
+    if (!dateMatches(row.date)) return false;
     if (!search) return true;
     return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
   });
@@ -162,7 +175,8 @@ function filterRows() {
 function renderActiveFilters() {
   const filters = [
     occurrenceState.selectedCity ? { key: "city", label: `Cidade: ${occurrenceState.selectedCity}` } : null,
-    occurrenceState.selectedReason ? { key: "reason", label: `Motivo: ${occurrenceState.selectedReason}` } : null
+    occurrenceState.selectedReason ? { key: "reason", label: `Motivo: ${occurrenceState.selectedReason}` } : null,
+    occurrenceState.dateStart || occurrenceState.dateEnd ? { key: "date", label: `Data: ${dateFilterLabel()}` } : null
   ].filter(Boolean);
 
   if (!filters.length) {
@@ -181,6 +195,7 @@ function renderActiveFilters() {
       const key = button.dataset.clearFilter;
       if (key === "city" || key === "all") occurrenceState.selectedCity = "";
       if (key === "reason" || key === "all") occurrenceState.selectedReason = "";
+      if (key === "date" || key === "all") clearDateFilter(false);
       render();
     });
   });
@@ -276,6 +291,7 @@ function baseRowsForCharts(ignoreKey) {
   return month.records.filter((row) => {
     if (ignoreKey !== "city" && occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (ignoreKey !== "reason" && occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
+    if (!dateMatches(row.date)) return false;
     if (!search) return true;
     return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
   });
@@ -381,6 +397,42 @@ function formatDate(value) {
   return date.toLocaleDateString("pt-BR");
 }
 
+function handleDateFilterChange() {
+  occurrenceState.dateStart = els.dateStart.value;
+  occurrenceState.dateEnd = els.dateEnd.value;
+  render();
+}
+
+function clearDateFilter(shouldRender = true) {
+  occurrenceState.dateStart = "";
+  occurrenceState.dateEnd = "";
+  els.dateStart.value = "";
+  els.dateEnd.value = "";
+  if (shouldRender) render();
+}
+
+function dateMatches(value) {
+  if (!occurrenceState.dateStart && !occurrenceState.dateEnd) return true;
+  const date = parseDate(value);
+  if (!date) return false;
+  const start = occurrenceState.dateStart ? new Date(`${occurrenceState.dateStart}T00:00:00`) : null;
+  const end = occurrenceState.dateEnd ? new Date(`${occurrenceState.dateEnd}T23:59:59`) : null;
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
+function dateFilterLabel() {
+  const start = occurrenceState.dateStart ? formatInputDate(occurrenceState.dateStart) : "início";
+  const end = occurrenceState.dateEnd ? formatInputDate(occurrenceState.dateEnd) : "fim";
+  return `${start} até ${end}`;
+}
+
+function formatInputDate(value) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function setupTheme() {
   const savedTheme = localStorage.getItem("indicadores-theme") || "light";
   document.body.dataset.theme = savedTheme;
@@ -401,6 +453,10 @@ function clearData() {
   occurrenceState.selectedMonth = "";
   occurrenceState.selectedCity = "";
   occurrenceState.selectedReason = "";
+  occurrenceState.dateStart = "";
+  occurrenceState.dateEnd = "";
+  els.dateStart.value = "";
+  els.dateEnd.value = "";
   occurrenceState.filteredRows = [];
   els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx para visualizar a dashboard.";
   render();

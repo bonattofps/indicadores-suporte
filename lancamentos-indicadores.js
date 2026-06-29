@@ -822,6 +822,7 @@ function normalizeCollaboratorRow(teamKey, row = {}) {
     ...row
   };
   normalized._id ||= collaboratorIdFromName(teamKey, normalized.name);
+  if (teamKey === "N1") normalized.avaliacao = normalizeValue(normalized.avaliacao, "score");
   return normalized;
 }
 
@@ -1163,7 +1164,7 @@ function calculateGeneralFromCollaborators() {
 
     setGeneralValue("tmaOpa", period.key, averageTime(n1.map((row) => row.tma)));
     setGeneralValue("tmrClienteOpa", period.key, averageTime(n1.map((row) => row.tmr)));
-    setGeneralValue("avaliacaoOpa", period.key, averageNumber(n1.map((row) => row.avaliacao), 2));
+    setGeneralValue("avaliacaoOpa", period.key, averageScore(n1.map((row) => row.avaliacao), 2));
     setGeneralValue("equipeN2", period.key, sumRowKeys(n2, ["externo", "interno", "osCampo", "login"]));
     setGeneralValue("campoIxc", period.key, campo);
     setGeneralValue("solucionadosIxc", period.key, solucionados);
@@ -1354,7 +1355,7 @@ function teamTotals(teamKey, rows) {
       financeiro: sumRows(rows, "financeiro"),
       osCampo: sumRows(rows, "osCampo"),
       opaSuite: sumRows(rows, "opaSuite"),
-      avaliacao: averageNumber(rows.map((row) => row.avaliacao), 2),
+      avaliacao: averageScore(rows.map((row) => row.avaliacao), 2),
       tma: averageTime(rows.map((row) => row.tma)),
       tmr: averageTime(rows.map((row) => row.tmr))
     };
@@ -1413,6 +1414,13 @@ function averageNumber(values, digits = 0) {
   return digits ? average.toFixed(digits) : Math.round(average);
 }
 
+function averageScore(values, digits = 0) {
+  const numbers = values.map(normalizeScoreValue).filter(Number.isFinite);
+  if (!numbers.length) return "";
+  const average = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
+  return digits ? average.toFixed(digits) : Math.round(average);
+}
+
 function averageTime(values) {
   const seconds = values.map(timeToSeconds).filter((value) => Number.isFinite(value) && value > 0);
   if (!seconds.length) return "";
@@ -1427,7 +1435,20 @@ function normalizeValue(value, type) {
     return number > 1 ? number / 100 : number;
   }
   const number = parseNumber(value);
+  if (type === "score") return normalizeScoreNumber(number);
   return Number.isFinite(number) ? number : "";
+}
+
+function normalizeScoreValue(value) {
+  return normalizeScoreNumber(parseNumber(value));
+}
+
+function normalizeScoreNumber(number) {
+  if (!Number.isFinite(number)) return "";
+  let score = number;
+  if (score > 10 && score <= 100) score /= 20;
+  else if (score > 5) score /= 2;
+  return Math.min(Math.max(score, 0), 5);
 }
 
 function displayValue(value, type) {

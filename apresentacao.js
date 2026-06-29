@@ -352,8 +352,9 @@ function persistWorkbook(parsed, flatRows, workbookData, fileName) {
 }
 
 function applyWorkbook(parsed) {
-  state.months = parsed.months || {};
-  state.monthOrder = parsed.monthOrder || [];
+  const normalized = normalizeWorkbookScores(parsed);
+  state.months = normalized.months || {};
+  state.monthOrder = normalized.monthOrder || [];
   if (!state.monthOrder.length) return;
 
   if (!state.selectedMonth || !state.months[state.selectedMonth]) {
@@ -366,6 +367,21 @@ function applyWorkbook(parsed) {
   }
 
   updateImportStatus();
+}
+
+function normalizeWorkbookScores(parsed) {
+  const months = parsed?.months || {};
+  Object.values(months).forEach((month) => {
+    (month.metrics || []).forEach((metric) => {
+      if (metric.type !== "score") return;
+      Object.keys(metric.values || {}).forEach((periodKey) => {
+        const value = metric.values[periodKey];
+        if (value === "" || value === null || value === undefined) return;
+        metric.values[periodKey] = normalizeScoreNumber(parseLocaleNumber(value));
+      });
+    });
+  });
+  return { ...parsed, months };
 }
 
 function handleMonthChange(event) {
@@ -1276,6 +1292,7 @@ function collaboratorValue(value, type) {
     return Number.isFinite(numeric) ? excelTimeToLabel(numeric) : "00:00:00";
   }
   const numeric = parseLocaleNumber(text.replace("%", ""));
+  if (type === "score") return normalizeScoreNumber(numeric);
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
@@ -1725,8 +1742,17 @@ function normalizeImportedValue(value, type, metricName = "") {
   }
   const number = parseLocaleNumber(text);
   if (!Number.isFinite(number)) return "";
+  if (type === "score") return normalizeScoreNumber(number);
   if (isLargeCountMetric(metricName) && number > 0 && number < 100 && /[.,]/.test(text)) return Math.round(number * 1000);
   return number;
+}
+
+function normalizeScoreNumber(number) {
+  if (!Number.isFinite(number)) return "";
+  let score = number;
+  if (score > 10 && score <= 100) score /= 20;
+  else if (score > 5) score /= 2;
+  return Math.min(Math.max(score, 0), 5);
 }
 
 function chartNumber(metric, periodKey) {

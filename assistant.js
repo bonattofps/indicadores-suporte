@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-ai.js";
-import { buildIndicadoresContextForQuestion } from "./indicadores-context.js?v=20260611-5";
+import { buildIndicadoresContextForQuestion } from "./indicadores-context.js?v=20260629-1";
 import { buildJornadaContextForQuestion } from "./jornada-context.js?v=20260611-2";
 
 const firebaseConfig = {

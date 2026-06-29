@@ -417,8 +417,17 @@ function normalizeImportedValue(value, type, metricName = "") {
   }
   const number = parseLocaleNumber(text);
   if (!Number.isFinite(number)) return "";
+  if (type === "score") return normalizeScoreNumber(number);
   if (isLargeCountMetric(metricName) && number > 0 && number < 100 && /[.,]/.test(text)) return Math.round(number * 1000);
   return number;
+}
+
+function normalizeScoreNumber(number) {
+  if (!Number.isFinite(number)) return "";
+  let score = number;
+  if (score > 10 && score <= 100) score /= 20;
+  else if (score > 5) score /= 2;
+  return Math.min(Math.max(score, 0), 5);
 }
 
 function format(value, type) {

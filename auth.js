@@ -100,6 +100,126 @@ const dashboardDescriptions = {
   "usuarios.html": "Usuários, cargos, pendências e planilhas."
 };
 
+const defaultOccurrenceOptions = {
+  branches: [
+    "Alta Floresta d'Oeste",
+    "Alto Alegre dos Parecis",
+    "Alto Paraíso",
+    "Alvorada d'Oeste",
+    "Ariquemes",
+    "Buritis",
+    "Cabixi",
+    "Cacaulândia",
+    "Cacoal",
+    "Campo Novo de Rondônia",
+    "Candeias do Jamari",
+    "Castanheiras",
+    "Cerejeiras",
+    "Chupinguaia",
+    "Colorado do Oeste",
+    "Corumbiara",
+    "Costa Marques",
+    "Cujubim",
+    "Espigão d'Oeste",
+    "Governador Jorge Teixeira",
+    "Guajará-Mirim",
+    "Itapuã do Oeste",
+    "Jaru",
+    "Ji-Paraná",
+    "Machadinho d'Oeste",
+    "Ministro Andreazza",
+    "Mirante da Serra",
+    "Monte Negro",
+    "Nova Brasilândia d'Oeste",
+    "Nova Mamoré",
+    "Nova União",
+    "Novo Horizonte do Oeste",
+    "Ouro Preto do Oeste",
+    "Parecis",
+    "Pimenta Bueno",
+    "Pimenteiras do Oeste",
+    "Porto Velho",
+    "Presidente Médici",
+    "Primavera de Rondônia",
+    "Rio Crespo",
+    "Rolim de Moura",
+    "Santa Luzia d'Oeste",
+    "São Felipe d'Oeste",
+    "São Francisco do Guaporé",
+    "São Miguel do Guaporé",
+    "Seringueiras",
+    "Teixeirópolis",
+    "Theobroma",
+    "Urupá",
+    "Vale do Anari",
+    "Vale do Paraíso",
+    "Vilhena"
+  ],
+  cities: [
+    "Alta Floresta d'Oeste",
+    "Alto Alegre dos Parecis",
+    "Alto Paraíso",
+    "Alvorada d'Oeste",
+    "Ariquemes",
+    "Buritis",
+    "Cabixi",
+    "Cacaulândia",
+    "Cacoal",
+    "Campo Novo de Rondônia",
+    "Candeias do Jamari",
+    "Castanheiras",
+    "Cerejeiras",
+    "Chupinguaia",
+    "Colorado do Oeste",
+    "Corumbiara",
+    "Costa Marques",
+    "Cujubim",
+    "Espigão d'Oeste",
+    "Governador Jorge Teixeira",
+    "Guajará-Mirim",
+    "Itapuã do Oeste",
+    "Jaru",
+    "Ji-Paraná",
+    "Machadinho d'Oeste",
+    "Ministro Andreazza",
+    "Mirante da Serra",
+    "Monte Negro",
+    "Nova Brasilândia d'Oeste",
+    "Nova Mamoré",
+    "Nova União",
+    "Novo Horizonte do Oeste",
+    "Ouro Preto do Oeste",
+    "Parecis",
+    "Pimenta Bueno",
+    "Pimenteiras do Oeste",
+    "Porto Velho",
+    "Presidente Médici",
+    "Primavera de Rondônia",
+    "Rio Crespo",
+    "Rolim de Moura",
+    "Santa Luzia d'Oeste",
+    "São Felipe d'Oeste",
+    "São Francisco do Guaporé",
+    "São Miguel do Guaporé",
+    "Seringueiras",
+    "Teixeirópolis",
+    "Theobroma",
+    "Urupá",
+    "Vale do Anari",
+    "Vale do Paraíso",
+    "Vilhena"
+  ],
+  reasons: [
+    "CTO OFF",
+    "Pop's Offline",
+    "Manutenção",
+    "Instabilidade",
+    "OPA Off",
+    "IXC Off",
+    "Migração"
+  ]
+};
+
 const legacyRoleMap = {
   gerencia: "gerente",
   suporte: "n1"
@@ -137,6 +257,7 @@ const roleHome = {
 
 let activeRoleAccess = structuredClone(defaultRoleAccess);
 let activeIndicatorGoals = { ...defaultIndicatorGoals };
+let activeOccurrenceOptions = structuredClone(defaultOccurrenceOptions);
 let selectedPermissionRole = "n1";
 
 const dashboardPages = new Set(dashboardOptions.map((dashboard) => dashboard.page));
@@ -243,6 +364,29 @@ const mergeRoleAccess = (savedRoles = {}) => {
   return merged;
 };
 
+const normalizeListItems = (items = []) => {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const key = item
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+};
+
+const mergeOccurrenceOptions = (savedOptions = {}) => ({
+  branches: normalizeListItems(savedOptions.branches?.length ? savedOptions.branches : defaultOccurrenceOptions.branches),
+  cities: normalizeListItems(savedOptions.cities?.length ? savedOptions.cities : defaultOccurrenceOptions.cities),
+  reasons: normalizeListItems(savedOptions.reasons?.length ? savedOptions.reasons : defaultOccurrenceOptions.reasons)
+});
+
 const loadRoleAccess = async () => {
   try {
     const snapshot = await getDoc(doc(db, "settings", "roleAccess"));
@@ -250,11 +394,13 @@ const loadRoleAccess = async () => {
     customRoleOptions = sanitizeCustomRoles(data.customRoles);
     activeRoleAccess = snapshot.exists() ? mergeRoleAccess(data.roles) : structuredClone(defaultRoleAccess);
     activeIndicatorGoals = data.indicatorGoals ? { ...defaultIndicatorGoals, ...data.indicatorGoals } : { ...defaultIndicatorGoals };
+    activeOccurrenceOptions = mergeOccurrenceOptions(data.occurrenceOptions);
   } catch (error) {
     console.error(error);
     customRoleOptions = [];
     activeRoleAccess = structuredClone(defaultRoleAccess);
     activeIndicatorGoals = { ...defaultIndicatorGoals };
+    activeOccurrenceOptions = structuredClone(defaultOccurrenceOptions);
   }
 };
 
@@ -789,6 +935,7 @@ const saveRoleAccess = async (profile) => {
     roles: activeRoleAccess,
     customRoles: customRoleOptions.map(({ key, label, description }) => ({ key, label, description })),
     indicatorGoals: activeIndicatorGoals,
+    occurrenceOptions: activeOccurrenceOptions,
     updatedAt: serverTimestamp(),
     updatedBy: profile.uid
   });
@@ -814,6 +961,10 @@ const parseGoalNumber = (value, fallback) => {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+const listToTextarea = (items = []) => normalizeListItems(items).join("\n");
+
+const textareaToList = (value) => normalizeListItems(String(value || "").split(/\r?\n/));
 
 const renderIndicatorGoalsPanel = async (profile) => {
   const form = document.querySelector("#indicatorGoalsForm");
@@ -855,6 +1006,48 @@ const renderIndicatorGoalsPanel = async (profile) => {
     } catch (error) {
       status.textContent = error.code === "permission-denied"
         ? "Sem permissão para salvar metas. Publique as regras do Firestore ou confirme se seu cargo está como Administrador."
+        : authErrorMessage(error);
+    } finally {
+      setBusy(form, false);
+    }
+  });
+};
+
+const renderOccurrenceOptionsPanel = (profile) => {
+  const form = document.querySelector("#occurrenceOptionsForm");
+  const status = document.querySelector("#usersStatus");
+  if (!form || form.dataset.bound) return;
+
+  form.querySelector('[name="branches"]').value = listToTextarea(activeOccurrenceOptions.branches);
+  form.querySelector('[name="cities"]').value = listToTextarea(activeOccurrenceOptions.cities);
+  form.querySelector('[name="reasons"]').value = listToTextarea(activeOccurrenceOptions.reasons);
+
+  form.dataset.bound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setBusy(form, true);
+    status.textContent = "Salvando listas de ocorrências...";
+
+    const nextOptions = {
+      branches: textareaToList(valueFromForm(form, "branches")),
+      cities: textareaToList(valueFromForm(form, "cities")),
+      reasons: textareaToList(valueFromForm(form, "reasons"))
+    };
+
+    try {
+      activeOccurrenceOptions = mergeOccurrenceOptions(nextOptions);
+      await setDoc(doc(db, "settings", "roleAccess"), {
+        occurrenceOptions: activeOccurrenceOptions,
+        occurrenceOptionsUpdatedAt: serverTimestamp(),
+        occurrenceOptionsUpdatedBy: profile.uid
+      }, { merge: true });
+      form.querySelector('[name="branches"]').value = listToTextarea(activeOccurrenceOptions.branches);
+      form.querySelector('[name="cities"]').value = listToTextarea(activeOccurrenceOptions.cities);
+      form.querySelector('[name="reasons"]').value = listToTextarea(activeOccurrenceOptions.reasons);
+      status.textContent = "Listas de ocorrências atualizadas.";
+    } catch (error) {
+      status.textContent = error.code === "permission-denied"
+        ? "Sem permissão para salvar listas. Confirme se seu cargo está como Administrador."
         : authErrorMessage(error);
     } finally {
       setBusy(form, false);
@@ -1133,6 +1326,7 @@ const renderUsersPage = async (profile) => {
   if (!body || !status) return;
 
   await renderIndicatorGoalsPanel(profile);
+  renderOccurrenceOptionsPanel(profile);
   bindCustomRoleForm(profile);
   renderPermissionsPanel(profile);
   renderRoleSelectOptions();
@@ -1316,13 +1510,17 @@ window.SGPAuth = {
   canAccess,
   currentUser: () => activeProfile,
   indicatorGoals: () => ({ ...activeIndicatorGoals }),
+  occurrenceOptions: () => structuredClone(activeOccurrenceOptions),
+  async loadOccurrenceOptions() {
+    return structuredClone(activeOccurrenceOptions);
+  },
   async loadManualIndicators() {
     const snapshot = await getDoc(manualIndicatorsRef());
     return snapshot.exists() ? decodeManualIndicators(snapshot.data()) : null;
   },
   async saveManualIndicators(payload) {
-    if (normalizeRoleKey(activeProfile?.role) !== "administrador") {
-      throw new Error("Somente Administrador pode salvar lançamentos manuais.");
+    if (!canAccess(activeProfile?.role, "lancamentos-indicadores.html")) {
+      throw new Error("Seu cargo não tem permissão para salvar lançamentos manuais.");
     }
 
     await setDoc(manualIndicatorsRef(), {
@@ -1336,8 +1534,8 @@ window.SGPAuth = {
     return snapshot.exists() ? decodeManualOccurrences(snapshot.data()) : null;
   },
   async saveManualOccurrences(payload) {
-    if (normalizeRoleKey(activeProfile?.role) !== "administrador") {
-      throw new Error("Somente Administrador pode salvar ocorrências manuais.");
+    if (!canAccess(activeProfile?.role, "lancamentos-ocorrencias.html")) {
+      throw new Error("Seu cargo não tem permissão para salvar ocorrências manuais.");
     }
 
     await setDoc(manualOccurrencesRef(), {

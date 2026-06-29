@@ -28,6 +28,21 @@ service cloud.firestore {
         && role == "administrador";
     }
 
+    function currentRole() {
+      return userDoc(request.auth.uid).data.role;
+    }
+
+    function canAccessPage(page) {
+      return verifiedOrApproved()
+        && (
+          isAdministrador()
+          || (
+            get(/databases/$(database)/documents/settings/roleAccess).data.roles[currentRole()] is list
+            && page in get(/databases/$(database)/documents/settings/roleAccess).data.roles[currentRole()]
+          )
+        );
+    }
+
     function isSelfSignup(userId) {
       return signedIn()
         && request.auth.uid == userId
@@ -65,12 +80,12 @@ service cloud.firestore {
 
     match /manualIndicators/{docId} {
       allow read: if signedIn();
-      allow write: if isAdministrador();
+      allow write: if canAccessPage("lancamentos-indicadores.html");
     }
 
     match /manualOccurrences/{docId} {
       allow read: if signedIn();
-      allow write: if isAdministrador();
+      allow write: if canAccessPage("lancamentos-ocorrencias.html");
     }
 
     match /emailIndex/{emailKey} {

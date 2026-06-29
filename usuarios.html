@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Configurações</title>
-    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="auth.js?v=20260629-3"></script>
     <script type="module" src="assistant.js?v=20260611-9"></script>
     <link rel="stylesheet" href="brand.css?v=20260608-2" />
     <link rel="stylesheet" href="assistant.css?v=20260611-8" />
@@ -243,6 +243,36 @@
         color: var(--muted);
         font-size: 0.88rem;
         line-height: 1.45;
+      }
+
+      .occurrence-options-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .occurrence-options-grid label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .occurrence-options-grid textarea {
+        width: 100%;
+        min-height: 180px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        background: #ffffff;
+        color: var(--text);
+        font: inherit;
+        resize: vertical;
+      }
+
+      .occurrence-options-actions {
+        padding: 0 18px 18px;
       }
 
       .check-row {
@@ -529,6 +559,10 @@
           grid-template-columns: 1fr;
         }
 
+        .occurrence-options-grid {
+          grid-template-columns: 1fr;
+        }
+
         .permissions-board {
           grid-template-columns: 1fr;
         }
@@ -606,6 +640,33 @@
           </div>
         </form>
         <p class="goals-help">Use tempo no formato HH:MM:SS. TMA/TMR, atendimentos totais e atendimentos a campo ficam melhores quando estão abaixo da meta. SLA, satisfação, qualidade, solucionados e resolutividade ficam melhores quando estão acima.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">Ocorrências</p>
+          <h2>Listas de lançamentos</h2>
+          <p class="permissions-intro">Cadastre uma opção por linha para aparecer nos campos de Filial, Cidade e Motivo em Lançar Ocorrências.</p>
+        </div>
+        <form id="occurrenceOptionsForm">
+          <div class="occurrence-options-grid">
+            <label>
+              Filiais
+              <textarea name="branches" spellcheck="false" placeholder="Rolim de Moura&#10;Ji-Paraná&#10;Cacoal"></textarea>
+            </label>
+            <label>
+              Cidades
+              <textarea name="cities" spellcheck="false" placeholder="Rolim de Moura&#10;Ji-Paraná&#10;Cacoal"></textarea>
+            </label>
+            <label>
+              Motivos
+              <textarea name="reasons" spellcheck="false" placeholder="CTO OFF&#10;Pop's Offline&#10;Manutenção"></textarea>
+            </label>
+          </div>
+          <div class="occurrence-options-actions">
+            <button type="submit">Salvar listas</button>
+          </div>
+        </form>
       </section>
 
       <section class="notice" id="pendingStatus">Carregando pendencias...</section>

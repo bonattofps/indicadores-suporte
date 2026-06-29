@@ -1,7 +1,10 @@
-﻿const state = {
+const state = {
   workbook: {},
   monthOrder: [],
   selectedMonth: "",
+  branches: [],
+  cities: [],
+  reasonBase: [],
   reasons: []
 };
 
@@ -138,6 +141,7 @@ function handleRowEdit(event) {
 async function loadInitialData() {
   try {
     await waitForAuth();
+    await loadOccurrenceOptions();
     const saved = await window.SGPAuth.loadManualOccurrences();
     if (saved?.workbook && saved?.monthOrder?.length) {
       state.workbook = saved.workbook;
@@ -154,9 +158,41 @@ async function loadInitialData() {
   } catch (error) {
     console.error(error);
     createMonth(false);
+    applyOccurrenceOptions();
     refreshReasonOptions();
     setStatus("Não foi possível carregar do Firebase. Você ainda pode preencher e tentar salvar.", "error");
   }
+}
+
+async function loadOccurrenceOptions() {
+  try {
+    const options = await window.SGPAuth.loadOccurrenceOptions?.();
+    applyOccurrenceOptions(options);
+  } catch (error) {
+    console.error(error);
+    applyOccurrenceOptions();
+  }
+}
+
+function applyOccurrenceOptions(options = {}) {
+  state.cities = mergeOptionList(options.cities, RONDONIA_CITIES);
+  state.branches = mergeOptionList(options.branches, state.cities.length ? state.cities : RONDONIA_CITIES);
+  state.reasonBase = mergeOptionList(options.reasons, DEFAULT_REASONS);
+}
+
+function mergeOptionList(customItems, fallbackItems) {
+  const source = Array.isArray(customItems) && customItems.length ? customItems : fallbackItems;
+  const seen = new Set();
+  return source
+    .map((item) => clean(item))
+    .filter(Boolean)
+    .filter((item) => {
+      const key = normalizeText(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function waitForAuth() {
@@ -293,12 +329,12 @@ function renderRows() {
       <td><input type="date" value="${escapeHtml(inputDateValue(row.date))}" data-index="${index}" data-field="date" /></td>
       <td>
         <select data-index="${index}" data-field="branch">
-          ${cityOptions(row.branch, "Selecionar filial")}
+          ${optionListMarkup(state.branches, row.branch, "Selecionar filial")}
         </select>
       </td>
       <td>
         <select data-index="${index}" data-field="city">
-          ${cityOptions(row.city, "Selecionar cidade")}
+          ${optionListMarkup(state.cities, row.city, "Selecionar cidade")}
         </select>
       </td>
       <td><input type="text" value="${escapeHtml(row.occurrence)}" data-index="${index}" data-field="occurrence" placeholder="Ocorrência" /></td>
@@ -368,9 +404,10 @@ function downtimeTextFromRow(row) {
   return `${start} - ${end}`;
 }
 
-function cityOptions(selectedValue, placeholder) {
+function optionListMarkup(options, selectedValue, placeholder) {
   const selected = clean(selectedValue);
-  const hasSelected = RONDONIA_CITIES.some((city) => city === selected);
+  const source = options?.length ? options : RONDONIA_CITIES;
+  const hasSelected = source.some((item) => item === selected);
   const extraOption = selected && !hasSelected
     ? `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)} - revisar</option>`
     : "";
@@ -378,7 +415,7 @@ function cityOptions(selectedValue, placeholder) {
   return `
     <option value="">${escapeHtml(placeholder)}</option>
     ${extraOption}
-    ${RONDONIA_CITIES.map((city) => `<option value="${escapeHtml(city)}" ${city === selected ? "selected" : ""}>${escapeHtml(city)}</option>`).join("")}
+    ${source.map((item) => `<option value="${escapeHtml(item)}" ${item === selected ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}
   `;
 }
 
@@ -398,7 +435,7 @@ function reasonOptions(selectedValue) {
 
 function refreshReasonOptions() {
   const reasons = new Map();
-  DEFAULT_REASONS.forEach((reason) => reasons.set(normalizeText(reason), reason));
+  (state.reasonBase.length ? state.reasonBase : DEFAULT_REASONS).forEach((reason) => reasons.set(normalizeText(reason), reason));
 
   Object.values(state.workbook).forEach((month) => {
     (month.records || []).forEach((row) => {

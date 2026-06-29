@@ -65,8 +65,8 @@ const dashboardOptions = [
   { page: "ocorrencias.html", label: "Ocorrências" },
   { page: "jornada.html", label: "Jornadas do Suporte" },
   { page: "cto.html", label: "Identificação de CTO/Gerador PPPoE" },
-  { page: "lancamentos-indicadores.html", label: "Lançamentos", adminOnly: true },
-  { page: "lancamentos-ocorrencias.html", label: "Lançar Ocorrências", adminOnly: true },
+  { page: "lancamentos-indicadores.html", label: "Lançamentos" },
+  { page: "lancamentos-ocorrencias.html", label: "Lançar Ocorrências" },
   { page: "usuarios.html", label: "Configurações", adminOnly: true }
 ];
 

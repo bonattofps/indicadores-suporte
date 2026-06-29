@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Status das Planilhas</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+<link rel="stylesheet" href="admin-panels.css?v=20260609-1" />
+    <script type="module" src="status-planilhas.js?v=20260609-1"></script>
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
+          <h1>Status das Planilhas</h1>
+          <p class="subtitle">Monitore se as bases do Google Sheets estao acessiveis para as dashboards.</p>
+        </div>
+        <div class="switcher">
+          <a href="index.html">Inicio</a>
+          <a href="usuarios.html">Configurações</a>
+          <a href="pendencias.html">Pendencias</a>
+          <a class="active" href="status-planilhas.html">Planilhas</a>
+        </div>
+      </header>
+
+      <section class="notice" id="sheetStatus">Verificando planilhas...</section>
+
+      <section class="metrics-grid" aria-label="Resumo das integracoes">
+        <article class="metric-card">
+          <strong id="connectedCount">0</strong>
+          <span>Conectadas</span>
+        </article>
+        <article class="metric-card">
+          <strong id="errorCount">0</strong>
+          <span>Com erro</span>
+        </article>
+        <article class="metric-card">
+          <strong id="totalRows">0</strong>
+          <span>Linhas lidas</span>
+        </article>
+        <article class="metric-card">
+          <strong id="lastCheck">-</strong>
+          <span>Ultima leitura</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Integracoes</p>
+            <h2>Bases conectadas</h2>
+          </div>
+          <button class="button primary" id="refreshSheets" type="button">Atualizar</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Dashboard</th>
+                <th>Status</th>
+                <th>Linhas</th>
+                <th>Ultimo registro</th>
+                <th>Origem</th>
+              </tr>
+            </thead>
+            <tbody id="sheetsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+
+

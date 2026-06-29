@@ -104,11 +104,11 @@ const els = {
   actionBody: document.querySelector("#actionBody")
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   initializeGoalState();
   setupTheme();
   bindEvents();
-  loadStoredWorkbook();
+  await loadStoredWorkbook();
   render();
 });
 
@@ -154,7 +154,10 @@ async function handleImport(event) {
   }
 }
 
-function loadStoredWorkbook() {
+async function loadStoredWorkbook() {
+  if (await loadManualCollaboratorWorkbook()) return;
+  if (loadLocalSeedCollaboratorWorkbook()) return;
+
   const parsedWorkbook = localStorage.getItem(STORAGE_KEYS.parsedWorkbook) || sessionStorage.getItem(STORAGE_KEYS.parsedWorkbook);
   if (parsedWorkbook) {
     try {
@@ -175,6 +178,42 @@ function loadStoredWorkbook() {
   }
   resetState();
   els.importStatus.textContent = "Importe a planilha em Indicadores Gerais para carregar os colaboradores por mes.";
+}
+
+function loadLocalSeedCollaboratorWorkbook() {
+  const workbook = window.SGP_MANUAL_INDICATORS_SEED?.collaboratorWorkbook;
+  if (!workbook?.monthOrder?.length || workbook.version !== 5) return false;
+  localStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
+  sessionStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
+  localStorage.setItem(STORAGE_KEYS.name, "Base local Junho 2026");
+  localStorage.setItem(STORAGE_KEYS.importedAt, new Date().toLocaleString("pt-BR"));
+  applyWorkbook(workbook);
+  els.importStatus.textContent = "Colaboradores carregados da base local de Junho 2026.";
+  return true;
+}
+
+async function loadManualCollaboratorWorkbook() {
+  try {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      if (window.SGPAuth?.loadManualIndicators && document.documentElement.dataset.authReady === "true") break;
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+
+    const saved = await window.SGPAuth?.loadManualIndicators?.();
+    const workbook = saved?.collaboratorWorkbook;
+    if (!workbook?.monthOrder?.length || workbook.version !== 5) return false;
+
+    localStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
+    sessionStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
+    localStorage.setItem(STORAGE_KEYS.name, "Lançamentos manuais SGP");
+    localStorage.setItem(STORAGE_KEYS.importedAt, new Date().toLocaleString("pt-BR"));
+    applyWorkbook(workbook);
+    els.importStatus.textContent = "Colaboradores carregados dos lançamentos manuais do SGP.";
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
 }
 
 function handleExternalWorkbookSync(event) {

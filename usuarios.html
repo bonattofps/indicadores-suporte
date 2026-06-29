@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Configurações</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+    <link rel="stylesheet" href="admin-panels.css?v=20260609-1" />
+    <script type="module" src="pendencias.js?v=20260609-2"></script>
+    <script type="module" src="status-planilhas.js?v=20260609-2"></script>
+    <style>
+      :root {
+        --bg: #f4fbff;
+        --panel: #ffffff;
+        --border: #cfe2ee;
+        --text: #102033;
+        --muted: #567086;
+        --green: #009c67;
+        --blue: #38bdf8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(32, 199, 123, 0.13), transparent 28%),
+          linear-gradient(135deg, #f4fbff 0%, #ffffff 46%, #eef8f4 100%);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .screen {
+        width: min(1320px, 100%);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: 30px 22px;
+        display: grid;
+        gap: 20px;
+      }
+
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 18px;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3.6rem);
+        line-height: 1.04;
+        letter-spacing: 0;
+      }
+
+      .switcher {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .switcher a {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 11px;
+        color: var(--text);
+        background: #ffffff;
+        text-decoration: none;
+        font-size: 0.86rem;
+        font-weight: 800;
+      }
+
+      .switcher a.active {
+        border-color: var(--green);
+        color: #ffffff;
+        background: var(--green);
+      }
+
+      .notice,
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 42px rgba(20, 75, 110, 0.1);
+      }
+
+      .notice {
+        padding: 14px 16px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .panel {
+        overflow: hidden;
+      }
+
+      .panel-head {
+        padding: 18px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .panel-head h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+
+      .table-scroll {
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+      }
+
+      th,
+      td {
+        padding: 13px 14px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      select {
+        min-height: 36px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 10px;
+        background: #ffffff;
+        color: var(--text);
+        font: inherit;
+        font-weight: 800;
+      }
+
+      .create-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .create-grid label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .create-grid input,
+      .custom-role-grid input,
+      .custom-role-grid textarea,
+      .create-grid select {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 10px;
+        background: #ffffff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      .custom-role-grid {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.55fr) minmax(240px, 1fr) auto;
+        gap: 12px;
+        padding: 18px 18px 0;
+      }
+
+      .custom-role-grid label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .custom-role-grid textarea {
+        min-height: 40px;
+        padding: 10px;
+        resize: vertical;
+      }
+
+      .custom-role-actions {
+        align-self: end;
+      }
+
+      .goals-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .goals-grid label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .goals-grid input {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 10px;
+        background: #ffffff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      .goals-help {
+        padding: 0 18px 18px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+      }
+
+      .check-row input {
+        width: auto;
+        min-height: auto;
+      }
+
+      .create-actions {
+        align-self: end;
+      }
+
+      .permission-check {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+
+      .permission-check input {
+        width: 18px;
+        height: 18px;
+      }
+
+      .permissions-intro {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
+      .permissions-board {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .permission-role-list {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+      }
+
+      .permission-role-tab {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        background: #ffffff;
+        color: var(--text);
+        text-align: left;
+        box-shadow: none;
+      }
+
+      .permission-role-tab:hover {
+        border-color: rgba(0, 156, 103, 0.32);
+        background: #f8fcff;
+      }
+
+      .permission-role-tab.is-selected {
+        border-color: rgba(0, 156, 103, 0.5);
+        background: rgba(0, 156, 103, 0.08);
+      }
+
+      .permission-role-tab strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--text);
+        font-size: 0.94rem;
+      }
+
+      .permission-role-tab small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .permission-role-card {
+        display: grid;
+        gap: 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fcff 100%);
+      }
+
+      .permission-detail-card {
+        min-height: 420px;
+      }
+
+      .permission-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .permission-card-head h3 {
+        margin: 0 0 4px;
+        font-size: 1.05rem;
+      }
+
+      .permission-card-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .permission-count {
+        min-width: max-content;
+        border: 1px solid rgba(0, 156, 103, 0.22);
+        border-radius: 999px;
+        padding: 5px 9px;
+        color: #00764e;
+        background: rgba(0, 156, 103, 0.08);
+        font-size: 0.76rem;
+        font-weight: 900;
+      }
+
+      .permission-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .permission-dashboard-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .permission-toggle {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        background: #ffffff;
+        cursor: pointer;
+      }
+
+      .permission-toggle.is-active {
+        border-color: rgba(0, 156, 103, 0.38);
+        background: rgba(0, 156, 103, 0.07);
+      }
+
+      .permission-toggle.is-locked {
+        cursor: not-allowed;
+        opacity: 0.68;
+      }
+
+      .permission-toggle strong {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+
+      .permission-toggle span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.25;
+      }
+
+      .permission-toggle input {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--green);
+      }
+
+      .permission-locked-note {
+        border-radius: 8px;
+        padding: 10px;
+        color: var(--muted);
+        background: #eef7fb;
+        font-size: 0.84rem;
+        font-weight: 800;
+      }
+
+      button {
+        min-height: 40px;
+        border: 1px solid var(--green);
+        border-radius: 8px;
+        padding: 0 14px;
+        background: var(--green);
+        color: #ffffff;
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      button.danger {
+        border-color: #dc2626;
+        background: #dc2626;
+      }
+
+      button.secondary {
+        border-color: var(--border);
+        color: var(--text);
+        background: #ffffff;
+      }
+
+      button.danger-outline {
+        border-color: rgba(220, 38, 38, 0.4);
+        color: #b91c1c;
+        background: rgba(220, 38, 38, 0.08);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .presence-badge {
+        display: inline-flex;
+        width: fit-content;
+        min-height: 30px;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0 10px;
+        color: var(--muted);
+        background: #ffffff;
+        font-size: 0.82rem;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .presence-badge::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #94a3b8;
+      }
+
+      .presence-badge.online {
+        border-color: rgba(0, 156, 103, 0.28);
+        color: #00764e;
+        background: rgba(0, 156, 103, 0.08);
+      }
+
+      .presence-badge.online::before {
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(0, 156, 103, 0.12);
+      }
+
+      @media (max-width: 820px) {
+        .header {
+          grid-template-columns: 1fr;
+        }
+
+        .switcher {
+          justify-content: flex-start;
+        }
+
+        .create-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .custom-role-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .goals-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .permissions-board {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
+          <h1>Configurações</h1>
+        </div>
+        <div class="switcher">
+          <a href="apresentacao.html">Indicadores Gerais</a>
+          <a href="colaboradores.html">Colaboradores</a>
+          <a href="operacional.html">Reincidencia</a>
+          <a href="ocorrencias.html">Ocorrencias</a>
+          <a href="jornada.html">Jornadas do Suporte</a>
+          <a href="cto.html">Identificação de CTO/Gerador PPPoE</a>
+          <a class="active" href="usuarios.html">Configurações</a>
+        </div>
+      </header>
+
+      <section class="notice" id="usersStatus">Carregando usuarios...</section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">Metas</p>
+          <h2>Metas dos indicadores</h2>
+          <p class="permissions-intro">Defina os limites usados pelo Assistente SGP para apontar indicadores dentro ou fora da meta.</p>
+        </div>
+        <form class="goals-grid" id="indicatorGoalsForm">
+          <label>
+            TMA máximo
+            <input name="tmaMax" type="text" inputmode="numeric" placeholder="00:05:00" />
+          </label>
+          <label>
+            TMR máximo
+            <input name="tmrMax" type="text" inputmode="numeric" placeholder="00:02:00" />
+          </label>
+          <label>
+            SLA mínimo (%)
+            <input name="slaMin" type="number" min="0" max="100" step="0.01" />
+          </label>
+          <label>
+            Satisfação mínima (%)
+            <input name="satisfactionMin" type="number" min="0" max="100" step="0.01" />
+          </label>
+          <label>
+            Qualidade mínima
+            <input name="qualityScoreMin" type="number" min="0" max="5" step="0.01" />
+          </label>
+          <label>
+            Atend. campo máximo
+            <input name="fieldOpenMax" type="number" min="0" step="1" />
+          </label>
+          <label>
+            Solucionados mínimo
+            <input name="solvedTicketsMin" type="number" min="0" step="1" />
+          </label>
+          <label>
+            Resolutividade mínima (%)
+            <input name="solvedMin" type="number" min="0" max="100" step="0.01" />
+          </label>
+          <label>
+            Atendimentos máx.
+            <input name="totalTicketsMax" type="number" min="0" step="1" />
+          </label>
+          <div class="create-actions">
+            <button type="submit">Salvar metas</button>
+          </div>
+        </form>
+        <p class="goals-help">Use tempo no formato HH:MM:SS. TMA/TMR, atendimentos totais e atendimentos a campo ficam melhores quando estão abaixo da meta. SLA, satisfação, qualidade, solucionados e resolutividade ficam melhores quando estão acima.</p>
+      </section>
+
+      <section class="notice" id="pendingStatus">Carregando pendencias...</section>
+
+      <section class="metrics-grid" aria-label="Resumo de pendencias">
+        <article class="metric-card">
+          <strong id="viewerCount">0</strong>
+          <span>Viewer sem cargo</span>
+        </article>
+        <article class="metric-card">
+          <strong id="emailCount">0</strong>
+          <span>Email pendente</span>
+        </article>
+        <article class="metric-card">
+          <strong id="approvalCount">0</strong>
+          <span>Aguardando liberacao</span>
+        </article>
+        <article class="metric-card">
+          <strong id="inactiveCount">0</strong>
+          <span>Sem atividade</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Acoes recomendadas</p>
+            <h2>Pendencias encontradas</h2>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Cargo</th>
+                <th>Pendencia</th>
+                <th>Status</th>
+                <th>Ultima atividade</th>
+              </tr>
+            </thead>
+            <tbody id="pendingBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="notice" id="sheetStatus">Verificando planilhas...</section>
+
+      <section class="metrics-grid" aria-label="Resumo das integracoes">
+        <article class="metric-card">
+          <strong id="connectedCount">0</strong>
+          <span>Conectadas</span>
+        </article>
+        <article class="metric-card">
+          <strong id="errorCount">0</strong>
+          <span>Com erro</span>
+        </article>
+        <article class="metric-card">
+          <strong id="totalRows">0</strong>
+          <span>Linhas lidas</span>
+        </article>
+        <article class="metric-card">
+          <strong id="lastCheck">-</strong>
+          <span>Ultima leitura</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Integracoes</p>
+            <h2>Bases conectadas</h2>
+          </div>
+          <button class="button primary" id="refreshSheets" type="button">Atualizar</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Dashboard</th>
+                <th>Status</th>
+                <th>Linhas</th>
+                <th>Ultimo registro</th>
+                <th>Origem</th>
+              </tr>
+            </thead>
+            <tbody id="sheetsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">Novo acesso</p>
+          <h2>Criar usuario</h2>
+        </div>
+        <form class="create-grid" id="adminCreateUserForm">
+          <label>
+            Nome
+            <input name="name" type="text" autocomplete="off" required />
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" autocomplete="off" required />
+          </label>
+          <label>
+            Senha
+            <input name="password" type="password" minlength="6" autocomplete="new-password" required />
+          </label>
+          <label>
+            Cargo
+            <select name="role" data-role-options>
+              <option value="viewer">Viewer</option>
+              <option value="n1">N1</option>
+              <option value="n2">N2</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="gerente">Gerente</option>
+              <option value="administrador">Administrador</option>
+            </select>
+          </label>
+          <label class="check-row">
+            <input name="approved" type="checkbox" checked />
+            Liberar sem confirmacao
+          </label>
+          <label class="check-row">
+            <input name="sendVerification" type="checkbox" />
+            Enviar confirmacao por email
+          </label>
+          <div class="create-actions">
+            <button type="submit">Criar usuario</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">Permissoes</p>
+          <h2>Dashboards por cargo</h2>
+          <p class="permissions-intro">Ative ou desative o que cada cargo pode visualizar. Viewer fica sem acesso ate receber um cargo operacional.</p>
+        </div>
+        <form id="customRoleForm" class="custom-role-grid">
+          <label>
+            Novo cargo
+            <input name="roleLabel" type="text" autocomplete="off" placeholder="Ex: N3, Backoffice, Qualidade" />
+          </label>
+          <label>
+            Descricao
+            <textarea name="roleDescription" rows="1" placeholder="Resumo curto do acesso deste cargo"></textarea>
+          </label>
+          <div class="custom-role-actions">
+            <button type="submit">Criar cargo</button>
+          </div>
+        </form>
+        <div id="permissionsBoard" class="permissions-board" aria-live="polite"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <p class="eyebrow">Acessos</p>
+          <h2>Cadastros da dashboard</h2>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Confirmacao</th>
+                <th>Liberacao</th>
+                <th>Cargo</th>
+                <th>Criado em</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+
+

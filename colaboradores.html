@@ -4,12 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestao do Suporte</title>
-    <link rel="stylesheet" href="colaboradores.css?v=20260520-3" />
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+<link rel="stylesheet" href="colaboradores.css?v=20260520-3" />
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
   </head>
   <body>
     <main class="screen">
       <header class="header">
         <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
           <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
           <h1>Desempenho N1 e N2</h1>
         </div>
@@ -18,7 +25,9 @@
           <a class="active" href="colaboradores.html">Colaboradores</a>
           <a href="operacional.html">Reincidencia</a>
           <a href="ocorrencias.html">Ocorrencias</a>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">◐</button>
+          <a href="jornada.html">Jornadas do Suporte</a>
+          <a href="usuarios.html" hidden style="display: none">Configurações</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">?</button>
           <button id="clearButton" type="button">Limpar</button>
         </div>
         <label class="file-action">
@@ -134,8 +143,11 @@
       </section>
     </main>
 
+    <script src="indicadores-junho-seed.js?v=20260619-1"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="colaboradores.js?v=20260428-8"></script>
+    <script src="colaboradores.js?v=20260619-2"></script>
   </body>
 </html>
+
+

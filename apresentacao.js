@@ -7,6 +7,42 @@ const STORAGE_KEYS = {
   collaboratorWorkbook: "indicadoresCollaboratorWorkbookV1"
 };
 
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDORS5NBC9kp2K7JpebALst4FaBYqTV6V0",
+  authDomain: "sgp-sistema-suporte.firebaseapp.com",
+  projectId: "sgp-sistema-suporte",
+  storageBucket: "sgp-sistema-suporte.firebasestorage.app",
+  messagingSenderId: "569194527116",
+  appId: "1:569194527116:web:dd06e9ffc80b7c6634bea9",
+  measurementId: "G-5XG43LT4RV"
+};
+
+const GOOGLE_SHEETS_GENERAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1aZdeCuJreUJm2G-LeyLMDchUec4oMSl3dgX_S8pR_48/export?format=xlsx";
+const GOOGLE_SHEETS_GENERAL_NAME = "Google Sheets - Indicadores de Suporte";
+
+const defaultIndicatorGoals = {
+  tmaMax: "00:45:00",
+  tmrMax: "00:02:00",
+  slaMin: 90,
+  satisfactionMin: 85,
+  qualityScoreMin: 4.5,
+  fieldOpenMax: 450,
+  solvedTicketsMin: 1400,
+  solvedMin: 75,
+  totalTicketsMax: 2200
+};
+
+const metricGoalConfig = {
+  "Tempo Médio de Atendimento - OPA": { key: "tmaMax", direction: "max" },
+  "Tempo Médio de Resposta ao Cliente - OPA": { key: "tmrMax", direction: "max" },
+  "Qualidade Percebida na Avaliação Geral - OPA": { key: "qualityScoreMin", direction: "min" },
+  "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2": { key: "slaMin", direction: "min" },
+  "Qualidade Percebida na Satisfação em % - IXC": { key: "satisfactionMin", direction: "min" },
+  "Quantidade de Atendimentos que foi a campo - IXC": { key: "fieldOpenMax", direction: "max" },
+  "Quantidade de Atendimentos Solucionados - IXC": { key: "solvedTicketsMin", direction: "min" },
+  "Resolutividade IXC": { key: "solvedMin", direction: "min" },
+  "Quantidade de Atendimentos realizados - IXC": { key: "totalTicketsMax", direction: "max" }
+};
 
 const metricDefinitions = [
   { name: "Tempo Médio de Atendimento - OPA", type: "time", aliases: ["tempo medio de atendimento - opa", "tempo medio de atendimento - fluctuS", "tempo medio de atendimento"] },
@@ -30,16 +66,18 @@ const state = {
   monthOrder: [],
   selectedMonth: "",
   selectedPeriod: "",
+  goals: { ...defaultIndicatorGoals },
   charts: {}
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   setupTheme();
   document.querySelector("#fileInput").addEventListener("change", handleImport);
   document.querySelector("#clearButton").addEventListener("click", clearImportedData);
   document.querySelector("#monthSelect").addEventListener("change", handleMonthChange);
   document.querySelector("#weekTabs").addEventListener("click", handlePeriodChange);
-  loadSavedWorkbook();
+  state.goals = await loadIndicatorGoals();
+  await loadGoogleSheetsWorkbook();
   render();
 });
 
@@ -70,8 +108,94 @@ function loadSavedWorkbook() {
   }
 }
 
+async function loadGoogleSheetsWorkbook() {
+  const status = document.querySelector("#importStatus");
+  status.textContent = "Procurando lançamentos manuais...";
+  if (await loadManualWorkbook()) return;
+  if (loadLocalSeedWorkbook()) return;
+
+  status.textContent = "Carregando indicadores pelo Google Sheets...";
+
+  try {
+    const response = await fetch(GOOGLE_SHEETS_GENERAL_XLSX_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
+
+    const buffer = await response.arrayBuffer();
+    const workbookData = readWorkbookBuffer(buffer);
+    const parsed = parseWorkbook(workbookData);
+    const flatRows = workbookData.flatMap((sheet) => sheet.rows);
+    persistWorkbook(parsed, flatRows, workbookData, GOOGLE_SHEETS_GENERAL_NAME);
+    applyWorkbook(parsed);
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Nao foi possivel carregar o Google Sheets. Usando dados salvos/importados, se existirem.";
+    loadSavedWorkbook();
+  }
+}
+
+async function loadManualWorkbook() {
+  try {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      if (window.SGPAuth?.loadManualIndicators && document.documentElement.dataset.authReady === "true") break;
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+
+    const saved = await window.SGPAuth?.loadManualIndicators?.();
+    const workbook = saved?.generalWorkbook;
+    if (!workbook?.monthOrder?.length) return false;
+
+    applyWorkbook(workbook);
+    persistManualWorkbook(workbook, saved?.collaboratorWorkbook);
+    document.querySelector("#importStatus").textContent = "Indicadores carregados dos lançamentos manuais do SGP.";
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+function loadLocalSeedWorkbook() {
+  const workbook = window.SGP_MANUAL_INDICATORS_SEED?.generalWorkbook;
+  if (!workbook?.monthOrder?.length) return false;
+  applyWorkbook(workbook);
+  persistManualWorkbook(workbook, window.SGP_MANUAL_INDICATORS_SEED?.collaboratorWorkbook);
+  document.querySelector("#importStatus").textContent = "Indicadores carregados da base local de Junho 2026.";
+  return true;
+}
+
+async function loadIndicatorGoals() {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const goals = window.SGPAuth?.indicatorGoals?.();
+    if (goals && document.documentElement.dataset.authReady === "true") {
+      return { ...defaultIndicatorGoals, ...goals };
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+  return { ...defaultIndicatorGoals };
+}
+
+function parseCsvWorkbookData(csvText) {
+  const workbook = XLSX.read(csvText, { type: "string", raw: false });
+  const sheetName = workbook.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: false, defval: "" });
+  const firstTitle = rows.find((row) => clean(row[0]))?.[0] || "Indicadores Google Sheets";
+  return [{
+    name: inferSheetNameFromTitle(firstTitle),
+    rows
+  }];
+}
+
+function inferSheetNameFromTitle(title) {
+  const cleaned = clean(title).replace(/^M[ÉE]TRICA MATRIZ\s*/i, "");
+  return cleaned || "Indicadores Google Sheets";
+}
+
 async function readWorkbookData(file) {
   const buffer = await file.arrayBuffer();
+  return readWorkbookBuffer(buffer);
+}
+
+function readWorkbookBuffer(buffer) {
   const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
   return workbook.SheetNames.map((name) => ({
     name,
@@ -273,6 +397,21 @@ function render() {
   renderCharts();
 }
 
+function persistManualWorkbook(parsed, collaboratorWorkbook) {
+  const importedAt = new Date().toLocaleString("pt-BR");
+  localStorage.setItem(STORAGE_KEYS.workbook, JSON.stringify(parsed));
+  localStorage.setItem(STORAGE_KEYS.workbookName, "Lançamentos manuais SGP");
+  localStorage.setItem(STORAGE_KEYS.importedAt, importedAt);
+  if (collaboratorWorkbook?.monthOrder?.length) {
+    localStorage.setItem(STORAGE_KEYS.collaboratorWorkbook, JSON.stringify(collaboratorWorkbook));
+    sessionStorage.setItem(STORAGE_KEYS.collaboratorWorkbook, JSON.stringify(collaboratorWorkbook));
+  }
+  localStorage.setItem("indicadoresWorkbookName", "Lançamentos manuais SGP");
+  localStorage.setItem("indicadoresImportedAt", importedAt);
+  sessionStorage.setItem("indicadoresWorkbookName", "Lançamentos manuais SGP");
+  sessionStorage.setItem("indicadoresImportedAt", importedAt);
+}
+
 function renderMonthOptions() {
   const select = document.querySelector("#monthSelect");
   if (!select) return;
@@ -332,6 +471,7 @@ function renderExecutiveSummary() {
 function renderExecutiveInsights() {
   const container = document.querySelector("#executiveInsights");
   if (!container) return;
+  const projectionRows = buildTimeProjectionRows();
   const rows = comparisonRows([
     "Qualidade Percebida na Avaliação Geral - OPA",
     "Tempo Médio de Resposta ao Cliente - OPA",
@@ -359,17 +499,13 @@ function renderExecutiveInsights() {
     .filter((row) => row.trendClass === "trend-good")
     .sort((a, b) => b.impact - a.impact)
     .slice(0, 3);
-  const critical = alerts[0];
-  const best = improvements[0];
 
   container.innerHTML = `
-    <article class="insight-note executive-note">
+    <article class="insight-note executive-note projection-note">
       <p class="eyebrow">Resumo executivo</p>
-      <h3>${critical ? "Ponto de atenção" : "Cenário estável"}</h3>
-      <p>${critical
-        ? `${escapeHtml(critical.metric.name)} variou ${deltaLabel(critical.delta, critical.metric.type)} vs. ${periodLabel(critical.basePeriod)}.`
-        : `Não há piora relevante contra ${periodLabel(comparisonPeriodKey())}.`}</p>
-      ${best ? `<small>Melhor evolução: ${escapeHtml(best.metric.name)} (${deltaLabel(best.delta, best.metric.type)}).</small>` : ""}
+      <h3>Projeção de fechamento</h3>
+      ${projectionList(projectionRows)}
+      <small>Meta mensal: TMR 00:02:00 e TMA 00:40:00, calculada sobre 4 semanas.</small>
     </article>
     <article class="insight-note alert">
       <p class="eyebrow">Prioridade</p>
@@ -416,7 +552,9 @@ function renderKpis() {
 
 function renderSplitKpi(metric, basePeriod) {
   const current = metric.values[state.selectedPeriod] || {};
-  const base = metric.values[basePeriod] || {};
+  const splitBasePeriod = splitComparisonPeriodKey(metric, basePeriod);
+  const basePeriodLabel = periodLabel(splitBasePeriod);
+  const base = metric.values[splitBasePeriod] || {};
   const operationalDelta = splitDelta(current.operacional, base.operacional);
   const financialDelta = splitDelta(current.financeiro, base.financeiro);
 
@@ -428,19 +566,37 @@ function renderSplitKpi(metric, basePeriod) {
           <span>Operacional</span>
           <strong>${format(current.operacional, "number")}</strong>
           <small class="${trendStatus(operationalDelta, { type: "number", name: "Registros Operacional" })}">
-            ${deltaLabel(operationalDelta, "number")} vs. ${periodLabel(basePeriod)}
+            ${deltaLabel(operationalDelta, "number")} vs. ${basePeriodLabel}
           </small>
         </div>
         <div>
           <span>Financeiro</span>
           <strong>${format(current.financeiro, "number")}</strong>
           <small class="${trendStatus(financialDelta, { type: "number", name: "Registro Financeiro" })}">
-            ${deltaLabel(financialDelta, "number")} vs. ${periodLabel(basePeriod)}
+            ${deltaLabel(financialDelta, "number")} vs. ${basePeriodLabel}
           </small>
         </div>
       </div>
     </article>
   `;
+}
+
+function splitComparisonPeriodKey(metric, fallbackPeriod) {
+  const periods = getPeriods();
+  const currentIndex = periods.findIndex((period) => period.key === state.selectedPeriod);
+  if (currentIndex <= 0) return fallbackPeriod;
+
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    const period = periods[index];
+    const label = normalizeText(period.label);
+    if (label.includes("ULTIMA") || label.includes("MENSAL")) continue;
+    const value = metric.values[period.key];
+    if (value && (Number.isFinite(Number(value.operacional)) || Number.isFinite(Number(value.financeiro)))) {
+      return period.key;
+    }
+  }
+
+  return fallbackPeriod;
 }
 
 function renderGoals() {
@@ -693,7 +849,7 @@ function renderCharts() {
       datasets: [
         lineDataset("IA - OPA", currentMetric("Quantidade de atendimento realizado pela IA - OPA") || emptyMetric("Quantidade de atendimento realizado pela IA - OPA", "number"), "#006dbe"),
         lineDataset("Equipe N2", currentMetric("Quantidade de Atendimentos Realizados pela Equipe - N2") || emptyMetric("Quantidade de Atendimentos Realizados pela Equipe - N2", "number"), "#6e46d6"),
-        lineDataset("Pesquisa IXC", currentMetric("Quantidade de Pesquisa de Satisfa??o Realizados - IXC") || emptyMetric("Quantidade de Pesquisa de Satisfa??o Realizados - IXC", "number"), "#c47a00")
+        lineDataset("Pesquisa IXC", currentMetric("Quantidade de Pesquisa de Satisfação Realizados - IXC") || emptyMetric("Quantidade de Pesquisa de Satisfação Realizados - IXC", "number"), "#c47a00")
       ]
     },
     options: chartOptions()
@@ -720,28 +876,48 @@ function lineDataset(label, metric, color) {
 function goalStatus(metric) {
   const value = metric.values[state.selectedPeriod];
   if (value === "" || value === null || value === undefined || Number.isNaN(value)) return { label: "Sem dados", className: "warn" };
+  const configured = configuredGoalStatus(metric, value);
+  if (configured) return configured;
+
   const number = toNumber(value);
   if (metric.type === "time") {
     if (timeToSeconds(value) <= 45 * 60) return { label: "Dentro", className: "good" };
-    if (timeToSeconds(value) <= 55 * 60) return { label: "Atenção", className: "warn" };
-    return { label: "Crítico", className: "bad" };
+    if (timeToSeconds(value) <= 55 * 60) return { label: "Aten\u00e7\u00e3o", className: "warn" };
+    return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.name.includes("Taxa de Cliente")) {
     if (number <= 0.03) return { label: "Dentro", className: "good" };
-    if (number <= 0.04) return { label: "Atenção", className: "warn" };
-    return { label: "Crítico", className: "bad" };
+    if (number <= 0.04) return { label: "Aten\u00e7\u00e3o", className: "warn" };
+    return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.type === "percent") {
     if (number >= 0.99) return { label: "Dentro", className: "good" };
-    if (number >= 0.97) return { label: "Atenção", className: "warn" };
-    return { label: "Crítico", className: "bad" };
+    if (number >= 0.97) return { label: "Aten\u00e7\u00e3o", className: "warn" };
+    return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.type === "score") {
     if (number >= 4.5) return { label: "Dentro", className: "good" };
-    if (number >= 4.3) return { label: "Atenção", className: "warn" };
-    return { label: "Crítico", className: "bad" };
+    if (number >= 4.3) return { label: "Aten\u00e7\u00e3o", className: "warn" };
+    return { label: "Cr\u00edtico", className: "bad" };
   }
-  return number > 0 ? { label: "Dentro", className: "good" } : { label: "Atenção", className: "warn" };
+  return number > 0 ? { label: "Dentro", className: "good" } : { label: "Aten\u00e7\u00e3o", className: "warn" };
+}
+
+function configuredGoalStatus(metric, value) {
+  const config = metricGoalConfig[metric.name];
+  if (!config) return null;
+
+  const rawGoal = state.goals[config.key] ?? defaultIndicatorGoals[config.key];
+  const valueNumber = metric.type === "time" ? timeToSeconds(value) : toNumber(value);
+  const goalNumber = metric.type === "time" ? timeToSeconds(rawGoal) : metric.type === "percent" ? Number(rawGoal) / 100 : Number(rawGoal);
+  if (!Number.isFinite(valueNumber) || !Number.isFinite(goalNumber)) return null;
+
+  const good = config.direction === "max" ? valueNumber <= goalNumber : valueNumber >= goalNumber;
+  if (good) return { label: "Dentro", className: "good" };
+
+  const warnLimit = config.direction === "max" ? goalNumber * 1.12 : goalNumber * 0.92;
+  const warn = config.direction === "max" ? valueNumber <= warnLimit : valueNumber >= warnLimit;
+  return warn ? { label: "Aten\u00e7\u00e3o", className: "warn" } : { label: "Cr\u00edtico", className: "bad" };
 }
 
 function chartOptions() {
@@ -1165,17 +1341,9 @@ function collaboratorRegistryTotalMetric() {
   const collaboratorMonth = currentCollaboratorMonth();
 
   getPeriods().forEach((period) => {
-    const weekKey = collaboratorWeekKeyFromPeriod(period.label);
+    const weekKey = collaboratorWeekKeyFromPeriod(period.label, collaboratorMonth?.teams?.N1?.rowsByWeek);
     const rows = collaboratorMonth?.teams?.N1?.rowsByWeek?.[weekKey] || [];
-    const totals = rows.reduce((sum, row) => {
-      const operational = Number(row[1]);
-      const financial = Number(row[2]);
-      return {
-        operacional: sum.operacional + (Number.isFinite(operational) ? operational : 0),
-        financeiro: sum.financeiro + (Number.isFinite(financial) ? financial : 0)
-      };
-    }, { operacional: 0, financeiro: 0 });
-    values[period.key] = rows.length ? totals : "";
+    values[period.key] = splitRowsHaveData(rows) ? splitRowsTotal(rows) : "";
   });
 
   return {
@@ -1184,6 +1352,32 @@ function collaboratorRegistryTotalMetric() {
     values,
     matched: Boolean(collaboratorMonth)
   };
+}
+
+function splitRowsTotal(rows) {
+  return rows.reduce((sum, row) => {
+    const operational = splitRowNumber(row, "operacional", 1);
+    const financial = splitRowNumber(row, "financeiro", 2);
+    return {
+      operacional: sum.operacional + (Number.isFinite(operational) ? operational : 0),
+      financeiro: sum.financeiro + (Number.isFinite(financial) ? financial : 0)
+    };
+  }, { operacional: 0, financeiro: 0 });
+}
+
+function splitRowsHaveData(rows) {
+  return rows.some((row) => (
+    Number.isFinite(splitRowNumber(row, "operacional", 1))
+    || Number.isFinite(splitRowNumber(row, "financeiro", 2))
+  ));
+}
+
+function splitRowNumber(row, key, index) {
+  if (!row) return NaN;
+  const value = Array.isArray(row) ? row[index] : row[key];
+  if (value === "" || value === null || value === undefined) return NaN;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : NaN;
 }
 
 function currentCollaboratorMonth() {
@@ -1199,14 +1393,17 @@ function currentCollaboratorMonth() {
   }
 }
 
-function collaboratorWeekKeyFromPeriod(label) {
+function collaboratorWeekKeyFromPeriod(label, rowsByWeek = null) {
   const normalized = normalizeText(label);
-  if (normalized.includes("ULTIMA")) return "ultima";
-  if (normalized.includes("1")) return "s1";
-  if (normalized.includes("2")) return "s2";
-  if (normalized.includes("3")) return "s3";
-  if (normalized.includes("4")) return "s4";
+  if (normalized.includes("ULTIMA")) return latestFilledCollaboratorWeek(rowsByWeek) || "ultima";
+  const weekMatch = normalized.match(/\b([1-4])\s*(?:A|O|ª|º|°)?\s*SEMANA\b/);
+  if (weekMatch) return `s${weekMatch[1]}`;
   return "ultima";
+}
+
+function latestFilledCollaboratorWeek(rowsByWeek) {
+  if (!rowsByWeek) return "";
+  return ["s4", "s3", "s2", "s1"].find((weekKey) => splitRowsHaveData(rowsByWeek[weekKey] || [])) || "";
 }
 
 function getCurrentMonth() {
@@ -1291,6 +1488,7 @@ function monthlyTrendClass(delta, metric) {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return "trend-neutral";
   const lowerIsBetter = metric.type === "time"
     || metric.name.includes("Taxa de Cliente")
+    || metric.name.includes("foi a campo")
     || metric.name.includes("Clientes que entraram");
   return (lowerIsBetter ? delta < 0 : delta > 0) ? "trend-good" : "trend-bad";
 }
@@ -1387,6 +1585,105 @@ function insightList(rows, emptyText) {
         </li>
       `).join("")}
     </ol>
+  `;
+}
+
+function buildTimeProjectionRows() {
+  const targetWeeks = 4;
+  const weekPeriods = projectionPeriods().slice(0, targetWeeks);
+  const projectionTargets = [
+    {
+      label: "TMR",
+      metricName: "Tempo Médio de Resposta ao Cliente - OPA",
+      targetSeconds: 2 * 60
+    },
+    {
+      label: "TMA",
+      metricName: "Tempo Médio de Atendimento - OPA",
+      targetSeconds: 40 * 60
+    }
+  ];
+
+  return projectionTargets.map((target) => {
+    const metric = currentMetric(target.metricName) || emptyMetric(target.metricName, "time");
+    const values = weekPeriods
+      .map((period) => metric.values[period.key])
+      .filter((value) => value !== "" && value !== null && value !== undefined && !Number.isNaN(value))
+      .map(timeToSeconds)
+      .filter(Number.isFinite);
+    const weeksDone = values.length;
+
+    if (!weeksDone) {
+      return {
+        ...target,
+        status: "neutral",
+        currentAverage: "",
+        recommendation: "Sem semanas preenchidas para projetar.",
+        detail: "Preencha a 1ª semana para iniciar a projeção."
+      };
+    }
+
+    const knownTotal = values.reduce((sum, value) => sum + value, 0);
+    const currentAverage = Math.round(knownTotal / weeksDone);
+    const remainingWeeks = Math.max(targetWeeks - weeksDone, 0);
+
+    if (!remainingWeeks) {
+      const withinTarget = currentAverage <= target.targetSeconds;
+      return {
+        ...target,
+        status: withinTarget ? "good" : "bad",
+        currentAverage: secondsToTime(currentAverage),
+        recommendation: withinTarget ? "Mês dentro da meta." : "Mês acima da meta.",
+        detail: `${weeksDone}/${targetWeeks} semanas fechadas. Meta ${secondsToTime(target.targetSeconds)}.`
+      };
+    }
+
+    const remainingBudget = target.targetSeconds * targetWeeks - knownTotal;
+    const requiredAverage = Math.floor(remainingBudget / remainingWeeks);
+    const status = projectionStatus(requiredAverage, target.targetSeconds);
+    const recommendation = requiredAverage > 0
+      ? `Próximas ${remainingWeeks} semana(s): até ${secondsToTime(requiredAverage)} em média.`
+      : "Mesmo zerando as próximas semanas, a média mensal não recupera.";
+
+    return {
+      ...target,
+      status,
+      currentAverage: secondsToTime(currentAverage),
+      recommendation,
+      detail: `${weeksDone}/${targetWeeks} semanas usadas. Meta ${secondsToTime(target.targetSeconds)}.`
+    };
+  });
+}
+
+function projectionPeriods() {
+  const filtered = getPeriods().filter((period) => {
+    const label = normalizeText(period.label);
+    return !label.includes("ULTIMA") && !label.includes("MENSAL");
+  });
+  return filtered.length ? filtered : getPeriods().slice(0, 4);
+}
+
+function projectionStatus(requiredAverage, targetSeconds) {
+  if (!Number.isFinite(requiredAverage) || requiredAverage <= 0) return "bad";
+  if (requiredAverage < targetSeconds) return "warn";
+  return "good";
+}
+
+function projectionList(rows) {
+  if (!rows.length) return `<p class="muted-line">Sem dados suficientes para projetar.</p>`;
+  return `
+    <div class="projection-list">
+      ${rows.map((row) => `
+        <div class="projection-row projection-${row.status}">
+          <div>
+            <strong>${row.label}</strong>
+            <span>Média atual ${row.currentAverage || "-"}</span>
+          </div>
+          <p>${row.recommendation}</p>
+          <small>${row.detail}</small>
+        </div>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -1496,6 +1793,7 @@ function trendStatus(delta, metric) {
   if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return "trend-neutral";
   const lowerIsBetter = metric.type === "time"
     || metric.name.includes("Taxa de Cliente")
+    || metric.name.includes("foi a campo")
     || metric.name.includes("Clientes que entraram");
   const improved = lowerIsBetter ? delta < 0 : delta > 0;
   return improved ? "trend-good" : "trend-bad";

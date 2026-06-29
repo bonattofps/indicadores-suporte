@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Escala do Dia</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+<link rel="stylesheet" href="admin-panels.css?v=20260609-1" />
+    <link rel="stylesheet" href="escala-dia.css?v=20260610-1" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="escala-dia.js?v=20260610-1" defer></script>
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
+          <h1>Escala do Dia</h1>
+          <p class="subtitle" id="dateSubtitle">Carregando escala de hoje...</p>
+        </div>
+        <div class="switcher">
+          <a href="index.html">Inicio</a>
+          <a href="jornada.html">Jornadas</a>
+          <a class="active" href="escala-dia.html">Escala do Dia</a>
+          <a href="usuarios.html" hidden style="display: none">Configurações</a>
+        </div>
+      </header>
+
+      <section class="notice" id="statusMessage">Carregando jornadas pelo Google Sheets...</section>
+
+      <section class="filters-row" aria-label="Filtros da escala">
+        <label>
+          Equipe
+          <select id="teamFilter">
+            <option value="all">Todos</option>
+            <option value="n1">N1</option>
+            <option value="n2">N2</option>
+            <option value="lead">Supervisor/Especialista</option>
+          </select>
+        </label>
+        <label>
+          Buscar colaborador
+          <input id="searchInput" type="search" placeholder="Nome do colaborador" />
+        </label>
+      </section>
+
+      <section class="metrics-grid" aria-label="Resumo da escala de hoje">
+        <article class="metric-card">
+          <strong id="workCount">0</strong>
+          <span>Trabalhando</span>
+        </article>
+        <article class="metric-card">
+          <strong id="onCallCount">0</strong>
+          <span>Plantao</span>
+        </article>
+        <article class="metric-card">
+          <strong id="offCount">0</strong>
+          <span>Folga</span>
+        </article>
+        <article class="metric-card">
+          <strong id="vacationCount">0</strong>
+          <span>Ferias</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Operacao diaria</p>
+            <h2>Colaboradores escalados hoje</h2>
+          </div>
+          <button class="button primary" id="refreshButton" type="button">Atualizar</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Equipe</th>
+                <th>Status</th>
+                <th>Horario</th>
+                <th>Pausas</th>
+                <th>Setorizacao</th>
+                <th>Ramal</th>
+                <th>Filial</th>
+              </tr>
+            </thead>
+            <tbody id="todayBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+
+

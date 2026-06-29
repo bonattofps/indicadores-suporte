@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Central de Pendencias</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+<link rel="stylesheet" href="admin-panels.css?v=20260609-1" />
+    <script type="module" src="pendencias.js?v=20260609-1"></script>
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
+          <h1>Central de Pendencias</h1>
+          <p class="subtitle">Acompanhe acessos que precisam de liberacao, confirmacao ou revisao do Administrador.</p>
+        </div>
+        <div class="switcher">
+          <a href="index.html">Inicio</a>
+          <a href="usuarios.html">Configurações</a>
+          <a class="active" href="pendencias.html">Pendencias</a>
+          <a href="status-planilhas.html">Planilhas</a>
+        </div>
+      </header>
+
+      <section class="notice" id="pendingStatus">Carregando pendencias...</section>
+
+      <section class="metrics-grid" aria-label="Resumo de pendencias">
+        <article class="metric-card">
+          <strong id="viewerCount">0</strong>
+          <span>Viewer sem cargo</span>
+        </article>
+        <article class="metric-card">
+          <strong id="emailCount">0</strong>
+          <span>Email pendente</span>
+        </article>
+        <article class="metric-card">
+          <strong id="approvalCount">0</strong>
+          <span>Aguardando liberacao</span>
+        </article>
+        <article class="metric-card">
+          <strong id="inactiveCount">0</strong>
+          <span>Sem atividade</span>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Acoes recomendadas</p>
+            <h2>Pendencias encontradas</h2>
+          </div>
+          <a class="button primary" href="usuarios.html">Abrir Configurações</a>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Cargo</th>
+                <th>Pendencia</th>
+                <th>Status</th>
+                <th>Ultima atividade</th>
+              </tr>
+            </thead>
+            <tbody id="pendingBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+
+

@@ -1,4 +1,4 @@
-const occurrenceState = {
+﻿const occurrenceState = {
   workbook: {},
   monthOrder: [],
   selectedMonth: "",
@@ -11,6 +11,71 @@ const occurrenceState = {
 };
 
 const STORAGE_KEY = "sgpOccurrenceWorkbookV1";
+const GOOGLE_SHEETS_OCCURRENCES_XLSX_URL = "https://docs.google.com/spreadsheets/d/1W9LUNFCcrmqDuKVqTJhv6uYOmJ0IbyPoErFYcvnvRfg/export?format=xlsx";
+const GOOGLE_SHEETS_OCCURRENCES_NAME = "Google Sheets - Ocorrencias Mensais";
+
+const RONDONIA_CITY_COORDS = {
+  "ALTA FLORESTA": [-11.9283, -61.9953],
+  "ALTA FLORESTA D OESTE": [-11.9283, -61.9953],
+  "ALTO ALEGRE DOS PARECIS": [-12.1320, -61.8531],
+  "ALTO PARAISO": [-9.7143, -63.3188],
+  "ALVORADA DO OESTE": [-11.3463, -62.2847],
+  "ARIQUEMES": [-9.9133, -63.0408],
+  "BURITIS": [-10.1943, -63.8324],
+  "CABIXI": [-13.4945, -60.5520],
+  "CACAULANDIA": [-10.3389, -62.9032],
+  "CACOAL": [-11.4386, -61.4472],
+  "CAMPO NOVO DE RONDONIA": [-10.5684, -63.6241],
+  "CANDEIAS DO JAMARI": [-8.7907, -63.7005],
+  "CEREJEIRAS": [-13.1950, -60.8183],
+  "CHUPINGUAIA": [-12.5611, -60.9019],
+  "COLORADO DO OESTE": [-13.1178, -60.5450],
+  "CORUMBIARA": [-12.9975, -60.9487],
+  "COSTA MARQUES": [-12.4367, -64.2310],
+  "CUJUBIM": [-9.3607, -62.5846],
+  "ESPIGAO DO OESTE": [-11.5286, -61.0202],
+  "GOVERNADOR JORGE TEIXEIRA": [-10.6121, -62.7405],
+  "GUAJARA MIRIM": [-10.7828, -65.3394],
+  "ITAPUA DO OESTE": [-9.1919, -63.1823],
+  "JARU": [-10.4389, -62.4664],
+  "JI PARANA": [-10.8777, -61.9322],
+  "MACHADINHO": [-9.4256, -61.9996],
+  "MACHADINHO DO OESTE": [-9.4256, -61.9996],
+  "MINISTRO ANDREAZZA": [-11.1960, -61.5174],
+  "MIRANTE DA SERRA": [-11.0290, -62.6696],
+  "MONTE NEGRO": [-10.2631, -63.2947],
+  "NOVA BRASILANDIA": [-11.7247, -62.3127],
+  "NOVA BRASILANDIA DO OESTE": [-11.7247, -62.3127],
+  "NOVA MAMORE": [-10.4077, -65.3346],
+  "NOVA UNIAO": [-10.9068, -62.5555],
+  "NOVO HORIZONTE DO OESTE": [-11.7097, -61.9944],
+  "OURO PRETO": [-10.7481, -62.2158],
+  "OURO PRETO DO OESTE": [-10.7481, -62.2158],
+  "PARECIS": [-12.1754, -61.6032],
+  "PIMENTA BUENO": [-11.6720, -61.1936],
+  "PIMENTEIRAS DO OESTE": [-13.4823, -61.0471],
+  "PORTO VELHO": [-8.7608, -63.9004],
+  "PRESIDENTE MEDICI": [-11.1753, -61.9014],
+  "PRIMAVERA DE RONDONIA": [-11.8295, -61.3153],
+  "RIO CRESPO": [-9.6997, -62.9011],
+  "ROLIM DE MOURA": [-11.7271, -61.7714],
+  "CASTANHEIRAS": [-11.4253, -61.9482],
+  "SANTA LUZIA D OESTE": [-11.9084, -61.7733],
+  "SAO FRANCISCO": [-12.0638, -63.5680],
+  "SAO FRANCISCO DO GUAPORE": [-12.0638, -63.5680],
+  "SAO FELIPE": [-11.9023, -61.5026],
+  "SAO FELIPE DO OESTE": [-11.9023, -61.5026],
+  "SERINGUEIRAS": [-11.8055, -63.0182],
+  "SAO MIGUEL": [-11.6956, -62.7192],
+  "SAO MIGUEL DO GUAPORE": [-11.6956, -62.7192],
+  "TANCREDOPOLIS": [-11.4386, -61.4472],
+  "TEIXEIROPOLIS": [-10.9056, -62.2420],
+  "THEOBROMA": [-10.2485, -62.3538],
+  "URUPA": [-11.1261, -62.3639],
+  "VALE DO ANARI": [-9.8622, -62.1876],
+  "VALE DO PARAISO": [-10.4465, -62.1348],
+  "VILHENA": [-12.7406, -60.1458]
+};
 
 const els = {
   fileInput: document.querySelector("#fileInput"),
@@ -24,6 +89,7 @@ const els = {
   clearDateButton: document.querySelector("#clearDateButton"),
   activeFilters: document.querySelector("#activeFilters"),
   summaryStrip: document.querySelector("#summaryStrip"),
+  cityHeatmap: document.querySelector("#cityHeatmap"),
   occurrenceBody: document.querySelector("#occurrenceBody"),
   exportButton: document.querySelector("#exportButton")
 };
@@ -47,6 +113,21 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function tryAutoLoad() {
+  els.importStatus.textContent = "Procurando lançamentos manuais de ocorrências...";
+  if (await loadManualOccurrences()) return;
+
+  els.importStatus.textContent = "Carregando ocorrências pelo Google Sheets...";
+  try {
+    const response = await fetch(GOOGLE_SHEETS_OCCURRENCES_XLSX_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
+    const buffer = await response.arrayBuffer();
+    applyWorkbook(parseWorkbook(buffer, "array"), `${GOOGLE_SHEETS_OCCURRENCES_NAME} carregado automaticamente.`);
+    return;
+  } catch (googleError) {
+    console.error(googleError);
+    els.importStatus.textContent = "Nao foi possivel carregar o Google Sheets. Tentando dados salvos ou arquivo local.";
+  }
+
   const saved = sessionStorage.getItem(STORAGE_KEY);
   if (saved) {
     const parsed = JSON.parse(saved);
@@ -66,6 +147,30 @@ async function tryAutoLoad() {
   } catch {
     els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx para visualizar a dashboard.";
     render();
+  }
+}
+
+async function loadManualOccurrences() {
+  try {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      if (window.SGPAuth?.loadManualOccurrences && document.documentElement.dataset.authReady === "true") break;
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+
+    const saved = await window.SGPAuth?.loadManualOccurrences?.();
+    if (!saved?.workbook || !saved?.monthOrder?.length) return false;
+
+    const parsed = {
+      workbook: saved.workbook,
+      monthOrder: saved.monthOrder.filter((key) => saved.workbook[key])
+    };
+    if (!parsed.monthOrder.length) return false;
+
+    applyWorkbook(parsed, "Ocorrências carregadas dos lançamentos manuais do SGP.");
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
   }
 }
 
@@ -110,13 +215,15 @@ function parseWorkbook(content, type) {
       if (!occurrence || !city) return;
       if (isTotalRow(occurrence) || isTotalRow(city)) return;
 
+      const downtime = firstFilled(record.tempo_off, record.tempo) || "-";
       records.push({
         occurrence,
         date: firstFilled(record.data),
         branch: firstFilled(record.filial) || "-",
         city,
         reason: reason || "-",
-        downtime: firstFilled(record.tempo_off, record.tempo) || "-"
+        downtime,
+        downtimeDuration: offlineDurationLabel(downtime)
       });
     });
 
@@ -168,7 +275,7 @@ function filterRows() {
     if (occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
-    return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
+    return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
   });
 }
 
@@ -226,8 +333,10 @@ function renderSummary() {
 }
 
 function renderCharts() {
-  renderCityChart();
+  renderCityHeatmap();
   renderReasonChart();
+  renderOccurrenceTrendChart();
+  renderReasonVolumeChart();
 }
 
 function renderCityChart() {
@@ -258,13 +367,13 @@ function renderCityChart() {
   });
 }
 
-function renderReasonChart() {
-  const rows = rankBy(baseRowsForCharts("reason"), "reason").slice(0, 8);
-  occurrenceState.charts.reason?.destroy();
-  occurrenceState.charts.reason = new Chart(document.querySelector("#reasonChart"), {
+function renderCityPieChart() {
+  const rows = rankBy(baseRowsForCharts("city"), "city").slice(0, 8);
+  occurrenceState.charts.cityPie?.destroy();
+  occurrenceState.charts.cityPie = new Chart(document.querySelector("#cityPieChart"), {
     type: "doughnut",
     data: {
-      labels: rows.map((item) => shorten(item.name, 28)),
+      labels: rows.map((item) => shorten(item.name, 24)),
       datasets: [{
         data: rows.map((item) => item.total),
         backgroundColor: ["#d64545", "#009c67", "#45b7e8", "#f2b84b", "#7a63d8", "#1f7a8c", "#92c56e", "#f27f5d"],
@@ -277,11 +386,447 @@ function renderReasonChart() {
       onClick: (_, elements) => {
         const index = elements[0]?.index;
         if (index === undefined) return;
+        occurrenceState.selectedCity = occurrenceState.selectedCity === rows[index].name ? "" : rows[index].name;
+        render();
+      }
+    }
+  });
+}
+
+function renderCityHeatmap() {
+  occurrenceState.charts.cityPie?.destroy();
+  occurrenceState.charts.cityPie = null;
+  occurrenceState.charts.cityMap?.remove?.();
+  occurrenceState.charts.cityMap = null;
+
+  const rows = rankBy(baseRowsForCharts("city"), "city");
+  if (!els.cityHeatmap) return;
+  if (!rows.length) {
+    els.cityHeatmap.innerHTML = '<div class="heatmap-empty">Nenhuma cidade encontrada para os filtros atuais.</div>';
+    return;
+  }
+
+  const mappedRows = rows
+    .map((item) => ({ ...item, coords: coordinatesForCity(item.name) }))
+    .filter((item) => item.coords);
+  const unmappedRows = rows.filter((item) => !coordinatesForCity(item.name)).slice(0, 6);
+  if (!window.L || !mappedRows.length) {
+    renderCityFallbackHeatmap(rows.slice(0, 18));
+    return;
+  }
+
+  const max = Math.max(...rows.map((item) => item.total), 1);
+  const total = rows.reduce((sum, item) => sum + item.total, 0);
+  els.cityHeatmap.innerHTML = `
+    <div class="heatmap-legend">
+      <span>Menor impacto</span>
+      <div class="heatmap-scale" aria-hidden="true"></div>
+      <span>Maior impacto</span>
+    </div>
+    <div class="ro-map-layout">
+      <div class="ro-map" id="roHeatMap"></div>
+      <aside class="ro-map-side">
+        <h3>Cidades mais afetadas</h3>
+        <div class="ro-map-ranking">
+          ${rows.slice(0, 8).map((item, index) => {
+            const share = total ? (item.total / total) * 100 : 0;
+            const selected = occurrenceState.selectedCity === item.name;
+            return `
+              <button type="button" class="${selected ? "selected" : ""}" data-city="${escapeHtml(item.name)}">
+                <span>#${index + 1}</span>
+                <strong>${escapeHtml(item.name)}</strong>
+                <small>${item.total.toLocaleString("pt-BR")} ocorrencia(s) · ${share.toFixed(1).replace(".", ",")}%</small>
+              </button>
+            `;
+          }).join("")}
+        </div>
+        ${unmappedRows.length ? `
+          <div class="ro-map-unmapped">
+            <strong>Sem ponto no mapa</strong>
+            <span>${unmappedRows.map((item) => `${escapeHtml(item.name)} (${item.total})`).join(", ")}</span>
+          </div>
+        ` : ""}
+      </aside>
+    </div>
+  `;
+
+  els.cityHeatmap.querySelectorAll("[data-city]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const city = button.dataset.city;
+      occurrenceState.selectedCity = occurrenceState.selectedCity === city ? "" : city;
+      render();
+    });
+  });
+
+  requestAnimationFrame(() => renderRondoniaMap(mappedRows, max));
+}
+
+function renderCityFallbackHeatmap(rows) {
+  const max = Math.max(...rows.map((item) => item.total), 1);
+  const total = rows.reduce((sum, item) => sum + item.total, 0);
+  els.cityHeatmap.innerHTML = `
+    <div class="heatmap-legend">
+      <span>Menor impacto</span>
+      <div class="heatmap-scale" aria-hidden="true"></div>
+      <span>Maior impacto</span>
+    </div>
+    <div class="heatmap-grid">
+      ${rows.map((item, index) => {
+        const intensity = item.total / max;
+        const share = total ? (item.total / total) * 100 : 0;
+        const selected = occurrenceState.selectedCity === item.name;
+        return `
+          <button
+            type="button"
+            class="heatmap-cell ${selected ? "selected" : ""}"
+            style="${heatmapStyle(intensity)}"
+            data-city="${escapeHtml(item.name)}"
+            aria-label="${escapeHtml(item.name)} com ${item.total} ocorrencias"
+          >
+            <span class="heatmap-rank">#${index + 1}</span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${item.total.toLocaleString("pt-BR")} ocorrencia(s)</span>
+            <small>${share.toFixed(1).replace(".", ",")}% do filtro</small>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+  els.cityHeatmap.querySelectorAll("[data-city]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const city = button.dataset.city;
+      occurrenceState.selectedCity = occurrenceState.selectedCity === city ? "" : city;
+      render();
+    });
+  });
+}
+
+function renderRondoniaMap(rows, max) {
+  const container = document.querySelector("#roHeatMap");
+  if (!container || !window.L) return;
+
+  const map = L.map(container, {
+    zoomControl: true,
+    attributionControl: false,
+    scrollWheelZoom: false
+  }).setView([-10.95, -62.85], 7);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 12
+  }).addTo(map);
+
+  if (L.heatLayer) {
+    L.heatLayer(rows.map((item) => [
+      item.coords[0],
+      item.coords[1],
+      Math.max(0.25, item.total / max)
+    ]), {
+      radius: 42,
+      blur: 30,
+      maxZoom: 9,
+      gradient: {
+        0.2: "#3bea61",
+        0.48: "#f1f64a",
+        0.72: "#ff981f",
+        1: "#ff2f2f"
+      }
+    }).addTo(map);
+  }
+
+  const bounds = [];
+  rows.forEach((item) => {
+    bounds.push(item.coords);
+    const selected = occurrenceState.selectedCity === item.name;
+    const radius = 8 + Math.round((item.total / max) * 18);
+    const marker = L.circleMarker(item.coords, {
+      radius,
+      color: selected ? "#102033" : "#d64545",
+      weight: selected ? 3 : 1,
+      fillColor: selected ? "#ff2f2f" : "#f2b84b",
+      fillOpacity: selected ? 0.86 : 0.56
+    }).addTo(map);
+    marker.bindTooltip(`<strong>${escapeHtml(item.name)}</strong><br>${item.total.toLocaleString("pt-BR")} ocorrência(s)`, {
+      direction: "top",
+      sticky: true
+    });
+    marker.on("click", () => {
+      occurrenceState.selectedCity = occurrenceState.selectedCity === item.name ? "" : item.name;
+      render();
+    });
+  });
+
+  if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [28, 28], maxZoom: 8 });
+  }
+  setTimeout(() => map.invalidateSize(), 120);
+  occurrenceState.charts.cityMap = map;
+}
+
+function coordinatesForCity(city) {
+  const key = cityCoordinateKey(city);
+  return RONDONIA_CITY_COORDS[key] || null;
+}
+
+function cityCoordinateKey(city) {
+  return normalizeText(city)
+    .replace(/_/g, " ")
+    .replace(/\bD OESTE\b/gi, "DO OESTE")
+    .toUpperCase();
+}
+
+function heatmapStyle(intensity) {
+  const alpha = 0.18 + (intensity * 0.72);
+  const borderAlpha = 0.25 + (intensity * 0.55);
+  return `--heat-alpha: ${alpha.toFixed(2)}; --heat-border-alpha: ${borderAlpha.toFixed(2)};`;
+}
+
+function renderReasonChart() {
+  const rows = reasonImpactRows(baseRowsForCharts("reason")).slice(0, 12);
+  const color = document.body.dataset.theme === "dark" ? "#dfe8f2" : "#567086";
+  const grid = document.body.dataset.theme === "dark" ? "rgba(145,160,178,0.16)" : "rgba(207,226,238,0.72)";
+  const selectedColor = document.body.dataset.theme === "dark" ? "#ff7373" : "#d64545";
+  const maxTotal = Math.max(...rows.map((item) => item.total), 1);
+  occurrenceState.charts.reason?.destroy();
+  occurrenceState.charts.reason = new Chart(document.querySelector("#reasonChart"), {
+    type: "bubble",
+    data: {
+      datasets: [{
+        label: "Causas",
+        data: rows.map((item) => ({
+          x: item.total,
+          y: item.averageOfflineHours,
+          r: bubbleRadius(item.total, maxTotal),
+          reason: item.name,
+          total: item.total,
+          knownDurations: item.knownDurations,
+          averageOfflineLabel: secondsToDurationLabel(item.averageOfflineSeconds)
+        })),
+        backgroundColor: rows.map((item) => occurrenceState.selectedReason === item.name ? "rgba(214, 69, 69, 0.78)" : "rgba(69, 183, 232, 0.46)"),
+        borderColor: rows.map((item) => occurrenceState.selectedReason === item.name ? selectedColor : "rgba(0, 156, 103, 0.82)"),
+        borderWidth: rows.map((item) => occurrenceState.selectedReason === item.name ? 3 : 1.5)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const point = context.raw;
+              return [
+                point.reason,
+                `Ocorrências: ${point.total.toLocaleString("pt-BR")}`,
+                `Tempo médio offline: ${point.averageOfflineLabel}`,
+                `Com duração calculada: ${point.knownDurations.toLocaleString("pt-BR")}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          title: { display: true, text: "Ocorrências", color },
+          ticks: { color, precision: 0 },
+          grid: { color: grid }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "Tempo médio offline", color },
+          ticks: {
+            color,
+            callback: (value) => `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`
+          },
+          grid: { color: grid }
+        }
+      },
+      onClick: (_, elements) => {
+        const index = elements[0]?.index;
+        if (index === undefined) return;
         occurrenceState.selectedReason = occurrenceState.selectedReason === rows[index].name ? "" : rows[index].name;
         render();
       }
     }
   });
+}
+
+function renderOccurrenceTrendChart() {
+  const color = document.body.dataset.theme === "dark" ? "#dfe8f2" : "#567086";
+  const grid = document.body.dataset.theme === "dark" ? "rgba(145,160,178,0.16)" : "rgba(207,226,238,0.72)";
+  const rows = trendRows();
+  occurrenceState.charts.trend?.destroy();
+  occurrenceState.charts.trend = new Chart(document.querySelector("#occurrenceTrendChart"), {
+    type: "line",
+    data: {
+      labels: rows.map((item) => item.label),
+      datasets: [{
+        label: "Ocorrências",
+        data: rows.map((item) => item.total),
+        borderColor: "#243c9f",
+        backgroundColor: "rgba(36, 60, 159, 0.14)",
+        pointBackgroundColor: rows.map((item) => item.key === occurrenceState.selectedMonth ? "#d64545" : "#243c9f"),
+        pointBorderColor: "#ffffff",
+        pointBorderWidth: 2,
+        pointRadius: rows.map((item) => item.key === occurrenceState.selectedMonth ? 5 : 4),
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.32,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.raw.toLocaleString("pt-BR")} ocorrência(s)`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color, maxRotation: 0 }, grid: { color: grid } },
+        y: { beginAtZero: true, ticks: { color, precision: 0 }, grid: { color: grid } }
+      },
+      onClick: (_, elements) => {
+        const index = elements[0]?.index;
+        if (index === undefined) return;
+        occurrenceState.selectedMonth = rows[index].key;
+        occurrenceState.selectedCity = "";
+        occurrenceState.selectedReason = "";
+        render();
+      }
+    }
+  });
+}
+
+function renderReasonVolumeChart() {
+  const color = document.body.dataset.theme === "dark" ? "#dfe8f2" : "#567086";
+  const grid = document.body.dataset.theme === "dark" ? "rgba(145,160,178,0.16)" : "rgba(207,226,238,0.72)";
+  const rows = rankBy(baseRowsForCharts("reason"), "reason").slice(0, 7);
+
+  occurrenceState.charts.reasonVolume?.destroy();
+  occurrenceState.charts.reasonVolume = new Chart(document.querySelector("#reasonVolumeChart"), {
+    type: "bar",
+    data: {
+      labels: rows.map((item) => shorten(item.name, 26)),
+      datasets: [{
+        label: "Ocorrências",
+        data: rows.map((item) => item.total),
+        backgroundColor: rows.map((item, index) => {
+          if (occurrenceState.selectedReason === item.name) return "rgba(214, 69, 69, 0.82)";
+          return index === 0 ? "rgba(242, 184, 75, 0.78)" : "rgba(0, 156, 103, 0.68)";
+        }),
+        borderColor: rows.map((item) => occurrenceState.selectedReason === item.name ? "#d64545" : "rgba(0, 156, 103, 0.88)"),
+        borderWidth: 1.5,
+        borderRadius: 7
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.raw.toLocaleString("pt-BR")} ocorrência(s)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color, precision: 0 },
+          grid: { color: grid }
+        },
+        y: {
+          ticks: { color },
+          grid: { display: false }
+        }
+      },
+      onClick: (_, elements) => {
+        const index = elements[0]?.index;
+        if (index === undefined) return;
+        occurrenceState.selectedReason = occurrenceState.selectedReason === rows[index].name ? "" : rows[index].name;
+        render();
+      }
+    }
+  });
+}
+
+function trendRows() {
+  return occurrenceState.monthOrder.map((key) => {
+    const month = occurrenceState.workbook[key];
+    return {
+      key,
+      label: shortMonthLabel(month?.label || key),
+      total: month?.records?.length || 0
+    };
+  });
+}
+
+function shortMonthLabel(label) {
+  const text = clean(label).replace(/20(\d{2})$/, "$1");
+  const normalized = normalizeText(text);
+  const names = [
+    ["janeiro", "Jan"], ["fevereiro", "Fev"], ["marco", "Mar"], ["abril", "Abr"],
+    ["maio", "Mai"], ["junho", "Jun"], ["julho", "Jul"], ["agosto", "Ago"],
+    ["setembro", "Set"], ["outubro", "Out"], ["novembro", "Nov"], ["dezembro", "Dez"]
+  ];
+  return names.find(([key]) => normalized.includes(key))?.[1] || shorten(text, 8);
+}
+
+function bubbleRadius(total, maxTotal) {
+  return 6 + Math.round(Math.sqrt(total / maxTotal) * 14);
+}
+
+function reasonImpactRows(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const name = clean(row.reason) || "Não informado";
+    if (!grouped.has(name)) {
+      grouped.set(name, {
+        name,
+        total: 0,
+        offlineSeconds: 0,
+        knownDurations: 0
+      });
+    }
+
+    const group = grouped.get(name);
+    group.total += 1;
+    const duration = offlineDurationSeconds(row.downtime);
+    if (Number.isFinite(duration)) {
+      group.offlineSeconds += duration;
+      group.knownDurations += 1;
+    }
+  });
+
+  return [...grouped.values()]
+    .map((item) => {
+      const averageOfflineSeconds = item.knownDurations ? Math.round(item.offlineSeconds / item.knownDurations) : 0;
+      const averageOfflineMinutes = averageOfflineSeconds / 60;
+      return {
+        ...item,
+        averageOfflineSeconds,
+        averageOfflineMinutes,
+        averageOfflineHours: Number((averageOfflineMinutes / 60).toFixed(2))
+      };
+    })
+    .sort((a, b) => b.total - a.total || b.averageOfflineMinutes - a.averageOfflineMinutes || a.name.localeCompare(b.name));
+}
+
+function secondsToDurationLabel(totalSeconds) {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return "00:00:00:00";
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return [days, hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 function baseRowsForCharts(ignoreKey) {
@@ -293,13 +838,13 @@ function baseRowsForCharts(ignoreKey) {
     if (ignoreKey !== "reason" && occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
-    return [row.occurrence, row.branch, row.city, row.reason, row.downtime].some((value) => normalizeText(value).includes(search));
+    return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
   });
 }
 
 function renderTable() {
   if (!occurrenceState.filteredRows.length) {
-    els.occurrenceBody.innerHTML = '<tr><td colspan="6">Nenhuma ocorrência encontrada para os filtros atuais.</td></tr>';
+    els.occurrenceBody.innerHTML = '<tr><td colspan="7">Nenhuma ocorrência encontrada para os filtros atuais.</td></tr>';
     return;
   }
 
@@ -314,6 +859,7 @@ function renderTable() {
         <td>${row.occurrence}</td>
         <td>${row.reason}</td>
         <td>${row.downtime}</td>
+        <td class="offline-duration ${offlineDurationClass(row.downtime)}">${offlineDurationLabel(row.downtime)}</td>
       </tr>
     `).join("");
 }
@@ -321,8 +867,8 @@ function renderTable() {
 function exportFilteredCsv() {
   const rows = occurrenceState.filteredRows;
   if (!rows.length) return;
-  const header = ["Data", "Filial", "Cidade", "Ocorrência", "Motivo", "Tempo off"];
-  const csvRows = [header, ...rows.map((row) => [formatDate(row.date), row.branch, row.city, row.occurrence, row.reason, row.downtime])];
+  const header = ["Data", "Filial", "Cidade", "Ocorrência", "Motivo", "Tempo off", "Duração offline"];
+  const csvRows = [header, ...rows.map((row) => [formatDate(row.date), row.branch, row.city, row.occurrence, row.reason, row.downtime, offlineDurationLabel(row.downtime)])];
   const csv = csvRows.map((row) => row.map(csvCell).join(";")).join("\n");
   const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -428,6 +974,67 @@ function dateFilterLabel() {
   return `${start} até ${end}`;
 }
 
+function offlineDurationLabel(value) {
+  const duration = offlineDurationSeconds(value);
+  return Number.isFinite(duration) ? secondsToDurationLabel(duration) : "-";
+}
+
+function offlineDurationClass(value) {
+  return Number.isFinite(offlineDurationSeconds(value)) ? "" : "is-missing";
+}
+
+function offlineDurationMinutes(value) {
+  const seconds = offlineDurationSeconds(value);
+  return Number.isFinite(seconds) ? seconds / 60 : NaN;
+}
+
+function offlineDurationSeconds(value) {
+  const text = normalizeDowntimeText(value);
+  if (!text || text === "-") return NaN;
+
+  const matches = [...text.matchAll(/(?:(dom|seg|ter|qua|qui|sex|sab)[a-z.]*\s*)?(\d{1,2})(?:\s*(?:h|:|horas?|hrs?)\s*(\d{1,2})?)?(?::(\d{1,2}))?/gi)]
+    .map((match) => {
+      const hour = Number(match[2]);
+      const minute = match[3] === undefined || match[3] === "" ? 0 : Number(match[3]);
+      const second = match[4] === undefined || match[4] === "" ? 0 : Number(match[4]);
+      if (hour > 23 || minute > 59 || second > 59) return null;
+      return {
+        day: weekdayIndex(match[1]),
+        seconds: (hour * 3600) + (minute * 60) + second
+      };
+    })
+    .filter(Boolean);
+
+  if (matches.length < 2) return NaN;
+  const start = matches[0];
+  const end = matches[1];
+  let delta = end.seconds - start.seconds;
+
+  if (start.day !== null && end.day !== null) {
+    const dayDiff = (end.day - start.day + 7) % 7;
+    delta += dayDiff * 86400;
+  } else if (delta < 0) {
+    delta += 86400;
+  }
+
+  return delta > 0 ? delta : NaN;
+}
+
+function normalizeDowntimeText(value) {
+  return clean(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bah\b/gi, " as ")
+    .replace(/\bate\b/gi, " as ")
+    .replace(/[àáâã]/gi, "a")
+    .toLowerCase();
+}
+
+function weekdayIndex(value) {
+  if (!value) return null;
+  return { dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6 }[value.slice(0, 3).toLowerCase()] ?? null;
+}
+
 function formatInputDate(value) {
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
@@ -436,12 +1043,12 @@ function formatInputDate(value) {
 function setupTheme() {
   const savedTheme = localStorage.getItem("indicadores-theme") || "light";
   document.body.dataset.theme = savedTheme;
-  els.themeToggle.textContent = savedTheme === "dark" ? "☀" : "☾";
+  els.themeToggle.textContent = savedTheme === "dark" ? "?" : "☾";
   els.themeToggle.addEventListener("click", () => {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     document.body.dataset.theme = nextTheme;
     localStorage.setItem("indicadores-theme", nextTheme);
-    els.themeToggle.textContent = nextTheme === "dark" ? "☀" : "☾";
+    els.themeToggle.textContent = nextTheme === "dark" ? "?" : "☾";
     renderCharts();
   });
 }
@@ -496,9 +1103,21 @@ function normalizeText(value) {
 }
 
 function shorten(value, size) {
-  return value.length > size ? `${value.slice(0, size - 1)}…` : value;
+  return value.length > size ? `${value.slice(0, size - 1)}?` : value;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function csvCell(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
+
+
+

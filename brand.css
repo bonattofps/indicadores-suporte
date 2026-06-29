@@ -1,0 +1,51 @@
+.uni-brand {
+  display: inline-flex;
+  width: clamp(118px, 16vw, 178px);
+  align-items: center;
+  margin: 0 0 14px;
+  text-decoration: none;
+  background: transparent;
+}
+
+.uni-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: transparent;
+}
+
+html:not([data-auth-ready="true"]) .cards,
+html:not([data-auth-ready="true"]) .switcher,
+html:not([data-auth-ready="true"]) .view-switcher,
+html:not([data-auth-ready="true"]) .dashboard-nav,
+html:not([data-auth-ready="true"]) main.presentation,
+html:not([data-auth-ready="true"]) main.screen,
+html:not([data-auth-ready="true"]) .app-shell,
+html:not([data-auth-ready="true"]) .page-shell,
+html:not([data-auth-ready="true"]) body > .app-header {
+  visibility: hidden;
+}
+
+.uni-brand--sidebar {
+  width: 156px;
+  margin: 0;
+}
+
+.uni-brand--login {
+  width: clamp(148px, 22vw, 230px);
+  margin-bottom: 22px;
+}
+
+.uni-brand--small {
+  width: clamp(112px, 14vw, 154px);
+}
+
+@media (max-width: 720px) {
+  .uni-brand,
+  .uni-brand--login,
+  .uni-brand--sidebar,
+  .uni-brand--small {
+    width: 132px;
+  }
+}

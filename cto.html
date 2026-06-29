@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Identificação de CTO/Gerador PPPoE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="cto.css" />
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <a class="uni-brand uni-brand--sidebar" href="index.html" aria-label="Uni Internet">
+          <img src="logo.png" alt="Uni Internet" />
+        </a>
+
+        <nav class="dashboard-nav" aria-label="Dashboards">
+          <a class="nav-link" href="index.html">
+            <span>SGP</span>
+            Inicio
+          </a>
+          <button class="nav-button active" type="button" data-dashboard="identificacao">
+            <span>01</span>
+            Identificação CTO
+          </button>
+          <button class="nav-button" type="button" data-dashboard="logins">
+            <span>02</span>
+            Logins PPPoE
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="online-dot"></span>
+          <div>
+            <strong>Sistema online</strong>
+            <small>Google Sheets integrado</small>
+          </div>
+        </div>
+      </aside>
+
+      <section class="content-shell">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow">Uni Internet - Operação</p>
+            <h1 id="dashboardTitle">Identificação de CTO</h1>
+            <p id="dashboardSubtitle" class="subtle">Registre CTOs, evidências e suporte técnico em uma experiência simples e conectada.</p>
+          </div>
+          <div class="status-pill">
+            <span></span>
+            <strong>Versão 3.3</strong>
+            <small>Uni Style</small>
+          </div>
+        </header>
+
+        <section id="dashboard-identificacao" class="dashboard-view active" data-title="Identificação de CTO" data-subtitle="Registre CTOs, evidências e suporte técnico em uma experiência simples e conectada.">
+          <section class="stats-grid" aria-label="Indicadores de identificacao">
+            <article>
+              <strong id="totalRegistros">0</strong>
+              <span>Total Registros</span>
+            </article>
+            <article>
+              <strong id="totalOlts">0</strong>
+              <span>OLTs</span>
+            </article>
+            <article>
+              <strong id="totalTecnicos">0</strong>
+              <span>Tecnicos</span>
+            </article>
+          </section>
+
+          <form id="registroForm" class="panel cadastro-panel">
+            <div class="panel-title">
+              <span class="icon-box">ID</span>
+              <h2>Cadastro técnico</h2>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                <span>OLT</span>
+                <input id="olt" name="olt" placeholder="Ex: OLT-01" required />
+              </label>
+              <label>
+                <span>SLOT/PON</span>
+                <input id="pon" name="pon" placeholder="Ex: 1/8" required />
+              </label>
+              <label>
+                <span>Tecnico de Campo</span>
+                <input id="tecnico" name="tecnico" placeholder="Nome do tecnico" required />
+              </label>
+              <label>
+                <span>Suporte Responsavel</span>
+                <input id="suporte" name="suporte" placeholder="Nome do suporte" />
+              </label>
+            </div>
+
+            <label class="wide-field">
+              <span>Observacoes Tecnicas</span>
+              <textarea id="observacoes" name="observacoes" rows="4" placeholder="Descreva detalhes da CTO, porta, endereco ou pendencias"></textarea>
+            </label>
+
+            <label class="wide-field">
+              <span>Link da Evidencia</span>
+              <input id="evidencia" name="evidencia" type="url" placeholder="https://..." />
+            </label>
+
+            <label class="wide-field">
+              <span>Resumo Automatico</span>
+              <textarea id="resumo" name="resumo" rows="4" readonly placeholder="Resumo sera gerado automaticamente"></textarea>
+            </label>
+
+            <div class="actions-row">
+              <button type="button" id="copiarResumo">Copiar Resumo</button>
+              <button type="submit" id="salvarRegistro">Salvar Registro</button>
+            </div>
+            <p id="formStatus" class="form-status" role="status"></p>
+          </form>
+
+          <section class="panel history-panel">
+            <div class="panel-title">
+              <span class="icon-box">HS</span>
+              <h2>Historico</h2>
+            </div>
+            <input id="buscaHistorico" class="search-field" placeholder="Buscar..." />
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>OLT</th>
+                    <th>PON</th>
+                    <th>Tecnico</th>
+                    <th>Suporte</th>
+                    <th>Obs</th>
+                    <th>Evidencia</th>
+                  </tr>
+                </thead>
+                <tbody id="historicoBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="dashboard-logins" class="dashboard-view" data-title="Gerador de Login" data-subtitle="Digite o nome completo e copie variações padronizadas PPPoE com sufixo _UNI.">
+          <section class="metric-row" aria-label="Metricas do gerador">
+            <article>
+              <span class="metric-icon">LG</span>
+              <strong id="loginsGerados">0</strong>
+              <small>Logins Gerados</small>
+            </article>
+            <article>
+              <span class="metric-icon">CP</span>
+              <strong id="loginsCopiados">0</strong>
+              <small>Logins Copiados</small>
+            </article>
+            <article>
+              <span class="metric-icon">US</span>
+              <strong id="totalUsos">0</strong>
+              <small>Total de Usos</small>
+            </article>
+          </section>
+
+          <section class="login-layout">
+            <section class="panel login-panel" aria-labelledby="loginTitle">
+              <div class="panel-title">
+                <span class="icon-box">PP</span>
+                <h2 id="loginTitle">Entrada de dados</h2>
+              </div>
+
+              <label class="login-input">
+                <span>Nome Completo</span>
+                <div class="input-with-suffix">
+                  <input id="nomeCompleto" placeholder="JUANDER BONATO SCARDINE" autocomplete="off" />
+                  <button type="button" id="limparNome" title="Limpar nome">UNI</button>
+                </div>
+              </label>
+            </section>
+
+            <section class="panel generated-panel">
+              <div class="panel-title">
+                <span class="icon-box">OK</span>
+                <h2>Logins gerados</h2>
+              </div>
+              <div id="loginList" class="login-list" aria-live="polite"></div>
+              <p id="loginStatus" class="form-status" role="status"></p>
+            </section>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="cto.js"></script>
+  </body>
+</html>
+
+

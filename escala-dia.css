@@ -1,0 +1,71 @@
+.filters-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(260px, 1fr);
+  gap: 14px;
+}
+
+.filters-row label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.filters-row input,
+.filters-row select {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+}
+
+.status-chip {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.status-chip.work {
+  color: #00764e;
+  background: rgba(0, 156, 103, 0.1);
+}
+
+.status-chip.on-call,
+.status-chip.note {
+  color: #0369a1;
+  background: rgba(56, 189, 248, 0.16);
+}
+
+.status-chip.off {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
+.status-chip.vacation {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.status-chip.no-schedule {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.muted-cell {
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .filters-row {
+    grid-template-columns: 1fr;
+  }
+}

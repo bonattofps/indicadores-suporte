@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
     <style>
       :root {
         --bg: #f4fbff;
@@ -143,6 +147,9 @@
   <body>
     <main>
       <section class="hero">
+        <a class="uni-brand uni-brand--login" href="index.html" aria-label="Uni Internet">
+          <img src="logo.png" alt="Uni Internet" />
+        </a>
         <p class="eyebrow">Dashboard corporativa</p>
         <h1>SGP - Sistema Gestão do Suporte</h1>
         <p class="subtitle">
@@ -187,9 +194,58 @@
           </div>
           <a class="button secondary" href="ocorrencias.html">Abrir Ocorrências</a>
         </article>
+
+        <article class="card">
+          <div>
+            <p class="eyebrow">Jornada</p>
+            <h2>Jornadas do Suporte</h2>
+            <p>Consulta de escala por mes, colaborador, pausas, setorizacao e calendario da jornada.</p>
+          </div>
+          <a class="button secondary" href="jornada.html">Abrir Jornadas</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <p class="eyebrow">Rede</p>
+            <h2>Identificação de CTO/Gerador PPPoE</h2>
+            <p>Identificação de CTO, registro tecnico com evidencia e gerador de logins PPPoE padronizados.</p>
+          </div>
+          <a class="button" href="cto.html">Abrir Identificação</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <p class="eyebrow">Lançamentos</p>
+            <h2>Entrada Manual de Indicadores</h2>
+            <p>Cadastre métricas e colaboradores direto no SGP para alimentar a dashboard sem depender da planilha.</p>
+          </div>
+          <a class="button secondary" href="lancamentos-indicadores.html">Abrir Lançamentos</a>
+        </article>
+
+        <article class="card">
+          <div>
+            <p class="eyebrow">Lançamentos</p>
+            <h2>Entrada Manual de Ocorrências</h2>
+            <p>Cadastre ocorrências mensais direto no SGP para alimentar a dashboard sem depender da planilha.</p>
+          </div>
+          <a class="button" href="lancamentos-ocorrencias.html">Abrir Ocorrências</a>
+        </article>
+
+        <article class="card" hidden style="display: none">
+          <div>
+            <p class="eyebrow">Acessos</p>
+            <h2>Configurações</h2>
+            <p>Crie acessos e altere cargos de usuarios. Disponivel somente para Administrador.</p>
+          </div>
+          <a class="button" href="usuarios.html">Abrir Configurações</a>
+        </article>
       </section>
 
       <p class="note">Compatível com GitHub Pages. Não usa backend nem banco de dados.</p>
     </main>
   </body>
 </html>
+
+
+
+

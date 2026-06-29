@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGP - Jornadas do Suporte</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+<link rel="stylesheet" href="jornada.css?v=20260605-1">
+    <link rel="stylesheet" href="brand.css?v=20260608-2">
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="jornada.js?v=20260605-3" defer></script>
+  </head>
+<body>
+  <header class="app-header">
+    <div class="header-content">
+      <div>
+        <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+          <img src="logo.png" alt="Uni Internet">
+        </a>
+        <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+        <h1>Jornadas do Suporte</h1>
+        <p class="subtitle">Consulta de escala por mês e colaborador</p>
+      </div>
+      <div class="view-switcher" aria-label="Ações da dashboard">
+        <a href="apresentacao.html">Indicadores Gerais</a>
+        <a href="colaboradores.html">Colaboradores</a>
+        <a href="operacional.html">Reincidência</a>
+        <a href="ocorrencias.html">Ocorrências</a>
+        <a class="active" href="jornada.html">Jornadas do Suporte</a>
+        <a href="usuarios.html" hidden style="display: none">Configurações</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar tema">?</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="filters-card" aria-labelledby="filtersTitle">
+      <div class="section-heading">
+        <div>
+          <h2 id="filtersTitle">Filtros de consulta</h2>
+          <p>Carregue a planilha, escolha o mês e pesquise o colaborador.</p>
+        </div>
+        <button class="secondary-button" id="clearFilters" type="button">Limpar filtros</button>
+      </div>
+
+      <div class="filters-grid">
+        <div class="field-group file-field">
+          <label for="workbookInput">Carregar planilha Jornada de Suporte</label>
+          <input id="workbookInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        </div>
+
+        <div class="field-group">
+          <label for="monthSelect">Selecionar mês</label>
+          <select id="monthSelect" disabled required>
+            <option value="">Carregue a planilha primeiro</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="collaboratorInput">Selecionar colaborador</label>
+          <input id="collaboratorInput" type="search" list="collaboratorOptions" placeholder="Selecione um mês primeiro" autocomplete="off" disabled>
+          <datalist id="collaboratorOptions"></datalist>
+        </div>
+
+        <div class="field-group">
+          <label for="teamSelect">Selecionar equipe</label>
+          <select id="teamSelect" disabled>
+            <option value="all">Todos</option>
+            <option value="lead">Supervisor/Especialista</option>
+            <option value="n2">N2</option>
+            <option value="n1">N1</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="status-message info" id="statusMessage" role="status">
+        Carregue a planilha para iniciar a consulta.
+      </div>
+    </section>
+
+    <section class="content-grid" aria-live="polite">
+      <article class="profile-card empty-state" id="profileCard">
+        <span class="empty-icon" aria-hidden="true">ID</span>
+        <div>
+          <h2>Nenhum colaborador selecionado</h2>
+          <p>Selecione um mês e um colaborador para visualizar a jornada.</p>
+        </div>
+      </article>
+
+      <section class="extra-info-grid" id="extraInfoGrid" aria-label="Pausas e informações adicionais">
+        <article class="info-panel">
+          <p class="eyebrow">Pausas</p>
+          <h2>Intervalos do colaborador</h2>
+          <div class="mini-list" id="breaksList">
+            <div class="empty-state compact">Nenhuma pausa para exibir.</div>
+          </div>
+        </article>
+        <article class="info-panel">
+          <p class="eyebrow">Setorização</p>
+          <h2>Atuação e observações</h2>
+          <div class="mini-list" id="sectorList">
+            <div class="empty-state compact">Nenhuma setorização para exibir.</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="summary-grid" id="summaryGrid" aria-label="Indicadores do mês">
+        <article class="summary-card">
+          <span class="summary-value" id="totalWork">0</span>
+          <span class="summary-label">Dias trabalhados</span>
+        </article>
+        <article class="summary-card">
+          <span class="summary-value" id="totalOff">0</span>
+          <span class="summary-label">Folgas</span>
+        </article>
+        <article class="summary-card">
+          <span class="summary-value" id="totalOnCall">0</span>
+          <span class="summary-label">Plantões</span>
+        </article>
+        <article class="summary-card">
+          <span class="summary-value" id="totalVacation">0</span>
+          <span class="summary-label">Férias</span>
+        </article>
+        <article class="summary-card">
+          <span class="summary-value" id="totalNoSchedule">0</span>
+          <span class="summary-label">Sem escala</span>
+        </article>
+        <article class="summary-card">
+          <span class="summary-value" id="totalNotes">0</span>
+          <span class="summary-label">Observações</span>
+        </article>
+      </section>
+    </section>
+
+    <section class="calendar-panel" aria-labelledby="calendarTitle">
+      <div class="section-heading compact">
+        <div>
+          <h2 id="calendarTitle">Calendário da jornada</h2>
+          <p id="calendarSubtitle">Os dias do mês selecionado aparecerão aqui.</p>
+        </div>
+      </div>
+
+      <div class="legend" aria-label="Legenda de status">
+        <span><i class="dot work"></i>Trabalho normal</span>
+        <span><i class="dot off"></i>Folga</span>
+        <span><i class="dot on-call"></i>Plantão</span>
+        <span><i class="dot vacation"></i>Férias</span>
+        <span><i class="dot no-schedule"></i>Sem escala</span>
+        <span><i class="dot note"></i>Observação</span>
+      </div>
+
+      <div class="calendar-grid" id="calendarGrid">
+        <div class="placeholder-box">Selecione um colaborador para visualizar a escala.</div>
+      </div>
+    </section>
+
+    <section class="table-panel" aria-labelledby="tableTitle">
+      <div class="section-heading compact">
+        <div>
+          <h2 id="tableTitle">Tabela geral de colaboradores</h2>
+          <p>Resumo de todos os colaboradores do mês selecionado.</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="general-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <button class="table-sort" id="sortDateButton" type="button">Colaborador</button>
+              </th>
+              <th scope="col">Jornada</th>
+              <th scope="col">Contato</th>
+              <th scope="col">Resumo</th>
+              <th scope="col">Pausas</th>
+              <th scope="col">Setorização</th>
+            </tr>
+          </thead>
+          <tbody id="detailsTableBody">
+            <tr>
+              <td colspan="6" class="table-empty">Selecione um mês para exibir a tabela geral.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+
+

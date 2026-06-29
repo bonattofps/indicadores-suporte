@@ -4,12 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
-    <link rel="stylesheet" href="apresentacao.css?v=20260525-1" />
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+<link rel="stylesheet" href="apresentacao.css?v=20260623-2" />
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
   </head>
   <body>
     <main class="presentation">
       <header class="hero">
         <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
           <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
           <h1>Indicadores Gerais</h1>
         </div>
@@ -18,7 +25,9 @@
           <a href="colaboradores.html">Colaboradores</a>
           <a href="operacional.html">Reincidência</a>
           <a href="ocorrencias.html">Ocorrências</a>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">☾</button>
+          <a href="jornada.html">Jornadas do Suporte</a>
+          <a href="usuarios.html" hidden style="display: none">Configurações</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">?</button>
           <button id="clearButton" type="button">Limpar</button>
         </div>
         <select id="monthSelect" class="month-select" aria-label="Selecionar mês">
@@ -78,7 +87,7 @@
       </section>
 
       <div class="section-heading compare-heading">
-        <p class="eyebrow">An?lise semanal</p>
+        <p class="eyebrow">Análise semanal</p>
         <h2>COMPARATIVO SEMANAL</h2>
       </div>
       <section class="panel table-panel">
@@ -87,17 +96,20 @@
       </section>
 
       <div class="section-heading compare-heading">
-        <p class="eyebrow">An?lise mensal</p>
+        <p class="eyebrow">Análise mensal</p>
         <h2>COMPARATIVO MENSAL</h2>
       </div>
       <section class="panel table-panel">
-        <div class="panel-head"><div><p class="eyebrow">M?s selecionado</p><h2>M?s atual vs m?s anterior</h2></div></div>
+        <div class="panel-head"><div><p class="eyebrow">Mês selecionado</p><h2>Mês atual vs mês anterior</h2></div></div>
         <div class="monthly-comparison" id="monthlyComparison"></div>
       </section>
     </main>
 
+    <script src="indicadores-junho-seed.js?v=20260619-1"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="apresentacao.js?v=20260525-1"></script>
+    <script src="apresentacao.js?v=20260623-4"></script>
   </body>
 </html>
+
+

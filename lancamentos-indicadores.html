@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Lançamentos de Indicadores</title>
+    <script type="module" src="auth.js?v=20260623-1"></script>
+    <script type="module" src="assistant.js?v=20260611-9"></script>
+    <link rel="stylesheet" href="brand.css?v=20260608-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+    <link rel="stylesheet" href="lancamentos-indicadores.css?v=20260619-8" />
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+          <h1>Lançamentos de Indicadores</h1>
+          <p class="subtitle">Preencha os dados no painel e sincronize automaticamente com Indicadores Gerais e Colaboradores.</p>
+        </div>
+        <nav class="switcher">
+          <a href="index.html">Início</a>
+          <a href="apresentacao.html">Indicadores Gerais</a>
+          <a href="colaboradores.html">Colaboradores</a>
+          <a class="active" href="lancamentos-indicadores.html">Lançamentos</a>
+          <a href="usuarios.html" hidden style="display: none">Configurações</a>
+        </nav>
+      </header>
+
+      <section class="notice" id="launchStatus">Carregando lançamentos manuais...</section>
+
+      <section class="panel setup-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Período</p>
+            <h2>Mês de lançamento</h2>
+          </div>
+          <div class="actions">
+            <button id="newMonthButton" class="secondary" type="button">Novo mês</button>
+            <button id="calculateButton" class="secondary" type="button">Calcular pelos colaboradores</button>
+            <button id="saveButton" type="button">Salvar e sincronizar</button>
+          </div>
+        </div>
+        <div class="setup-grid">
+          <label>
+            Mês salvo
+            <select id="monthSelect"></select>
+          </label>
+          <label>
+            Nome do mês
+            <input id="monthLabel" type="text" placeholder="Ex: Junho 2026" />
+          </label>
+          <label>
+            Chave do mês
+            <input id="monthKey" type="text" placeholder="junho-2026" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Matriz geral</p>
+            <h2>Indicadores por semana</h2>
+          </div>
+          <div class="actions">
+            <button id="addPeriodButton" class="secondary" type="button">Adicionar coluna</button>
+            <button id="removePeriodButton" class="danger" type="button">Remover última coluna</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table" id="generalTable">
+            <thead id="generalHead"></thead>
+            <tbody id="generalBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Equipe</p>
+            <h2>Colaboradores N1 e N2</h2>
+          </div>
+          <div class="actions">
+            <select id="weekSelect" aria-label="Selecionar semana"></select>
+            <button id="addN1Button" class="secondary" type="button">Adicionar N1</button>
+            <button id="addN2Button" class="secondary" type="button">Adicionar N2</button>
+          </div>
+        </div>
+
+        <div class="team-grid">
+          <article class="team-card">
+            <div class="team-head">
+              <h3>Equipe de Colaboradores N1</h3>
+              <span id="n1Summary">0 colaborador(es)</span>
+            </div>
+            <div class="table-scroll compact">
+              <table class="data-table">
+                <thead id="n1Head"></thead>
+                <tbody id="n1Body"></tbody>
+                <tfoot id="n1Foot"></tfoot>
+              </table>
+            </div>
+          </article>
+
+          <article class="team-card">
+            <div class="team-head">
+              <h3>Equipe de Colaboradores N2</h3>
+              <span id="n2Summary">0 colaborador(es)</span>
+            </div>
+            <div class="table-scroll compact">
+              <table class="data-table">
+                <thead id="n2Head"></thead>
+                <tbody id="n2Body"></tbody>
+                <tfoot id="n2Foot"></tfoot>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="indicadores-junho-seed.js?v=20260619-1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="lancamentos-indicadores.js?v=20260619-9"></script>
+  </body>
+</html>
+

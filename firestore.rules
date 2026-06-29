@@ -1,0 +1,86 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function verifiedOrApproved() {
+      return signedIn()
+        && (
+          request.auth.token.email_verified == true
+          || userDoc(request.auth.uid).data.approved == true
+        );
+    }
+
+    function isAdministrador() {
+      let role = userDoc(request.auth.uid).data.role;
+      return verifiedOrApproved()
+        && role == "administrador";
+    }
+
+    function isSelfSignup(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && (
+          request.resource.data.role == "viewer"
+          || request.resource.data.role == "n1"
+          || request.resource.data.role == "suporte"
+        );
+    }
+
+    match /users/{userId} {
+      allow create: if isSelfSignup(userId)
+        || isAdministrador();
+
+      allow read: if signedIn()
+        && (request.auth.uid == userId || isAdministrador());
+
+      allow update: if signedIn()
+        && (
+          (
+            request.auth.uid == userId
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.approved == resource.data.approved
+          )
+          || isAdministrador()
+        );
+
+      allow delete: if isAdministrador();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow write: if isAdministrador();
+    }
+
+    match /manualIndicators/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdministrador();
+    }
+
+    match /manualOccurrences/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdministrador();
+    }
+
+    match /emailIndex/{emailKey} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && (
+          request.resource.data.uid == request.auth.uid
+          || isAdministrador()
+        );
+      allow delete: if isAdministrador();
+    }
+  }
+}

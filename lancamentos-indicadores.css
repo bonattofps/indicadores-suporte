@@ -1,0 +1,328 @@
+:root {
+  --bg: #f4fbff;
+  --panel: #ffffff;
+  --border: #cfe2ee;
+  --text: #102033;
+  --muted: #567086;
+  --green: #009c67;
+  --blue: #38bdf8;
+  --teal: #78aeb7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(32, 199, 123, 0.13), transparent 28%),
+    linear-gradient(135deg, #f4fbff 0%, #ffffff 46%, #eef8f4 100%);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.screen {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px clamp(18px, 2.4vw, 46px);
+  display: grid;
+  gap: 18px;
+}
+
+.header,
+.panel-head,
+.switcher,
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.8rem);
+  line-height: 1.03;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  margin-top: 8px;
+  max-width: 760px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.switcher,
+.actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.switcher a,
+button,
+select,
+input {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+}
+
+.switcher a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.switcher a.active,
+.switcher a:hover,
+button {
+  border-color: var(--green);
+  background: var(--green);
+  color: #ffffff;
+}
+
+button.secondary {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+button.danger {
+  border-color: #dc2626;
+  background: #dc2626;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notice,
+.panel,
+.team-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(20, 75, 110, 0.1);
+}
+
+.notice {
+  padding: 13px 15px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.panel-head {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: 260px minmax(220px, 1fr) minmax(180px, 0.7fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.setup-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.setup-grid input,
+.setup-grid select,
+.actions select {
+  width: 100%;
+  padding: 0 10px;
+}
+
+.table-scroll {
+  overflow: auto;
+}
+
+.table-scroll.compact {
+  max-height: 460px;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 1320px;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #1f2937;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.data-table th {
+  min-height: 38px;
+  padding: 8px;
+  background: var(--teal);
+  color: #06131a;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.period-header-fields {
+  display: grid;
+  gap: 6px;
+}
+
+.data-table th .period-label-input,
+.data-table th .period-date-row input {
+  min-height: 30px;
+  border: 1px solid rgba(6, 19, 26, 0.22);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #06131a;
+  text-align: center;
+}
+
+.data-table th .period-label-input {
+  text-transform: uppercase;
+}
+
+.period-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.data-table th .period-date-row input {
+  min-width: 112px;
+  padding: 0 4px;
+  font-size: 0.72rem;
+}
+
+.data-table td:first-child,
+.data-table th:first-child {
+  min-width: 320px;
+  text-align: left;
+}
+
+.data-table td.metric-name,
+.data-table td.collaborator-name {
+  padding: 8px;
+  background: rgba(120, 174, 183, 0.82);
+  color: #06131a;
+  font-weight: 800;
+}
+
+.data-table input {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 8px;
+  background: #f8fbfd;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.data-table input[type="text"] {
+  text-align: left;
+}
+
+.data-table tfoot td {
+  padding: 8px;
+  background: #b7d7ab;
+  font-weight: 950;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.team-card {
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-head span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.row-actions {
+  width: 74px;
+  min-width: 74px;
+}
+
+.row-actions button {
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+}
+
+@media (max-width: 920px) {
+  .header,
+  .panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .switcher,
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+}

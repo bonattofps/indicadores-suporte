@@ -113,41 +113,42 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function tryAutoLoad() {
-  els.importStatus.textContent = "Procurando lançamentos manuais de ocorrências...";
-  if (await loadManualOccurrences()) return;
+  els.importStatus.textContent = "Carregando ocorrências da planilha e dos lançamentos manuais...";
 
-  els.importStatus.textContent = "Carregando ocorrências pelo Google Sheets...";
-  try {
-    const response = await fetch(GOOGLE_SHEETS_OCCURRENCES_XLSX_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
-    const buffer = await response.arrayBuffer();
-    applyWorkbook(parseWorkbook(buffer, "array"), `${GOOGLE_SHEETS_OCCURRENCES_NAME} carregado automaticamente.`);
+  const sources = [];
+  const googleParsed = await loadGoogleSheetsOccurrences();
+  if (googleParsed?.monthOrder?.length) {
+    sources.push({ parsed: googleParsed, label: GOOGLE_SHEETS_OCCURRENCES_NAME });
+  }
+
+  if (!sources.length) {
+    const sessionParsed = loadSessionOccurrences();
+    if (sessionParsed?.monthOrder?.length) {
+      sources.push({ parsed: sessionParsed, label: "Sessão atual" });
+    }
+  }
+
+  if (!sources.length) {
+    const localParsed = await loadLocalOccurrencesFile();
+    if (localParsed?.monthOrder?.length) {
+      sources.push({ parsed: localParsed, label: "OCORRENCIAS MENSAIS.xlsx" });
+    }
+  }
+
+  const manualParsed = await loadManualOccurrences();
+  if (manualParsed?.monthOrder?.length) {
+    sources.push({ parsed: manualParsed, label: "Lançamentos manuais" });
+  }
+
+  const merged = mergeOccurrenceSources(sources.map((source) => source.parsed));
+  if (merged.monthOrder.length) {
+    const labels = sources.map((source) => source.label).join(" + ");
+    applyWorkbook(merged, `${labels} carregado(s).`);
     return;
-  } catch (googleError) {
-    console.error(googleError);
-    els.importStatus.textContent = "Nao foi possivel carregar o Google Sheets. Tentando dados salvos ou arquivo local.";
   }
 
-  const saved = sessionStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    const parsed = JSON.parse(saved);
-    occurrenceState.workbook = parsed.workbook || {};
-    occurrenceState.monthOrder = parsed.monthOrder || [];
-    occurrenceState.selectedMonth = occurrenceState.monthOrder.at(-1) || "";
-    els.importStatus.textContent = "Ocorrências mensais carregadas da sessão atual.";
-    render();
-    return;
-  }
-
-  try {
-    const response = await fetch("OCORRENCIAS MENSAIS.xlsx", { cache: "no-store" });
-    if (!response.ok) throw new Error("Arquivo não encontrado.");
-    const buffer = await response.arrayBuffer();
-    applyWorkbook(parseWorkbook(buffer, "array"), "OCORRENCIAS MENSAIS.xlsx carregado automaticamente da pasta do site.");
-  } catch {
-    els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx para visualizar a dashboard.";
-    render();
-  }
+  els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx ou cadastre ocorrências manuais para visualizar a dashboard.";
+  render();
 }
 
 async function loadManualOccurrences() {
@@ -158,20 +159,114 @@ async function loadManualOccurrences() {
     }
 
     const saved = await window.SGPAuth?.loadManualOccurrences?.();
-    if (!saved?.workbook || !saved?.monthOrder?.length) return false;
+    if (!saved?.workbook || !saved?.monthOrder?.length) return null;
 
     const parsed = {
       workbook: saved.workbook,
       monthOrder: saved.monthOrder.filter((key) => saved.workbook[key])
     };
-    if (!parsed.monthOrder.length) return false;
+    if (!parsed.monthOrder.length) return null;
 
-    applyWorkbook(parsed, "Ocorrências carregadas dos lançamentos manuais do SGP.");
-    return true;
+    return parsed;
   } catch (error) {
     console.error(error);
-    return false;
+    return null;
   }
+}
+
+async function loadGoogleSheetsOccurrences() {
+  try {
+    const response = await fetch(`${GOOGLE_SHEETS_OCCURRENCES_XLSX_URL}&_=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
+    const buffer = await response.arrayBuffer();
+    return parseWorkbook(buffer, "array");
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function loadSessionOccurrences() {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return {
+      workbook: parsed.workbook || {},
+      monthOrder: (parsed.monthOrder || []).filter((key) => parsed.workbook?.[key])
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function loadLocalOccurrencesFile() {
+  try {
+    const response = await fetch("OCORRENCIAS MENSAIS.xlsx", { cache: "no-store" });
+    if (!response.ok) throw new Error("Arquivo não encontrado.");
+    const buffer = await response.arrayBuffer();
+    return parseWorkbook(buffer, "array");
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function mergeOccurrenceSources(sources) {
+  const merged = {};
+  const monthOrder = [];
+
+  sources.filter(Boolean).forEach((source) => {
+    (source.monthOrder || []).forEach((monthKey) => {
+      const month = source.workbook?.[monthKey];
+      if (!month) return;
+
+      if (!merged[monthKey]) {
+        merged[monthKey] = {
+          key: monthKey,
+          label: month.label || monthKey,
+          records: []
+        };
+        monthOrder.push(monthKey);
+      }
+
+      const known = new Set(merged[monthKey].records.map(occurrenceFingerprint));
+      (month.records || []).forEach((record) => {
+        const normalized = normalizeOccurrenceRecord(record);
+        const fingerprint = occurrenceFingerprint(normalized);
+        if (known.has(fingerprint)) return;
+        known.add(fingerprint);
+        merged[monthKey].records.push(normalized);
+      });
+    });
+  });
+
+  return { workbook: merged, monthOrder };
+}
+
+function normalizeOccurrenceRecord(record) {
+  const downtime = clean(record?.downtime) || "-";
+  return {
+    occurrence: clean(record?.occurrence),
+    date: clean(record?.date),
+    branch: clean(record?.branch) || "-",
+    city: normalizeCity(record?.city),
+    reason: clean(record?.reason) || "-",
+    downtime,
+    downtimeDuration: offlineDurationLabel(downtime)
+  };
+}
+
+function occurrenceFingerprint(record) {
+  return [
+    formatDate(record.date),
+    record.branch,
+    record.city,
+    record.occurrence,
+    record.reason,
+    normalizeDowntimeText(record.downtime)
+  ].map(normalizeText).join("|");
 }
 
 async function handleImport(event) {

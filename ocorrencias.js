@@ -305,12 +305,13 @@ function filterRows() {
   const search = normalizeText(els.searchInput.value);
   if (!month) return [];
   return month.records.filter((row) => {
+    if (!dateBelongsToSelectedMonth(row.date)) return false;
     if (occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
     return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
-  });
+  }).sort(compareOccurrenceDateAsc);
 }
 
 function renderActiveFilters() {
@@ -868,12 +869,13 @@ function baseRowsForCharts(ignoreKey) {
   const search = normalizeText(els.searchInput.value);
   if (!month) return [];
   return month.records.filter((row) => {
+    if (!dateBelongsToSelectedMonth(row.date)) return false;
     if (ignoreKey !== "city" && occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (ignoreKey !== "reason" && occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
     return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
-  });
+  }).sort(compareOccurrenceDateAsc);
 }
 
 function renderTable() {
@@ -884,7 +886,7 @@ function renderTable() {
 
   els.occurrenceBody.innerHTML = occurrenceState.filteredRows
     .slice()
-    .sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0))
+    .sort(compareOccurrenceDateAsc)
     .map((row) => `
       <tr>
         <td>${formatDate(row.date)}</td>
@@ -1044,31 +1046,36 @@ function canonicalMonthLabel(value) {
 function parseMonthYear(value) {
   const text = normalizeText(value).replace(/_/g, " ");
   const monthAliases = [
-    ["janeiro", "janeiro", "Janeiro"],
-    ["fevereiro", "fevereiro", "Fevereiro"],
-    ["marco", "marco", "Março"],
-    ["abril", "abril", "Abril"],
-    ["maio", "maio", "Maio"],
-    ["junho", "junho", "Junho"],
-    ["junnho", "junho", "Junho"],
-    ["julho", "julho", "Julho"],
-    ["agosto", "agosto", "Agosto"],
-    ["setembro", "setembro", "Setembro"],
-    ["outubro", "outubro", "Outubro"],
-    ["novembro", "novembro", "Novembro"],
-    ["dezembro", "dezembro", "Dezembro"]
+    ["janeiro", "janeiro", "Janeiro", 1],
+    ["fevereiro", "fevereiro", "Fevereiro", 2],
+    ["marco", "marco", "Março", 3],
+    ["abril", "abril", "Abril", 4],
+    ["maio", "maio", "Maio", 5],
+    ["junho", "junho", "Junho", 6],
+    ["junnho", "junho", "Junho", 6],
+    ["julho", "julho", "Julho", 7],
+    ["agosto", "agosto", "Agosto", 8],
+    ["setembro", "setembro", "Setembro", 9],
+    ["outubro", "outubro", "Outubro", 10],
+    ["novembro", "novembro", "Novembro", 11],
+    ["dezembro", "dezembro", "Dezembro", 12]
   ];
   const month = monthAliases.find(([alias]) => text.includes(alias));
   const yearMatch = text.match(/20\d{2}|25|26/);
   if (!month || !yearMatch) return null;
   const year = yearMatch[0].length === 2 ? `20${yearMatch[0]}` : yearMatch[0];
-  return { monthSlug: month[1], monthLabel: month[2], year };
+  return { monthSlug: month[1], monthLabel: month[2], monthNumber: month[3], year };
 }
 
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value;
   const text = clean(value);
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
   const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (match) {
     const [, left, right, year] = match;
@@ -1089,6 +1096,30 @@ function formatDate(value) {
   const date = parseDate(value);
   if (!date) return value || "-";
   return date.toLocaleDateString("pt-BR");
+}
+
+function dateBelongsToSelectedMonth(value) {
+  const selected = selectedMonthMeta();
+  if (!selected) return true;
+  const date = parseDate(value);
+  if (!date) return false;
+  return date.getFullYear() === Number(selected.year)
+    && date.getMonth() + 1 === selected.monthNumber;
+}
+
+function selectedMonthMeta() {
+  const month = occurrenceState.workbook[occurrenceState.selectedMonth];
+  return parseMonthYear(month?.label || occurrenceState.selectedMonth)
+    || parseMonthYear(occurrenceState.selectedMonth);
+}
+
+function compareOccurrenceDateAsc(a, b) {
+  const left = parseDate(a.date);
+  const right = parseDate(b.date);
+  if (left && right) return left - right;
+  if (left) return -1;
+  if (right) return 1;
+  return clean(a.occurrence).localeCompare(clean(b.occurrence), "pt-BR");
 }
 
 function handleDateFilterChange() {

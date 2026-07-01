@@ -216,8 +216,8 @@ function waitForAuth() {
 
 function createMonth(shouldRender) {
   const now = new Date();
-  const label = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (letter) => letter.toUpperCase());
-  const key = uniqueMonthKey(slug(label));
+  const label = canonicalMonthLabel(now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }));
+  const key = uniqueMonthKey(canonicalMonthKey(label) || slug(label));
   state.workbook[key] = {
     key,
     label,
@@ -281,7 +281,7 @@ async function saveManualOccurrences() {
   try {
     setBusy(true);
     const workbook = normalizedWorkbook();
-    const monthOrder = state.monthOrder.filter((key) => workbook[key]);
+    const monthOrder = normalizedMonthOrder(workbook);
 
     await window.SGPAuth.saveManualOccurrences({
       workbook,
@@ -503,18 +503,64 @@ function normalizedWorkbook() {
   state.monthOrder.forEach((key) => {
     const month = state.workbook[key];
     if (!month) return;
+    const canonicalKey = canonicalMonthKey(month.label || key) || canonicalMonthKey(key) || key;
     const records = (month.records || [])
       .map(normalizeRecord)
       .filter((row) => row.occurrence && row.city);
     if (!records.length) return;
-    workbook[key] = {
-      key,
-      label: clean(month.label) || key,
-      sourceName: "Lançamento manual",
-      records
-    };
+    if (!workbook[canonicalKey]) {
+      workbook[canonicalKey] = {
+        key: canonicalKey,
+        label: canonicalMonthLabel(month.label || key),
+        sourceName: "Lancamento manual",
+        records: []
+      };
+    }
+    workbook[canonicalKey].records.push(...records);
   });
   return workbook;
+}
+
+function normalizedMonthOrder(workbook) {
+  return state.monthOrder
+    .map((key) => {
+      const month = state.workbook[key];
+      return canonicalMonthKey(month?.label || key) || canonicalMonthKey(key) || key;
+    })
+    .filter((key, index, items) => workbook[key] && items.indexOf(key) === index);
+}
+
+function canonicalMonthKey(value) {
+  const parsed = parseMonthYear(value);
+  return parsed ? `${parsed.monthSlug}-${parsed.year}` : "";
+}
+
+function canonicalMonthLabel(value) {
+  const parsed = parseMonthYear(value);
+  return parsed ? `${parsed.monthLabel} ${parsed.year}` : clean(value);
+}
+
+function parseMonthYear(value) {
+  const text = normalizeText(value).replace(/_/g, " ");
+  const monthAliases = [
+    ["janeiro", "janeiro", "Janeiro"],
+    ["fevereiro", "fevereiro", "Fevereiro"],
+    ["marco", "marco", "Mar?o"],
+    ["abril", "abril", "Abril"],
+    ["maio", "maio", "Maio"],
+    ["junho", "junho", "Junho"],
+    ["julho", "julho", "Julho"],
+    ["agosto", "agosto", "Agosto"],
+    ["setembro", "setembro", "Setembro"],
+    ["outubro", "outubro", "Outubro"],
+    ["novembro", "novembro", "Novembro"],
+    ["dezembro", "dezembro", "Dezembro"]
+  ];
+  const month = monthAliases.find(([alias]) => text.includes(alias));
+  const yearMatch = text.match(/20\d{2}|25|26/);
+  if (!month || !yearMatch) return null;
+  const year = yearMatch[0].length === 2 ? `20${yearMatch[0]}` : yearMatch[0];
+  return { monthSlug: month[1], monthLabel: month[2], year };
 }
 
 function normalizeRecord(row) {

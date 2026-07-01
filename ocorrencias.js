@@ -113,42 +113,41 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function tryAutoLoad() {
-  els.importStatus.textContent = "Carregando ocorrências da planilha e dos lançamentos manuais...";
+  els.importStatus.textContent = "Procurando lançamentos manuais de ocorrências...";
+  if (await loadManualOccurrences()) return;
 
-  const sources = [];
-  const googleParsed = await loadGoogleSheetsOccurrences();
-  if (googleParsed?.monthOrder?.length) {
-    sources.push({ parsed: googleParsed, label: GOOGLE_SHEETS_OCCURRENCES_NAME });
+  els.importStatus.textContent = "Carregando ocorrências pelo Google Sheets...";
+  try {
+    const response = await fetch(GOOGLE_SHEETS_OCCURRENCES_XLSX_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
+    const buffer = await response.arrayBuffer();
+    applyWorkbook(parseWorkbook(buffer, "array"), `${GOOGLE_SHEETS_OCCURRENCES_NAME} carregado automaticamente.`);
+    return;
+  } catch (googleError) {
+    console.error(googleError);
+    els.importStatus.textContent = "Nao foi possivel carregar o Google Sheets. Tentando dados salvos ou arquivo local.";
   }
 
-  if (!sources.length) {
-    const sessionParsed = loadSessionOccurrences();
-    if (sessionParsed?.monthOrder?.length) {
-      sources.push({ parsed: sessionParsed, label: "Sessão atual" });
-    }
-  }
-
-  if (!sources.length) {
-    const localParsed = await loadLocalOccurrencesFile();
-    if (localParsed?.monthOrder?.length) {
-      sources.push({ parsed: localParsed, label: "OCORRENCIAS MENSAIS.xlsx" });
-    }
-  }
-
-  const manualParsed = await loadManualOccurrences();
-  if (manualParsed?.monthOrder?.length) {
-    sources.push({ parsed: manualParsed, label: "Lançamentos manuais" });
-  }
-
-  const merged = mergeOccurrenceSources(sources.map((source) => source.parsed));
-  if (merged.monthOrder.length) {
-    const labels = sources.map((source) => source.label).join(" + ");
-    applyWorkbook(merged, `${labels} carregado(s).`);
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    occurrenceState.workbook = parsed.workbook || {};
+    occurrenceState.monthOrder = parsed.monthOrder || [];
+    occurrenceState.selectedMonth = occurrenceState.monthOrder.at(-1) || "";
+    els.importStatus.textContent = "Ocorrências mensais carregadas da sessão atual.";
+    render();
     return;
   }
 
-  els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx ou cadastre ocorrências manuais para visualizar a dashboard.";
-  render();
+  try {
+    const response = await fetch("OCORRENCIAS MENSAIS.xlsx", { cache: "no-store" });
+    if (!response.ok) throw new Error("Arquivo não encontrado.");
+    const buffer = await response.arrayBuffer();
+    applyWorkbook(parseWorkbook(buffer, "array"), "OCORRENCIAS MENSAIS.xlsx carregado automaticamente da pasta do site.");
+  } catch {
+    els.importStatus.textContent = "Importe a planilha OCORRENCIAS MENSAIS.xlsx para visualizar a dashboard.";
+    render();
+  }
 }
 
 async function loadManualOccurrences() {
@@ -159,114 +158,20 @@ async function loadManualOccurrences() {
     }
 
     const saved = await window.SGPAuth?.loadManualOccurrences?.();
-    if (!saved?.workbook || !saved?.monthOrder?.length) return null;
+    if (!saved?.workbook || !saved?.monthOrder?.length) return false;
 
     const parsed = {
       workbook: saved.workbook,
       monthOrder: saved.monthOrder.filter((key) => saved.workbook[key])
     };
-    if (!parsed.monthOrder.length) return null;
+    if (!parsed.monthOrder.length) return false;
 
-    return parsed;
+    applyWorkbook(normalizeOccurrenceWorkbookMonths(parsed), "Ocorrências carregadas dos lançamentos manuais do SGP.");
+    return true;
   } catch (error) {
     console.error(error);
-    return null;
+    return false;
   }
-}
-
-async function loadGoogleSheetsOccurrences() {
-  try {
-    const response = await fetch(`${GOOGLE_SHEETS_OCCURRENCES_XLSX_URL}&_=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Google Sheets retornou ${response.status}.`);
-    const buffer = await response.arrayBuffer();
-    return parseWorkbook(buffer, "array");
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-function loadSessionOccurrences() {
-  try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (!saved) return null;
-    const parsed = JSON.parse(saved);
-    return {
-      workbook: parsed.workbook || {},
-      monthOrder: (parsed.monthOrder || []).filter((key) => parsed.workbook?.[key])
-    };
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-async function loadLocalOccurrencesFile() {
-  try {
-    const response = await fetch("OCORRENCIAS MENSAIS.xlsx", { cache: "no-store" });
-    if (!response.ok) throw new Error("Arquivo não encontrado.");
-    const buffer = await response.arrayBuffer();
-    return parseWorkbook(buffer, "array");
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-function mergeOccurrenceSources(sources) {
-  const merged = {};
-  const monthOrder = [];
-
-  sources.filter(Boolean).forEach((source) => {
-    (source.monthOrder || []).forEach((monthKey) => {
-      const month = source.workbook?.[monthKey];
-      if (!month) return;
-
-      if (!merged[monthKey]) {
-        merged[monthKey] = {
-          key: monthKey,
-          label: month.label || monthKey,
-          records: []
-        };
-        monthOrder.push(monthKey);
-      }
-
-      const known = new Set(merged[monthKey].records.map(occurrenceFingerprint));
-      (month.records || []).forEach((record) => {
-        const normalized = normalizeOccurrenceRecord(record);
-        const fingerprint = occurrenceFingerprint(normalized);
-        if (known.has(fingerprint)) return;
-        known.add(fingerprint);
-        merged[monthKey].records.push(normalized);
-      });
-    });
-  });
-
-  return { workbook: merged, monthOrder };
-}
-
-function normalizeOccurrenceRecord(record) {
-  const downtime = clean(record?.downtime) || "-";
-  return {
-    occurrence: clean(record?.occurrence),
-    date: clean(record?.date),
-    branch: clean(record?.branch) || "-",
-    city: normalizeCity(record?.city),
-    reason: clean(record?.reason) || "-",
-    downtime,
-    downtimeDuration: offlineDurationLabel(downtime)
-  };
-}
-
-function occurrenceFingerprint(record) {
-  return [
-    formatDate(record.date),
-    record.branch,
-    record.city,
-    record.occurrence,
-    record.reason,
-    normalizeDowntimeText(record.downtime)
-  ].map(normalizeText).join("|");
 }
 
 async function handleImport(event) {
@@ -1009,7 +914,63 @@ function normalizeCity(value) {
 }
 
 function normalizeMonthKey(value) {
-  return normalizeText(value).replace(/_/g, "-");
+  return canonicalMonthKey(value) || normalizeText(value).replace(/_/g, "-");
+}
+
+function normalizeOccurrenceWorkbookMonths(parsed) {
+  const workbook = {};
+  const monthOrder = [];
+
+  (parsed.monthOrder || []).forEach((key) => {
+    const month = parsed.workbook?.[key];
+    if (!month) return;
+    const canonicalKey = canonicalMonthKey(month.label || key) || canonicalMonthKey(key) || key;
+    if (!workbook[canonicalKey]) {
+      workbook[canonicalKey] = {
+        ...month,
+        key: canonicalKey,
+        label: canonicalMonthLabel(month.label || key),
+        records: []
+      };
+      monthOrder.push(canonicalKey);
+    }
+    workbook[canonicalKey].records.push(...(month.records || []));
+  });
+
+  return { workbook, monthOrder };
+}
+
+function canonicalMonthKey(value) {
+  const parsed = parseMonthYear(value);
+  return parsed ? `${parsed.monthSlug}-${parsed.year}` : "";
+}
+
+function canonicalMonthLabel(value) {
+  const parsed = parseMonthYear(value);
+  return parsed ? `${parsed.monthLabel} ${parsed.year}` : clean(value);
+}
+
+function parseMonthYear(value) {
+  const text = normalizeText(value).replace(/_/g, " ");
+  const monthAliases = [
+    ["janeiro", "janeiro", "Janeiro"],
+    ["fevereiro", "fevereiro", "Fevereiro"],
+    ["marco", "marco", "Março"],
+    ["abril", "abril", "Abril"],
+    ["maio", "maio", "Maio"],
+    ["junho", "junho", "Junho"],
+    ["julho", "julho", "Julho"],
+    ["agosto", "agosto", "Agosto"],
+    ["setembro", "setembro", "Setembro"],
+    ["outubro", "outubro", "Outubro"],
+    ["novembro", "novembro", "Novembro"],
+    ["dezembro", "dezembro", "Dezembro"]
+  ];
+  const month = monthAliases.find(([alias]) => text.includes(alias));
+  const yearMatch = text.match(/20\d{2}|25|26/);
+  if (!month || !yearMatch) return null;
+  const year = yearMatch[0].length === 2 ? `20${yearMatch[0]}` : yearMatch[0];
+  return { monthSlug: month[1], monthLabel: month[2], year };
 }
 
 function parseDate(value) {

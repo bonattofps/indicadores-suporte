@@ -503,31 +503,60 @@ function normalizedWorkbook() {
   state.monthOrder.forEach((key) => {
     const month = state.workbook[key];
     if (!month) return;
-    const canonicalKey = canonicalMonthKey(month.label || key) || canonicalMonthKey(key) || key;
     const records = (month.records || [])
       .map(normalizeRecord)
       .filter((row) => row.occurrence && row.city);
     if (!records.length) return;
-    if (!workbook[canonicalKey]) {
-      workbook[canonicalKey] = {
-        key: canonicalKey,
-        label: canonicalMonthLabel(month.label || key),
-        sourceName: "Lancamento manual",
-        records: []
-      };
-    }
-    workbook[canonicalKey].records.push(...records);
+    records.forEach((record) => {
+      const canonicalKey = monthKeyFromDate(record.date)
+        || canonicalMonthKey(month.label || key)
+        || canonicalMonthKey(key)
+        || key;
+      if (!workbook[canonicalKey]) {
+        workbook[canonicalKey] = {
+          key: canonicalKey,
+          label: monthLabelFromDate(record.date) || canonicalMonthLabel(month.label || key),
+          sourceName: "Lancamento manual",
+          records: []
+        };
+      }
+      workbook[canonicalKey].records.push(record);
+    });
   });
   return workbook;
 }
 
 function normalizedMonthOrder(workbook) {
-  return state.monthOrder
-    .map((key) => {
-      const month = state.workbook[key];
-      return canonicalMonthKey(month?.label || key) || canonicalMonthKey(key) || key;
-    })
-    .filter((key, index, items) => workbook[key] && items.indexOf(key) === index);
+  return sortMonthKeys(Object.keys(workbook));
+}
+
+function monthKeyFromDate(value) {
+  const date = parseDate(value);
+  if (!date) return "";
+  return `${monthSlugByNumber(date.getMonth() + 1)}-${date.getFullYear()}`;
+}
+
+function monthLabelFromDate(value) {
+  const date = parseDate(value);
+  if (!date) return "";
+  return `${monthLabelByNumber(date.getMonth() + 1)} ${date.getFullYear()}`;
+}
+
+function sortMonthKeys(keys) {
+  return [...keys].sort((a, b) => monthSortValue(a) - monthSortValue(b));
+}
+
+function monthSortValue(key) {
+  const parsed = parseMonthYear(key);
+  return parsed?.monthNumber ? Number(parsed.year) * 100 + parsed.monthNumber : 999999;
+}
+
+function monthSlugByNumber(number) {
+  return ["", "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][number] || "mes";
+}
+
+function monthLabelByNumber(number) {
+  return ["", "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][number] || "Mes";
 }
 
 function canonicalMonthKey(value) {
@@ -543,25 +572,25 @@ function canonicalMonthLabel(value) {
 function parseMonthYear(value) {
   const text = normalizeText(value).replace(/_/g, " ");
   const monthAliases = [
-    ["janeiro", "janeiro", "Janeiro"],
-    ["fevereiro", "fevereiro", "Fevereiro"],
-    ["marco", "marco", "Mar?o"],
-    ["abril", "abril", "Abril"],
-    ["maio", "maio", "Maio"],
-    ["junho", "junho", "Junho"],
-    ["junnho", "junho", "Junho"],
-    ["julho", "julho", "Julho"],
-    ["agosto", "agosto", "Agosto"],
-    ["setembro", "setembro", "Setembro"],
-    ["outubro", "outubro", "Outubro"],
-    ["novembro", "novembro", "Novembro"],
-    ["dezembro", "dezembro", "Dezembro"]
+    ["janeiro", "janeiro", "Janeiro", 1],
+    ["fevereiro", "fevereiro", "Fevereiro", 2],
+    ["marco", "marco", "Marco", 3],
+    ["abril", "abril", "Abril", 4],
+    ["maio", "maio", "Maio", 5],
+    ["junho", "junho", "Junho", 6],
+    ["junnho", "junho", "Junho", 6],
+    ["julho", "julho", "Julho", 7],
+    ["agosto", "agosto", "Agosto", 8],
+    ["setembro", "setembro", "Setembro", 9],
+    ["outubro", "outubro", "Outubro", 10],
+    ["novembro", "novembro", "Novembro", 11],
+    ["dezembro", "dezembro", "Dezembro", 12]
   ];
   const month = monthAliases.find(([alias]) => text.includes(alias));
   const yearMatch = text.match(/20\d{2}|25|26/);
   if (!month || !yearMatch) return null;
   const year = yearMatch[0].length === 2 ? `20${yearMatch[0]}` : yearMatch[0];
-  return { monthSlug: month[1], monthLabel: month[2], year };
+  return { monthSlug: month[1], monthLabel: month[2], monthNumber: month[3], year };
 }
 
 function normalizeRecord(row) {
@@ -642,6 +671,11 @@ function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value;
   const text = clean(value);
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
   const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (match) {
     const [, left, right, year] = match;

@@ -998,15 +998,32 @@ function mergeOccurrenceSources(sources) {
       const known = new Set(workbook[monthKey].records.map(occurrenceFingerprint));
       (month.records || []).forEach((record) => {
         const normalized = normalizeOccurrenceRecord(record);
+        const targetMonthKey = monthKeyFromDate(normalized.date) || monthKey;
+        if (!workbook[targetMonthKey]) {
+          workbook[targetMonthKey] = {
+            key: targetMonthKey,
+            label: monthLabelFromDate(normalized.date) || canonicalMonthLabel(targetMonthKey) || month.label || targetMonthKey,
+            records: []
+          };
+          monthOrder.push(targetMonthKey);
+        }
+        const targetKnown = targetMonthKey === monthKey
+          ? known
+          : new Set(workbook[targetMonthKey].records.map(occurrenceFingerprint));
         const fingerprint = occurrenceFingerprint(normalized);
-        if (known.has(fingerprint)) return;
-        known.add(fingerprint);
-        workbook[monthKey].records.push(normalized);
+        if (targetKnown.has(fingerprint)) return;
+        targetKnown.add(fingerprint);
+        workbook[targetMonthKey].records.push(normalized);
       });
     });
   });
 
-  return { workbook, monthOrder };
+  return {
+    workbook,
+    monthOrder: sortMonthKeys(monthOrder.filter((key, index, items) =>
+      workbook[key]?.records?.length && items.indexOf(key) === index
+    ))
+  };
 }
 
 function normalizeOccurrenceRecord(record) {
@@ -1031,6 +1048,35 @@ function occurrenceFingerprint(record) {
     record.reason,
     normalizeDowntimeText(record.downtime)
   ].map(normalizeText).join("|");
+}
+
+function monthKeyFromDate(value) {
+  const date = parseDate(value);
+  if (!date) return "";
+  return `${monthSlugByNumber(date.getMonth() + 1)}-${date.getFullYear()}`;
+}
+
+function monthLabelFromDate(value) {
+  const date = parseDate(value);
+  if (!date) return "";
+  return `${monthLabelByNumber(date.getMonth() + 1)} ${date.getFullYear()}`;
+}
+
+function sortMonthKeys(keys) {
+  return [...keys].sort((a, b) => monthSortValue(a) - monthSortValue(b));
+}
+
+function monthSortValue(key) {
+  const parsed = parseMonthYear(key);
+  return parsed ? Number(parsed.year) * 100 + parsed.monthNumber : 999999;
+}
+
+function monthSlugByNumber(number) {
+  return ["", "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"][number] || "mes";
+}
+
+function monthLabelByNumber(number) {
+  return ["", "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][number] || "Mes";
 }
 
 function canonicalMonthKey(value) {

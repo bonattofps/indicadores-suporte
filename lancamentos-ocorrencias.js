@@ -549,6 +549,7 @@ function parseMonthYear(value) {
     ["abril", "abril", "Abril"],
     ["maio", "maio", "Maio"],
     ["junho", "junho", "Junho"],
+    ["junnho", "junho", "Junho"],
     ["julho", "julho", "Julho"],
     ["agosto", "agosto", "Agosto"],
     ["setembro", "setembro", "Setembro"],

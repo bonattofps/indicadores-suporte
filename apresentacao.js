@@ -112,7 +112,6 @@ async function loadGoogleSheetsWorkbook() {
   const status = document.querySelector("#importStatus");
   status.textContent = "Procurando lançamentos manuais...";
   if (await loadManualWorkbook()) return;
-  if (loadLocalSeedWorkbook()) return;
 
   status.textContent = "Carregando indicadores pelo Google Sheets...";
 
@@ -128,6 +127,7 @@ async function loadGoogleSheetsWorkbook() {
     applyWorkbook(parsed);
   } catch (error) {
     console.error(error);
+    if (loadLocalSeedWorkbook()) return;
     status.textContent = "Nao foi possivel carregar o Google Sheets. Usando dados salvos/importados, se existirem.";
     loadSavedWorkbook();
   }
@@ -142,7 +142,7 @@ async function loadManualWorkbook() {
 
     const saved = await window.SGPAuth?.loadManualIndicators?.();
     const workbook = saved?.generalWorkbook;
-    if (!workbook?.monthOrder?.length) return false;
+    if (!isValidGeneralWorkbook(workbook)) return false;
 
     applyWorkbook(workbook);
     persistManualWorkbook(workbook, saved?.collaboratorWorkbook);
@@ -154,9 +154,18 @@ async function loadManualWorkbook() {
   }
 }
 
+function isValidGeneralWorkbook(workbook) {
+  if (!workbook?.monthOrder?.length || !workbook?.months) return false;
+  return workbook.monthOrder.some((monthKey) => {
+    const month = workbook.months[monthKey];
+    return month?.periods?.length
+      && (month.metrics || []).some((metric) => Object.values(metric.values || {}).some((value) => value !== "" && value !== null && value !== undefined));
+  });
+}
+
 function loadLocalSeedWorkbook() {
   const workbook = window.SGP_MANUAL_INDICATORS_SEED?.generalWorkbook;
-  if (!workbook?.monthOrder?.length) return false;
+  if (!isValidGeneralWorkbook(workbook)) return false;
   applyWorkbook(workbook);
   persistManualWorkbook(workbook, window.SGP_MANUAL_INDICATORS_SEED?.collaboratorWorkbook);
   document.querySelector("#importStatus").textContent = "Indicadores carregados da base local de Junho 2026.";
@@ -465,7 +474,8 @@ function renderExecutiveSummary() {
   document.querySelector("#executiveSummary").innerHTML = macroNames.map((name) => {
     const metric = dashboardMetric(name);
     const current = metric.values[state.selectedPeriod];
-    const base = metric.values[basePeriod];
+    const comparison = comparisonForMetric(metric, basePeriod);
+    const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
     const trendClass = trendStatus(delta, metric);
     const status = goalStatus(metric);
@@ -478,7 +488,7 @@ function renderExecutiveSummary() {
         </div>
         <strong>${format(current, metric.type)}</strong>
         <small>Anterior: ${format(base, metric.type)}</small>
-        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${periodLabel(basePeriod)}</div>
+        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${comparison.label}</div>
       </article>
     `;
   }).join("");
@@ -551,7 +561,8 @@ function renderKpis() {
     const metric = dashboardMetric(name);
     if (metric.type === "split") return renderSplitKpi(metric, basePeriod);
     const current = metric.values[state.selectedPeriod];
-    const base = metric.values[basePeriod];
+    const comparison = comparisonForMetric(metric, basePeriod);
+    const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
     const trendClass = trendStatus(delta, metric);
 
@@ -560,17 +571,25 @@ function renderKpis() {
         <div class="label">${name}</div>
         <div class="value">${format(current, metric.type)}</div>
         <div class="previous">Anterior: ${format(base, metric.type)}</div>
-        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${periodLabel(basePeriod)}</div>
+        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${comparison.label}</div>
       </article>
     `;
   }).join("");
 }
 
 function renderSplitKpi(metric, basePeriod) {
-  const current = metric.values[state.selectedPeriod] || {};
-  const splitBasePeriod = splitComparisonPeriodKey(metric, basePeriod);
-  const basePeriodLabel = periodLabel(splitBasePeriod);
-  const base = metric.values[splitBasePeriod] || {};
+  const currentMonth = getCurrentMonth();
+  const previousMonth = getPreviousMonth();
+  const useMonthlyBase = isSelectedPeriodMonthly() && previousMonth;
+  const current = useMonthlyBase
+    ? splitMonthlyTotal(metric, currentMonth?.periods || [])
+    : metric.values[state.selectedPeriod] || {};
+  const splitBasePeriod = useMonthlyBase ? "" : splitComparisonPeriodKey(metric, basePeriod);
+  const basePeriodLabel = useMonthlyBase ? previousMonth.label : periodLabel(splitBasePeriod);
+  const previousMetric = useMonthlyBase ? dashboardMetricForMonth(metric.name, previousMonth) : metric;
+  const base = useMonthlyBase
+    ? splitMonthlyTotal(previousMetric, previousMonth.periods || [])
+    : metric.values[splitBasePeriod] || {};
   const operationalDelta = splitDelta(current.operacional, base.operacional);
   const financialDelta = splitDelta(current.financeiro, base.financeiro);
 
@@ -1305,18 +1324,26 @@ function currentMetric(name) {
 }
 
 function dashboardMetric(name) {
-  if (name === "Resolutividade IXC") return resolutividadeMetric();
-  if (name === "Clientes que entraram em contato com o suporte") return clientContactTotalMetric();
-  if (name === "Registros Operacional + Financeiro - N1") return collaboratorRegistryTotalMetric();
-  return currentMetric(name) || emptyMetric(name, inferMetricType(name));
+  return dashboardMetricForMonth(name, getCurrentMonth());
+}
+
+function dashboardMetricForMonth(name, month) {
+  if (name === "Resolutividade IXC") return resolutividadeMetricForMonth(month);
+  if (name === "Clientes que entraram em contato com o suporte") return clientContactTotalMetricForMonth(month);
+  if (name === "Registros Operacional + Financeiro - N1") return collaboratorRegistryTotalMetricForMonth(month);
+  return month?.metrics?.find((metric) => metric.name === name) || emptyMetric(name, inferMetricType(name));
 }
 
 function resolutividadeMetric() {
-  const solvedMetric = currentMetric("Quantidade de Atendimentos Solucionados - IXC");
-  const totalMetric = currentMetric("Quantidade de Atendimentos realizados - IXC");
+  return resolutividadeMetricForMonth(getCurrentMonth());
+}
+
+function resolutividadeMetricForMonth(month) {
+  const solvedMetric = month?.metrics?.find((metric) => metric.name === "Quantidade de Atendimentos Solucionados - IXC");
+  const totalMetric = month?.metrics?.find((metric) => metric.name === "Quantidade de Atendimentos realizados - IXC");
   const values = {};
 
-  getPeriods().forEach((period) => {
+  (month?.periods || []).forEach((period) => {
     const solved = normalizeMetricNumber(solvedMetric?.values?.[period.key], solvedMetric?.name || "");
     const total = normalizeMetricNumber(totalMetric?.values?.[period.key], totalMetric?.name || "");
     values[period.key] = Number.isFinite(total) && total > 0 && Number.isFinite(solved)
@@ -1333,11 +1360,15 @@ function resolutividadeMetric() {
 }
 
 function clientContactTotalMetric() {
-  const rateMetric = currentMetric("Taxa de Cliente que entrou em contato com o suporte em %");
-  const totalMetric = currentMetric("Quantidade Total de Cliente UNI - IXC");
+  return clientContactTotalMetricForMonth(getCurrentMonth());
+}
+
+function clientContactTotalMetricForMonth(month) {
+  const rateMetric = month?.metrics?.find((metric) => metric.name === "Taxa de Cliente que entrou em contato com o suporte em %");
+  const totalMetric = month?.metrics?.find((metric) => metric.name === "Quantidade Total de Cliente UNI - IXC");
   const values = {};
 
-  getPeriods().forEach((period) => {
+  (month?.periods || []).forEach((period) => {
     const rate = normalizeMetricNumber(rateMetric?.values?.[period.key], rateMetric?.name || "");
     const total = normalizeMetricNumber(totalMetric?.values?.[period.key], totalMetric?.name || "");
     values[period.key] = Number.isFinite(rate) && Number.isFinite(total) && total > 0
@@ -1354,10 +1385,14 @@ function clientContactTotalMetric() {
 }
 
 function collaboratorRegistryTotalMetric() {
-  const values = {};
-  const collaboratorMonth = currentCollaboratorMonth();
+  return collaboratorRegistryTotalMetricForMonth(getCurrentMonth());
+}
 
-  getPeriods().forEach((period) => {
+function collaboratorRegistryTotalMetricForMonth(month) {
+  const values = {};
+  const collaboratorMonth = collaboratorMonthForDashboard(month);
+
+  (month?.periods || []).forEach((period) => {
     const weekKey = collaboratorWeekKeyFromPeriod(period.label, collaboratorMonth?.teams?.N1?.rowsByWeek);
     const rows = collaboratorMonth?.teams?.N1?.rowsByWeek?.[weekKey] || [];
     values[period.key] = splitRowsHaveData(rows) ? splitRowsTotal(rows) : "";
@@ -1397,13 +1432,40 @@ function splitRowNumber(row, key, index) {
   return Number.isFinite(number) ? number : NaN;
 }
 
+function splitMonthlyTotal(metric, periods) {
+  const total = { operacional: 0, financeiro: 0 };
+  let found = false;
+
+  periods.forEach((period) => {
+    const label = normalizeText(period.label);
+    if (label.includes("ULTIMA") || label.includes("MENSAL")) return;
+    const value = metric.values[period.key] || {};
+    const operational = Number(value.operacional);
+    const financial = Number(value.financeiro);
+    if (Number.isFinite(operational)) {
+      total.operacional += operational;
+      found = true;
+    }
+    if (Number.isFinite(financial)) {
+      total.financeiro += financial;
+      found = true;
+    }
+  });
+
+  return found ? total : metric.values[state.selectedPeriod] || {};
+}
+
 function currentCollaboratorMonth() {
+  return collaboratorMonthForDashboard(getCurrentMonth());
+}
+
+function collaboratorMonthForDashboard(month) {
   const stored = localStorage.getItem(STORAGE_KEYS.collaboratorWorkbook) || sessionStorage.getItem(STORAGE_KEYS.collaboratorWorkbook);
   if (!stored) return null;
   try {
     const workbook = JSON.parse(stored);
-    if (workbook.months?.[state.selectedMonth]) return workbook.months[state.selectedMonth];
-    const currentLabel = normalizeText(getCurrentMonth()?.label || "");
+    if (month?.id && workbook.months?.[month.id]) return workbook.months[month.id];
+    const currentLabel = normalizeText(month?.label || "");
     return Object.values(workbook.months || {}).find((month) => normalizeText(month.label) === currentLabel) || null;
   } catch {
     return null;
@@ -1439,6 +1501,11 @@ function periodLabel(periodKey) {
   return getPeriods().find((period) => period.key === periodKey)?.label || "-";
 }
 
+function isSelectedPeriodMonthly() {
+  const period = getPeriods().find((item) => item.key === state.selectedPeriod);
+  return normalizeText(period?.label || "").includes("MENSAL");
+}
+
 function comparisonPeriodKey() {
   const periods = getPeriods();
   const currentIndex = periods.findIndex((period) => period.key === state.selectedPeriod);
@@ -1452,6 +1519,26 @@ function getPreviousMonth() {
   const currentIndex = state.monthOrder.indexOf(state.selectedMonth);
   if (currentIndex <= 0) return null;
   return state.months[state.monthOrder[currentIndex - 1]] || null;
+}
+
+function comparisonForMetric(metric, fallbackPeriod = comparisonPeriodKey()) {
+  if (isSelectedPeriodMonthly()) {
+    const previousMonth = getPreviousMonth();
+    if (previousMonth) {
+      const previousMetric = dashboardMetricForMonth(metric.name, previousMonth);
+      return {
+        value: monthlyMetricValue(previousMetric, previousMonth.periods || []),
+        label: previousMonth.label,
+        periodKey: `month:${previousMonth.id || previousMonth.label}`
+      };
+    }
+  }
+
+  return {
+    value: metric.values[fallbackPeriod],
+    label: periodLabel(fallbackPeriod),
+    periodKey: fallbackPeriod
+  };
 }
 
 function monthlyMetricValue(metric, periods) {
@@ -1569,14 +1656,16 @@ function comparisonRows(names) {
   return names.map((name) => {
     const metric = dashboardMetric(name);
     const current = metric.values[state.selectedPeriod];
-    const base = metric.values[basePeriod];
+    const comparison = comparisonForMetric(metric, basePeriod);
+    const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
     if (delta === null || delta === undefined || Number.isNaN(delta) || delta === 0) return null;
     return {
       metric,
       current,
       base,
-      basePeriod,
+      basePeriod: comparison.periodKey,
+      baseLabel: comparison.label,
       delta,
       trendClass: trendStatus(delta, metric),
       impact: deltaImpact(delta, metric.type)
@@ -1598,7 +1687,7 @@ function insightList(rows, emptyText) {
       ${rows.map((row) => `
         <li>
           <strong>${escapeHtml(row.metric.name)}</strong>
-          <span class="${row.trendClass}">${deltaLabel(row.delta, row.metric.type)} vs. ${periodLabel(row.basePeriod)}</span>
+          <span class="${row.trendClass}">${deltaLabel(row.delta, row.metric.type)} vs. ${row.baseLabel || periodLabel(row.basePeriod)}</span>
         </li>
       `).join("")}
     </ol>

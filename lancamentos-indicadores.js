@@ -175,11 +175,13 @@ async function loadSavedData() {
       ensureCurrentCalendarMonth();
     }
     ensureCollaboratorsForAllMonths();
+    ensurePreviousMonthLatestWeekForAllMonths();
     setStatus(saved?.updatedAt ? "Lançamentos manuais carregados do Firebase." : "Pronto para lançar dados manuais.", "success");
   } catch (error) {
     console.error(error);
     createDefaultMonth(false);
     ensureCollaboratorsForAllMonths();
+    ensurePreviousMonthLatestWeekForAllMonths();
     setStatus("Não foi possível carregar os lançamentos. Você ainda pode preencher e tentar salvar.", "error");
   }
 }
@@ -733,6 +735,7 @@ function createNewMonth() {
   state.monthOrder = Array.from(new Set([...state.monthOrder, id]));
   state.currentMonth = id;
   ensureCollaboratorsForMonth(id);
+  ensurePreviousMonthLatestWeekForMonth(id);
   render();
 }
 
@@ -889,6 +892,104 @@ function collaboratorRoster(month, teamKey) {
     });
   });
   return roster;
+}
+
+function ensurePreviousMonthLatestWeekForAllMonths() {
+  sortMonthOrder();
+  state.monthOrder.forEach((monthId) => ensurePreviousMonthLatestWeekForMonth(monthId));
+}
+
+function ensurePreviousMonthLatestWeekForMonth(monthId) {
+  const target = state.months[monthId];
+  const source = previousMonthForId(monthId);
+  if (!target || !source) return false;
+  normalizeMonthStructure(target);
+  normalizeMonthStructure(source);
+
+  const targetPeriods = target.periods.filter(isCarryPeriod);
+  const sourcePeriod = latestFilledWeeklyPeriod(source);
+  if (!targetPeriods.length || !sourcePeriod) return false;
+
+  let changed = false;
+  targetPeriods.forEach((targetPeriod) => {
+    GENERAL_METRICS.forEach((metric) => {
+      target.values[metric.key] ||= {};
+      source.values[metric.key] ||= {};
+      const current = target.values[metric.key][targetPeriod.key];
+      const previous = source.values[metric.key][sourcePeriod.key];
+      if (isBlank(current) && !isBlank(previous)) {
+        target.values[metric.key][targetPeriod.key] = previous;
+        changed = true;
+      }
+    });
+  });
+
+  ["N1", "N2"].forEach((teamKey) => {
+    const sourceWeek = sourcePeriod.week && sourcePeriod.week !== "mensal" && sourcePeriod.week !== "ultima"
+      ? sourcePeriod.week
+      : latestFilledCollaboratorWeek(source, teamKey);
+    if (!sourceWeek) return;
+    changed = mergeCollaboratorWeek(target, source, teamKey, "ultima", sourceWeek) || changed;
+  });
+
+  if (changed) normalizeMonthStructure(target);
+  return changed;
+}
+
+function previousMonthForId(monthId) {
+  const index = state.monthOrder.indexOf(monthId);
+  if (index <= 0) return null;
+  return state.months[state.monthOrder[index - 1]] || null;
+}
+
+function isCarryPeriod(period) {
+  const label = normalizeText(period?.label || "");
+  return period?.week === "ultima" || label.includes("ULTIMA");
+}
+
+function latestFilledWeeklyPeriod(month) {
+  const weeklyPeriods = (month?.periods || []).filter((period) => {
+    const label = normalizeText(period.label);
+    return !label.includes("ULTIMA") && !label.includes("MENSAL") && period.week !== "mensal" && period.week !== "ultima";
+  });
+
+  return [...weeklyPeriods].reverse().find((period) =>
+    GENERAL_METRICS.some((metric) => !isBlank(month.values?.[metric.key]?.[period.key]))
+  ) || weeklyPeriods.at(-1) || null;
+}
+
+function latestFilledCollaboratorWeek(month, teamKey) {
+  return ["s4", "s3", "s2", "s1"].find((weekKey) =>
+    (month.collaborators?.[teamKey]?.[weekKey] || []).some((row) => String(row?.name || "").trim())
+  ) || "";
+}
+
+function mergeCollaboratorWeek(target, source, teamKey, targetWeek, sourceWeek) {
+  const sourceRows = source.collaborators?.[teamKey]?.[sourceWeek] || [];
+  if (!sourceRows.length) return false;
+
+  target.collaborators[teamKey][targetWeek] ||= [];
+  const targetRows = target.collaborators[teamKey][targetWeek];
+  let changed = false;
+
+  sourceRows.forEach((sourceRow) => {
+    const row = findCollaboratorRow(targetRows, sourceRow);
+    if (!row) {
+      targetRows.push(cloneData(sourceRow));
+      changed = true;
+      return;
+    }
+
+    Object.entries(sourceRow).forEach(([key, value]) => {
+      if (key === "_id") return;
+      if (isBlank(row[key]) && !isBlank(value)) {
+        row[key] = value;
+        changed = true;
+      }
+    });
+  });
+
+  return changed;
 }
 
 function normalizeCollaboratorRow(teamKey, row = {}) {
@@ -1270,6 +1371,7 @@ function syncGeneralInputsFromState() {
 async function saveData() {
   syncCurrentInputs();
   ensureCollaboratorsForAllMonths();
+  ensurePreviousMonthLatestWeekForAllMonths();
   const manualData = normalizedManualData();
   const generalWorkbook = buildGeneralWorkbook(manualData);
   const collaboratorWorkbook = buildCollaboratorWorkbook(manualData);

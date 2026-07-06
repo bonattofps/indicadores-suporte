@@ -473,7 +473,7 @@ function renderExecutiveSummary() {
 
   document.querySelector("#executiveSummary").innerHTML = macroNames.map((name) => {
     const metric = dashboardMetric(name);
-    const current = metric.values[state.selectedPeriod];
+    const current = valueForPeriod(metric, state.selectedPeriod);
     const comparison = comparisonForMetric(metric, basePeriod);
     const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
@@ -560,7 +560,7 @@ function renderKpis() {
   document.querySelector("#kpiBoard").innerHTML = metricNames.map((name) => {
     const metric = dashboardMetric(name);
     if (metric.type === "split") return renderSplitKpi(metric, basePeriod);
-    const current = metric.values[state.selectedPeriod];
+    const current = valueForPeriod(metric, state.selectedPeriod);
     const comparison = comparisonForMetric(metric, basePeriod);
     const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
@@ -583,7 +583,7 @@ function renderSplitKpi(metric, basePeriod) {
   const useMonthlyBase = isSelectedPeriodMonthly() && previousMonth;
   const current = useMonthlyBase
     ? splitMonthlyTotal(metric, currentMonth?.periods || [])
-    : metric.values[state.selectedPeriod] || {};
+    : valueForPeriod(metric, state.selectedPeriod) || {};
   const splitBasePeriod = useMonthlyBase ? "" : splitComparisonPeriodKey(metric, basePeriod);
   const basePeriodLabel = useMonthlyBase ? previousMonth.label : periodLabel(splitBasePeriod);
   const previousMetric = useMonthlyBase ? dashboardMetricForMonth(metric.name, previousMonth) : metric;
@@ -652,7 +652,7 @@ function renderGoals() {
       <div class="goal">
         <div>
           <strong>${metric.name}</strong>
-          <span>${format(metric.values[state.selectedPeriod], metric.type)}</span>
+          <span>${format(valueForPeriod(metric, state.selectedPeriod), metric.type)}</span>
         </div>
         <span class="pill ${status.className}">${status.label}</span>
       </div>
@@ -661,10 +661,14 @@ function renderGoals() {
 }
 
 function renderSummary() {
-  const solved = currentMetric("Quantidade de Atendimentos Solucionados - IXC")?.values?.[state.selectedPeriod];
-  const total = currentMetric("Quantidade de Atendimentos realizados - IXC")?.values?.[state.selectedPeriod];
-  const field = currentMetric("Quantidade de Atendimentos que foi a campo - IXC")?.values?.[state.selectedPeriod];
-  const customers = currentMetric("Quantidade Total de Cliente UNI - IXC")?.values?.[state.selectedPeriod];
+  const solvedMetric = currentMetric("Quantidade de Atendimentos Solucionados - IXC");
+  const totalMetric = currentMetric("Quantidade de Atendimentos realizados - IXC");
+  const fieldMetric = currentMetric("Quantidade de Atendimentos que foi a campo - IXC");
+  const customersMetric = currentMetric("Quantidade Total de Cliente UNI - IXC");
+  const solved = solvedMetric ? valueForPeriod(solvedMetric, state.selectedPeriod) : "";
+  const total = totalMetric ? valueForPeriod(totalMetric, state.selectedPeriod) : "";
+  const field = fieldMetric ? valueForPeriod(fieldMetric, state.selectedPeriod) : "";
+  const customers = customersMetric ? valueForPeriod(customersMetric, state.selectedPeriod) : "";
   const solvedNumber = Number(solved);
   const totalNumber = Number(total);
 
@@ -696,7 +700,7 @@ function renderTable() {
   document.querySelector("#tableBody").innerHTML = currentMetrics().map((metric) => `
     <tr>
       <td>${metric.name}</td>
-      ${periods.map((period) => `<td>${format(metric.values[period.key], metric.type)}</td>`).join("")}
+      ${periods.map((period) => `<td>${format(valueForPeriod(metric, period.key), metric.type)}</td>`).join("")}
     </tr>
   `).join("");
 }
@@ -909,7 +913,7 @@ function lineDataset(label, metric, color) {
 }
 
 function goalStatus(metric) {
-  const value = metric.values[state.selectedPeriod];
+  const value = valueForPeriod(metric, state.selectedPeriod);
   if (value === "" || value === null || value === undefined || Number.isNaN(value)) return { label: "Sem dados", className: "warn" };
   const configured = configuredGoalStatus(metric, value);
   if (configured) return configured;
@@ -1542,6 +1546,58 @@ function getPreviousMonth() {
   return state.months[state.monthOrder[currentIndex - 1]] || null;
 }
 
+function previousMonthFor(month) {
+  if (!month) return null;
+  const currentIndex = state.monthOrder.indexOf(month.id);
+  if (currentIndex > 0) return state.months[state.monthOrder[currentIndex - 1]] || null;
+  const currentSort = month.sortKey || 0;
+  const previousId = [...state.monthOrder]
+    .reverse()
+    .find((monthId) => (state.months[monthId]?.sortKey || 0) < currentSort);
+  return previousId ? state.months[previousId] : null;
+}
+
+function valueForPeriod(metric, periodKey, month = getCurrentMonth()) {
+  const direct = metric?.values?.[periodKey];
+  if (!isBlankMetricValue(direct)) return direct;
+
+  const period = (month?.periods || []).find((item) => item.key === periodKey);
+  if (!isPreviousMonthCarryPeriod(period)) return direct;
+
+  const previousMonth = previousMonthFor(month);
+  if (!previousMonth) return direct;
+
+  const previousMetric = dashboardMetricForMonth(metric.name, previousMonth);
+  const previousPeriod = latestFilledPeriodForMetric(previousMetric, previousMonth);
+  return previousPeriod ? (previousMetric.values?.[previousPeriod.key] ?? direct) : direct;
+}
+
+function isPreviousMonthCarryPeriod(period) {
+  const label = normalizeText(period?.label || "");
+  return period?.week === "ultima" || label.includes("ULTIMA");
+}
+
+function latestFilledPeriodForMetric(metric, month) {
+  const weeklyPeriods = (month?.periods || []).filter((period) => {
+    const label = normalizeText(period.label);
+    return !label.includes("ULTIMA") && !label.includes("MENSAL");
+  });
+
+  return [...weeklyPeriods].reverse().find((period) => !isBlankMetricValue(metric?.values?.[period.key]))
+    || weeklyPeriods.at(-1)
+    || null;
+}
+
+function isBlankMetricValue(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "number") return Number.isNaN(value);
+  if (typeof value === "string") return !value.trim();
+  if (typeof value === "object") {
+    return Object.values(value).every(isBlankMetricValue);
+  }
+  return false;
+}
+
 function comparisonForMetric(metric, fallbackPeriod = comparisonPeriodKey()) {
   if (isSelectedPeriodMonthly()) {
     const previousMonth = getPreviousMonth();
@@ -1676,7 +1732,7 @@ function comparisonRows(names) {
   const basePeriod = comparisonPeriodKey();
   return names.map((name) => {
     const metric = dashboardMetric(name);
-    const current = metric.values[state.selectedPeriod];
+    const current = valueForPeriod(metric, state.selectedPeriod);
     const comparison = comparisonForMetric(metric, basePeriod);
     const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
@@ -1866,7 +1922,7 @@ function normalizeScoreNumber(number) {
 }
 
 function chartNumber(metric, periodKey) {
-  const value = metric.values[periodKey];
+  const value = valueForPeriod(metric, periodKey);
   if (value === "" || value === null || value === undefined || Number.isNaN(value)) return null;
   const number = Number(value);
   if (isLargeCountMetric(metric.name) && number > 0 && number < 100) return Math.round(number * 1000);

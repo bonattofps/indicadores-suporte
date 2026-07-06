@@ -589,7 +589,7 @@ function renderSplitKpi(metric, basePeriod) {
   const previousMetric = useMonthlyBase ? dashboardMetricForMonth(metric.name, previousMonth) : metric;
   const base = useMonthlyBase
     ? splitMonthlyTotal(previousMetric, previousMonth.periods || [])
-    : metric.values[splitBasePeriod] || {};
+    : valueForPeriod(metric, splitBasePeriod) || {};
   const operationalDelta = splitDelta(current.operacional, base.operacional);
   const financialDelta = splitDelta(current.financeiro, base.financeiro);
 
@@ -800,8 +800,8 @@ function renderWeeklyComparison() {
 
   const rows = comparisonNames.map((name) => {
     const metric = currentMetric(name) || emptyMetric(name, inferMetricType(name));
-    const previousValue = metric.values[previousPeriod.key];
-    const currentValue = metric.values[currentPeriod.key];
+    const previousValue = valueForPeriod(metric, previousPeriod.key);
+    const currentValue = valueForPeriod(metric, currentPeriod.key);
     const delta = monthlyDelta(currentValue, previousValue, metric.type, metric.name);
     return { metric, previousValue, currentValue, delta };
   }).filter((row) => row.previousValue !== "" || row.currentValue !== "");
@@ -1612,7 +1612,7 @@ function comparisonForMetric(metric, fallbackPeriod = comparisonPeriodKey()) {
   }
 
   return {
-    value: metric.values[fallbackPeriod],
+    value: valueForPeriod(metric, fallbackPeriod),
     label: periodLabel(fallbackPeriod),
     periodKey: fallbackPeriod
   };

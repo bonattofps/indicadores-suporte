@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestao do Suporte</title>
-    <script type="module" src="auth.js?v=20260629-3"></script>
-    <script type="module" src="assistant.js?v=20260611-9"></script>
-<link rel="stylesheet" href="colaboradores.css?v=20260520-3" />
-    <link rel="stylesheet" href="brand.css?v=20260608-2" />
-    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+    <script type="module" src="auth.js?v=20260701-2"></script>
+    <script type="module" src="assistant.js?v=20260701-2"></script>
+<link rel="stylesheet" href="colaboradores.css?v=20260701-2" />
+    <link rel="stylesheet" href="brand.css?v=20260701-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260701-2" />
   </head>
   <body>
     <main class="screen">
@@ -106,6 +106,30 @@
           </div>
         </article>
 
+        <article class="panel full-width history-panel" id="collaboratorHistoryPanel" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Historico por colaborador</p>
+              <h2 id="historyTitle">Evolucao semanal e mensal</h2>
+              <span id="historySubtitle">Clique em um colaborador para abrir os detalhes.</span>
+            </div>
+            <div class="history-actions">
+              <select id="historyMetricSelect" aria-label="Metrica do historico"></select>
+              <button id="historyCloseButton" type="button">Fechar</button>
+            </div>
+          </div>
+          <div class="history-summary" id="historySummary"></div>
+          <div class="history-layout">
+            <div class="chart-box history-chart"><canvas id="historyChart"></canvas></div>
+            <div class="table-scroll">
+              <table>
+                <thead id="historyTableHead"></thead>
+                <tbody id="historyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
         <article class="panel">
           <div class="panel-head">
             <div>
@@ -143,11 +167,12 @@
       </section>
     </main>
 
-    <script src="indicadores-junho-seed.js?v=20260619-1"></script>
+    <script src="indicadores-junho-seed.js?v=20260701-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="colaboradores.js?v=20260619-2"></script>
+    <script src="colaboradores.js?v=20260706-1"></script>
   </body>
 </html>
+
 
 

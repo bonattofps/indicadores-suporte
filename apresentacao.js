@@ -1464,12 +1464,33 @@ function collaboratorMonthForDashboard(month) {
   if (!stored) return null;
   try {
     const workbook = JSON.parse(stored);
-    if (month?.id && workbook.months?.[month.id]) return workbook.months[month.id];
+    if (month?.id && collaboratorWorkbookHasRows(workbook.months?.[month.id])) return workbook.months[month.id];
     const currentLabel = normalizeText(month?.label || "");
-    return Object.values(workbook.months || {}).find((month) => normalizeText(month.label) === currentLabel) || null;
+    const sameLabel = Object.values(workbook.months || {}).find((item) =>
+      normalizeText(item.label) === currentLabel && collaboratorWorkbookHasRows(item)
+    );
+    if (sameLabel) return sameLabel;
+    return nearestCollaboratorMonth(workbook, month);
   } catch {
     return null;
   }
+}
+
+function collaboratorWorkbookHasRows(month) {
+  return ["N1", "N2"].some((teamKey) =>
+    Object.values(month?.teams?.[teamKey]?.rowsByWeek || {}).some((rows) =>
+      Array.isArray(rows) && rows.some((row) => String(Array.isArray(row) ? row[0] : row?.name || "").trim())
+    )
+  );
+}
+
+function nearestCollaboratorMonth(workbook, currentMonth) {
+  const months = Object.values(workbook.months || {})
+    .filter(collaboratorWorkbookHasRows)
+    .sort((a, b) => (a.sortKey || 0) - (b.sortKey || 0));
+  if (!months.length) return null;
+  const currentSort = currentMonth?.sortKey || 0;
+  return [...months].reverse().find((item) => (item.sortKey || 0) <= currentSort) || months[0];
 }
 
 function collaboratorWeekKeyFromPeriod(label, rowsByWeek = null) {

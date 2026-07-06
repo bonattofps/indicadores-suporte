@@ -79,7 +79,8 @@ const state = {
   currentMonth: "",
   months: {},
   monthOrder: [],
-  charts: {}
+  charts: {},
+  history: null
 };
 
 const els = {
@@ -98,6 +99,14 @@ const els = {
   improveList: document.querySelector("#improveList"),
   tableHead: document.querySelector("#tableHead"),
   tableBody: document.querySelector("#tableBody"),
+  historyPanel: document.querySelector("#collaboratorHistoryPanel"),
+  historyTitle: document.querySelector("#historyTitle"),
+  historySubtitle: document.querySelector("#historySubtitle"),
+  historySummary: document.querySelector("#historySummary"),
+  historyMetricSelect: document.querySelector("#historyMetricSelect"),
+  historyCloseButton: document.querySelector("#historyCloseButton"),
+  historyTableHead: document.querySelector("#historyTableHead"),
+  historyTableBody: document.querySelector("#historyTableBody"),
   topGoodList: document.querySelector("#topGoodList"),
   topCriticalList: document.querySelector("#topCriticalList"),
   actionHead: document.querySelector("#actionHead"),
@@ -126,6 +135,16 @@ function bindEvents() {
     renderExecutiveSummary();
     renderRankingChart();
   });
+  els.tableBody.addEventListener("click", handleHistoryClick);
+  els.improveList.addEventListener("click", handleHistoryClick);
+  els.topGoodList.addEventListener("click", handleHistoryClick);
+  els.topCriticalList.addEventListener("click", handleHistoryClick);
+  els.historyMetricSelect.addEventListener("change", () => {
+    if (!state.history) return;
+    state.history.metric = els.historyMetricSelect.value;
+    renderCollaboratorHistory();
+  });
+  els.historyCloseButton.addEventListener("click", closeCollaboratorHistory);
   window.addEventListener("storage", handleExternalWorkbookSync);
   window.addEventListener("focus", refreshSharedWorkbook);
 }
@@ -182,7 +201,7 @@ async function loadStoredWorkbook() {
 
 function loadLocalSeedCollaboratorWorkbook() {
   const workbook = window.SGP_MANUAL_INDICATORS_SEED?.collaboratorWorkbook;
-  if (!workbook?.monthOrder?.length || workbook.version !== 5) return false;
+  if (!isValidCollaboratorWorkbook(workbook)) return false;
   localStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
   sessionStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
   localStorage.setItem(STORAGE_KEYS.name, "Base local Junho 2026");
@@ -201,7 +220,7 @@ async function loadManualCollaboratorWorkbook() {
 
     const saved = await window.SGPAuth?.loadManualIndicators?.();
     const workbook = saved?.collaboratorWorkbook;
-    if (!workbook?.monthOrder?.length || workbook.version !== 5) return false;
+    if (!isValidCollaboratorWorkbook(workbook)) return false;
 
     localStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
     sessionStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
@@ -214,6 +233,16 @@ async function loadManualCollaboratorWorkbook() {
     console.error(error);
     return false;
   }
+}
+
+function isValidCollaboratorWorkbook(workbook) {
+  if (!workbook?.monthOrder?.length || workbook.version !== 5 || !workbook.months) return false;
+  return workbook.monthOrder.some((monthKey) => {
+    const teamsData = workbook.months[monthKey]?.teams || {};
+    return Object.values(teamsData).some((team) =>
+      Object.values(team?.rowsByWeek || {}).some((rows) => Array.isArray(rows) && rows.length)
+    );
+  });
 }
 
 function handleExternalWorkbookSync(event) {
@@ -508,10 +537,71 @@ function persistWorkbook(fileName, sheets) {
 function applyWorkbook(parsed) {
   state.months = parsed.months;
   state.monthOrder = parsed.monthOrder;
+  ensureCollaboratorsForAllMonths();
   if (!state.currentMonth || !state.months[state.currentMonth]) {
     state.currentMonth = state.monthOrder[state.monthOrder.length - 1] || "";
   }
   syncMonthState();
+}
+
+function ensureCollaboratorsForAllMonths() {
+  state.monthOrder.forEach((monthId) => ensureCollaboratorsForMonth(monthId));
+}
+
+function ensureCollaboratorsForMonth(monthId) {
+  const target = state.months[monthId];
+  if (!target) return;
+
+  ["N1", "N2"].forEach((teamKey) => {
+    if (monthHasTeamRows(target, teamKey)) return;
+    const source = findSourceMonthWithTeam(monthId, teamKey);
+    if (!source) return;
+    copyCollaboratorNames(target, source, teamKey);
+  });
+}
+
+function monthHasTeamRows(month, teamKey) {
+  return Object.values(month?.teams?.[teamKey]?.rowsByWeek || {}).some((rows) =>
+    Array.isArray(rows) && rows.some((row) => String(row?.[0] || "").trim())
+  );
+}
+
+function findSourceMonthWithTeam(targetId, teamKey) {
+  const targetIndex = state.monthOrder.indexOf(targetId);
+  const before = state.monthOrder.slice(0, Math.max(targetIndex, 0)).reverse();
+  const after = state.monthOrder.slice(Math.max(targetIndex + 1, 0));
+  const sourceId = [...before, ...after].find((monthId) => monthHasTeamRows(state.months[monthId], teamKey));
+  return sourceId ? state.months[sourceId] : null;
+}
+
+function copyCollaboratorNames(target, source, teamKey) {
+  const roster = collaboratorNameRoster(source, teamKey);
+  if (!roster.length) return;
+  target.teams[teamKey].rowsByWeek ||= emptyRowsByWeek();
+
+  WEEK_ORDER.forEach((weekKey) => {
+    target.teams[teamKey].rowsByWeek[weekKey] ||= [];
+    const existing = new Set(target.teams[teamKey].rowsByWeek[weekKey].map((row) => normalize(row[0])));
+    roster.forEach((name) => {
+      if (existing.has(normalize(name))) return;
+      target.teams[teamKey].rowsByWeek[weekKey].push([name, ...teams[teamKey].headers.slice(1).map(() => "")]);
+    });
+  });
+}
+
+function collaboratorNameRoster(month, teamKey) {
+  const seen = new Set();
+  const names = [];
+  WEEK_ORDER.forEach((weekKey) => {
+    (month.teams?.[teamKey]?.rowsByWeek?.[weekKey] || []).forEach((row) => {
+      const name = String(row?.[0] || "").trim();
+      const key = normalize(name);
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
+    });
+  });
+  return names;
 }
 
 function syncMonthState() {
@@ -565,6 +655,7 @@ function render() {
   renderTopLists();
   renderActionPlan();
   renderRankingChart();
+  renderCollaboratorHistory();
 }
 
 function renderMonthOptions() {
@@ -650,7 +741,7 @@ function renderImproveList() {
   }
 
   els.improveList.innerHTML = items.map((item) => `
-    <div class="improve-item">
+    <div class="improve-item" data-history-name="${escapeHtml(item.row.Colaborador)}" data-history-team="${state.currentTeam}" role="button" tabindex="0">
       <strong>${escapeHtml(item.row.Colaborador)}</strong>
       <span>${escapeHtml(item.result.misses.join(", "))}</span>
     </div>
@@ -680,7 +771,7 @@ function renderTable() {
     const statusClass = result.misses.length ? "bad" : "good";
     return `
       <tr>
-        ${headers.map((header) => `<td class="${cellClass(row, header)}">${escapeHtml(formatCell(row[header]))}</td>`).join("")}
+        ${headers.map((header) => `<td class="${cellClass(row, header)}">${header === "Colaborador" ? collaboratorButton(row.Colaborador) : escapeHtml(formatCell(row[header]))}</td>`).join("")}
         <td class="neutral-cell"><span class="badge ${statusClass}">${status}</span></td>
         <td class="neutral-cell">${escapeHtml(result.misses.join(", ") || "Dentro da meta")}</td>
       </tr>
@@ -708,11 +799,246 @@ function renderMiniList(items, emptyText) {
   }
 
   return items.map((item) => `
-    <div class="improve-item">
+    <div class="improve-item" data-history-name="${escapeHtml(item.row.Colaborador)}" data-history-team="${state.currentTeam}" role="button" tabindex="0">
       <strong>${escapeHtml(item.row.Colaborador)}</strong>
       <span>${escapeHtml(item.result.misses.join(", ") || "Dentro da meta")}</span>
     </div>
   `).join("");
+}
+
+function collaboratorButton(name) {
+  return `
+    <button class="collaborator-link" type="button" data-history-name="${escapeHtml(name)}" data-history-team="${state.currentTeam}">
+      ${escapeHtml(name)}
+    </button>
+  `;
+}
+
+function handleHistoryClick(event) {
+  const target = event.target.closest("[data-history-name]");
+  if (!target) return;
+  event.preventDefault();
+  openCollaboratorHistory(target.dataset.historyTeam || state.currentTeam, target.dataset.historyName || "");
+}
+
+function openCollaboratorHistory(teamKey, name) {
+  const metrics = historyMetricsForTeam(teamKey);
+  state.history = {
+    teamKey,
+    name,
+    metric: metrics[0]?.key || ""
+  };
+  els.historyPanel.hidden = false;
+  renderCollaboratorHistory();
+  els.historyPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeCollaboratorHistory() {
+  state.history = null;
+  els.historyPanel.hidden = true;
+  state.charts.history?.destroy();
+  state.charts.history = null;
+}
+
+function renderCollaboratorHistory() {
+  if (!state.history || !els.historyPanel || els.historyPanel.hidden) return;
+
+  const { teamKey, name } = state.history;
+  const metrics = historyMetricsForTeam(teamKey);
+  const weeklyRows = collaboratorWeeklyHistory(teamKey, name);
+  const monthlyRows = collaboratorMonthlyHistory(teamKey, name);
+
+  if (!metrics.some((metric) => metric.key === state.history.metric)) {
+    state.history.metric = metrics[0]?.key || "";
+  }
+
+  els.historyMetricSelect.innerHTML = metrics
+    .map((metric) => `<option value="${escapeHtml(metric.key)}">${escapeHtml(metric.label)}</option>`)
+    .join("");
+  els.historyMetricSelect.value = state.history.metric;
+
+  els.historyTitle.textContent = name || "Historico por colaborador";
+  els.historySubtitle.textContent = `${teamKey} - ${state.months[state.currentMonth]?.label || "Mes atual"}`;
+  els.historySummary.innerHTML = renderHistorySummary(weeklyRows, metrics);
+  renderHistoryTable(weeklyRows, metrics);
+  renderHistoryChart([...monthlyRows, ...weeklyRows], metrics);
+}
+
+function historyMetricsForTeam(teamKey) {
+  if (teamKey === "N2") {
+    return [
+      { key: "Atendimento Externo", label: "Externo", type: "number" },
+      { key: "Atendimento Interno", label: "Interno", type: "number" },
+      { key: "O.S Aberta a Campo", label: "O.S Campo", type: "number" },
+      { key: "Ativacao de Novo Login", label: "Novo Login", type: "number" }
+    ];
+  }
+
+  return [
+    { key: "Tempo Medio de Atendimento", label: "TMA", type: "time" },
+    { key: "Tempo Medio de Resposta", label: "TMR", type: "time" },
+    { key: "Atendimento OPASuite", label: "OPA", type: "number" },
+    { key: "Registro Financeiro", label: "Financeiro", type: "number" },
+    { key: "Registros Operacional", label: "Operacional", type: "number" },
+    { key: "Avaliacao Individual", label: "Avaliacao", type: "score" }
+  ];
+}
+
+function collaboratorWeeklyHistory(teamKey, name) {
+  const month = state.months[state.currentMonth];
+  const team = month?.teams?.[teamKey];
+  if (!team) return [];
+
+  return WEEK_ORDER
+    .filter((weekKey) => weekKey !== "ultima")
+    .map((weekKey) => rowObjectFromTeamRow(teamKey, findCollaboratorRow(team, teamKey, weekKey, name), {
+      label: WEEK_LABELS[weekKey],
+      period: "Semana"
+    }))
+    .filter(Boolean);
+}
+
+function collaboratorMonthlyHistory(teamKey, name) {
+  return state.monthOrder
+    .map((monthKey) => {
+      const month = state.months[monthKey];
+      const team = month?.teams?.[teamKey];
+      if (!team) return null;
+      const row = findCollaboratorRow(team, teamKey, "ultima", name)
+        || latestCollaboratorRow(team, teamKey, name);
+      return rowObjectFromTeamRow(teamKey, row, {
+        label: month.label,
+        period: "Mes"
+      });
+    })
+    .filter(Boolean);
+}
+
+function findCollaboratorRow(team, teamKey, weekKey, name) {
+  const headers = teams[teamKey].headers;
+  const rows = team.rowsByWeek?.[weekKey] || [];
+  const target = normalize(name);
+  return rows.find((row) => normalize(row[headers.indexOf("Colaborador")]) === target);
+}
+
+function latestCollaboratorRow(team, teamKey, name) {
+  for (const weekKey of ["s4", "s3", "s2", "s1", "ultima"]) {
+    const row = findCollaboratorRow(team, teamKey, weekKey, name);
+    if (row) return row;
+  }
+  return null;
+}
+
+function rowObjectFromTeamRow(teamKey, row, meta) {
+  if (!row) return null;
+  const object = Object.fromEntries(teams[teamKey].headers.map((header, index) => [header, row[index]]));
+  return { ...meta, ...object };
+}
+
+function renderHistorySummary(rows, metrics) {
+  if (!rows.length) {
+    return '<div class="history-card"><span>Sem dados</span><strong>Nenhum lancamento semanal encontrado para este colaborador.</strong></div>';
+  }
+
+  return metrics.slice(0, 6).map((metric) => {
+    const values = rows.map((row) => metricValue(row[metric.key])).filter(Number.isFinite);
+    const average = averageMetricValue(values, metric.type);
+    return `
+      <div class="history-card">
+        <span>${escapeHtml(metric.label)}</span>
+        <strong>${escapeHtml(formatHistoryValue(average, metric.type))}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderHistoryTable(rows, metrics) {
+  els.historyTableHead.innerHTML = `
+    <tr>
+      <th>Periodo</th>
+      ${metrics.map((metric) => `<th>${escapeHtml(metric.label)}</th>`).join("")}
+    </tr>
+  `;
+
+  if (!rows.length) {
+    els.historyTableBody.innerHTML = `<tr><td class="neutral-cell" colspan="${metrics.length + 1}">Sem historico para exibir.</td></tr>`;
+    return;
+  }
+
+  els.historyTableBody.innerHTML = rows.map((row) => `
+    <tr>
+      <td class="neutral-cell">${escapeHtml(row.label)}</td>
+      ${metrics.map((metric) => `<td>${escapeHtml(formatCell(row[metric.key]))}</td>`).join("")}
+    </tr>
+  `).join("");
+}
+
+function renderHistoryChart(rows, metrics) {
+  const selectedMetric = metrics.find((metric) => metric.key === state.history.metric) || metrics[0];
+  const validRows = rows
+    .map((row) => ({
+      label: row.period === "Mes" ? shortMonthLabel(row.label) : row.label,
+      value: metricValue(row[selectedMetric.key])
+    }))
+    .filter((row) => Number.isFinite(row.value));
+  const baseOptions = chartOptions();
+
+  state.charts.history?.destroy();
+  state.charts.history = new Chart(document.querySelector("#historyChart"), {
+    type: "line",
+    data: {
+      labels: validRows.map((row) => row.label),
+      datasets: [{
+        label: selectedMetric.label,
+        data: validRows.map((row) => row.value),
+        borderColor: "#243c9f",
+        backgroundColor: "rgba(69, 183, 232, 0.16)",
+        pointBackgroundColor: "#009c67",
+        pointRadius: 4,
+        tension: 0.32,
+        fill: true
+      }]
+    },
+    options: {
+      ...baseOptions,
+      plugins: {
+        ...baseOptions.plugins,
+        tooltip: {
+          callbacks: {
+            label: (context) => `${selectedMetric.label}: ${formatHistoryValue(context.parsed.y, selectedMetric.type)}`
+          }
+        }
+      },
+      scales: {
+        x: baseOptions.scales.x,
+        y: {
+          ...baseOptions.scales.y,
+          ticks: {
+            color: baseOptions.scales.y.ticks.color,
+            callback: (value) => selectedMetric.type === "time" ? secondsToTime(value) : value
+          }
+        }
+      }
+    }
+  });
+}
+
+function averageMetricValue(values, type) {
+  if (!values.length) return NaN;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (type === "time") return Math.round(total / values.length);
+  return total / values.length;
+}
+
+function formatHistoryValue(value, type) {
+  if (!Number.isFinite(value)) return "-";
+  if (type === "time") return secondsToTime(Math.round(value));
+  if (type === "score") return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+}
+
+function shortMonthLabel(label) {
+  return String(label || "").replace(/\s+20\d{2}/, "").slice(0, 10);
 }
 
 function renderActionPlan() {

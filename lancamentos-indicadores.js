@@ -174,10 +174,12 @@ async function loadSavedData() {
       await mergeCollaboratorsFromPlanilha();
       ensureCurrentCalendarMonth();
     }
+    ensureCollaboratorsForAllMonths();
     setStatus(saved?.updatedAt ? "Lançamentos manuais carregados do Firebase." : "Pronto para lançar dados manuais.", "success");
   } catch (error) {
     console.error(error);
     createDefaultMonth(false);
+    ensureCollaboratorsForAllMonths();
     setStatus("Não foi possível carregar os lançamentos. Você ainda pode preencher e tentar salvar.", "error");
   }
 }
@@ -730,6 +732,7 @@ function createNewMonth() {
   state.months[id] = createEmptyMonth(id, label, sortKeyFromLabel(label));
   state.monthOrder = Array.from(new Set([...state.monthOrder, id]));
   state.currentMonth = id;
+  ensureCollaboratorsForMonth(id);
   render();
 }
 
@@ -814,6 +817,78 @@ function normalizeCollaboratorTeam(month, teamKey) {
       };
     });
   });
+}
+
+function ensureCollaboratorsForAllMonths() {
+  sortMonthOrder();
+  state.monthOrder.forEach((monthId) => ensureCollaboratorsForMonth(monthId));
+}
+
+function ensureCollaboratorsForMonth(monthId) {
+  const target = state.months[monthId];
+  if (!target) return false;
+  normalizeMonthStructure(target);
+
+  let changed = false;
+  ["N1", "N2"].forEach((teamKey) => {
+    if (monthHasTeamCollaborators(target, teamKey)) return;
+    const source = findSourceMonthWithTeam(monthId, teamKey);
+    if (!source) return;
+    changed = copyCollaboratorRoster(target, source, teamKey) || changed;
+  });
+
+  if (changed) normalizeMonthStructure(target);
+  return changed;
+}
+
+function monthHasTeamCollaborators(month, teamKey) {
+  return Object.values(month?.collaborators?.[teamKey] || {}).some((rows) =>
+    Array.isArray(rows) && rows.some((row) => String(row?.name || "").trim())
+  );
+}
+
+function findSourceMonthWithTeam(targetId, teamKey) {
+  const targetIndex = state.monthOrder.indexOf(targetId);
+  const before = state.monthOrder.slice(0, Math.max(targetIndex, 0)).reverse();
+  const after = state.monthOrder.slice(Math.max(targetIndex + 1, 0));
+  const sourceId = [...before, ...after].find((monthId) => monthHasTeamCollaborators(state.months[monthId], teamKey));
+  return sourceId ? state.months[sourceId] : null;
+}
+
+function copyCollaboratorRoster(target, source, teamKey) {
+  normalizeMonthStructure(source);
+  const roster = collaboratorRoster(source, teamKey);
+  if (!roster.length) return false;
+
+  let changed = false;
+  TEAM_WEEK_KEYS.forEach((weekKey) => {
+    target.collaborators[teamKey][weekKey] ||= [];
+    const currentRows = target.collaborators[teamKey][weekKey];
+    roster.forEach((person) => {
+      if (findCollaboratorRow(currentRows, person)) return;
+      currentRows.push(createBlankCollaboratorRow(teamKey, person.name, person._id));
+      changed = true;
+    });
+  });
+
+  return changed;
+}
+
+function collaboratorRoster(month, teamKey) {
+  const seen = new Set();
+  const roster = [];
+  TEAM_WEEK_KEYS.forEach((weekKey) => {
+    (month.collaborators?.[teamKey]?.[weekKey] || []).forEach((row) => {
+      const name = String(row?.name || "").trim();
+      if (!name) return;
+      const id = row._id || collaboratorIdFromName(teamKey, name);
+      const key = id || normalizeText(name);
+      if (seen.has(key)) return;
+      seen.add(key);
+      roster.push({ _id: id, name });
+    });
+  });
+  return roster;
 }
 
 function normalizeCollaboratorRow(teamKey, row = {}) {
@@ -1194,6 +1269,7 @@ function syncGeneralInputsFromState() {
 
 async function saveData() {
   syncCurrentInputs();
+  ensureCollaboratorsForAllMonths();
   const manualData = normalizedManualData();
   const generalWorkbook = buildGeneralWorkbook(manualData);
   const collaboratorWorkbook = buildCollaboratorWorkbook(manualData);

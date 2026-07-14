@@ -554,7 +554,7 @@ function ensurePrintStyles() {
 
       body.sgp-print-feedback .screen {
         width: 100% !important;
-        padding: 0 !important;
+        padding: 0 0 62px !important;
       }
 
       body.sgp-print-feedback .profile-band {
@@ -563,7 +563,10 @@ function ensurePrintStyles() {
       }
 
       body.sgp-print-feedback .feedback-layout {
-        display: block !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr) !important;
+        gap: 8px !important;
+        align-items: start !important;
       }
 
       body.sgp-print-feedback .table-scroll {

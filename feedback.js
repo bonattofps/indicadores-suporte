@@ -335,21 +335,21 @@ function feedbackItems(row, good, warn, bad) {
     return [
       {
         kind: "good",
-        label: "Ok",
-        title: "N2 em acompanhamento",
-        lines: ["Ok"]
+        label: "Acompanhamento N2",
+        title: "Sem meta individual",
+        lines: ["Indicadores liberados apenas para acompanhamento da rotina. Não há cobrança individual de meta para N2 neste painel."]
       },
       {
         kind: "check",
-        label: "Como acompanhar",
-        title: "Acompanhamento operacional",
-        lines: ["Continuar focado nos deveres e manter a rotina operacional alinhada."]
+        label: "Conduta esperada",
+        title: "Manter foco na operação",
+        lines: ["Continuar focado nos deveres do N2, apoiar a operação e manter as tratativas alinhadas com a rotina da equipe."]
       },
       {
         kind: "support",
-        label: "Combinado",
-        title: "Combinado",
-        lines: ["Seguir o que for passado para a equipe."]
+        label: "Combinado da equipe",
+        title: "Seguir direcionamentos",
+        lines: ["Seguir o que for passado para a equipe e manter alinhamento com a liderança sobre prioridades e demandas do período."]
       }
     ];
   }

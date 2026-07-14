@@ -554,7 +554,7 @@ function ensurePrintStyles() {
 
       body.sgp-print-feedback .screen {
         width: 100% !important;
-        padding: 0 0 62px !important;
+        padding: 0 !important;
       }
 
       body.sgp-print-feedback .profile-band {

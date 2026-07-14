@@ -8,7 +8,7 @@
     <script type="module" src="assistant.js?v=20260701-2"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
     <link rel="stylesheet" href="assistant.css?v=20260701-2" />
-    <link rel="stylesheet" href="feedback.css?v=20260714-14" />
+    <link rel="stylesheet" href="feedback.css?v=20260714-15" />
     <style>
       .print-footer {
         display: none;
@@ -39,18 +39,15 @@
 
         .print-footer {
           display: block !important;
-          position: fixed !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          left: 0 !important;
-          margin: 0 !important;
-          padding: 8px 10px !important;
+          margin: 8px 0 0 !important;
+          padding: 10px 12px !important;
           border: 1px solid #b9d8e7 !important;
+          border-left: 6px solid #009c67 !important;
           border-radius: 8px !important;
           color: #102033 !important;
-          background: #f8fcff !important;
-          font-size: 9px !important;
-          line-height: 1.35 !important;
+          background: #f3fff8 !important;
+          font-size: 10px !important;
+          line-height: 1.45 !important;
           break-inside: avoid !important;
         }
       }
@@ -113,7 +110,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">Metas individuais</p>
-              <h2>Resultado da conversa</h2>
+              <h2>Indicadores do colaborador</h2>
             </div>
           </div>
           <div class="table-scroll">
@@ -129,6 +126,20 @@
               <tbody id="metricsBody"></tbody>
             </table>
           </div>
+
+          <section class="action-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Plano de ação</p>
+                <h2>Combinado da conversa</h2>
+              </div>
+              <div class="actions">
+                <button id="saveNoteButton" type="button">Salvar meta</button>
+                <button id="printButton" type="button">Imprimir/PDF</button>
+              </div>
+            </div>
+            <textarea id="noteInput" rows="5" placeholder="Ex: Meta da próxima semana: reduzir TMR para até 00:02:20 e manter O.S Campo até 25. Acompanhar diariamente."></textarea>
+          </section>
         </article>
 
         <article class="panel">
@@ -143,20 +154,6 @@
         </article>
       </section>
 
-      <section class="panel action-panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Plano de ação</p>
-            <h2>Combinado da conversa</h2>
-          </div>
-          <div class="actions">
-            <button id="saveNoteButton" type="button">Salvar meta</button>
-            <button id="printButton" type="button">Imprimir/PDF</button>
-          </div>
-        </div>
-        <textarea id="noteInput" rows="5" placeholder="Ex: Meta da próxima semana: reduzir TMR para até 00:02:20 e manter O.S Campo até 25. Acompanhar diariamente."></textarea>
-      </section>
-
       <footer class="print-footer" aria-label="Rodapé do feedback">
         <p>Cada indicador mostra uma oportunidade de crescimento. Com foco, constância e acompanhamento, a evolução vem semana após semana.</p>
         <div>
@@ -167,7 +164,7 @@
     </main>
 
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
-    <script src="feedback.js?v=20260714-16"></script>
+    <script src="feedback.js?v=20260714-17"></script>
   </body>
 </html>
 

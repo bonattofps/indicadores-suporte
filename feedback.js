@@ -59,6 +59,8 @@ const state = {
   collaborator: ""
 };
 
+let activePrintRestore = null;
+
 const els = {
   status: document.querySelector("#feedbackStatus"),
   month: document.querySelector("#monthSelect"),
@@ -115,6 +117,8 @@ function bindEvents() {
   els.copy.addEventListener("click", copyFeedback);
   els.save.addEventListener("click", saveNote);
   els.print.addEventListener("click", printFeedbackPdf);
+  window.addEventListener("beforeprint", preparePrintMode);
+  window.addEventListener("afterprint", restorePrintMode);
 }
 
 async function loadWorkbook() {
@@ -435,22 +439,36 @@ function printFeedbackPdf() {
   const month = currentMonth()?.label || state.month || "Periodo";
   const week = WEEK_LABELS[state.week] || state.week || "Semana";
   const suggestedTitle = filenameSafe(`SGP - Feedback - ${collaborator} - ${week} - ${month}`);
-  const restoreHidden = hidePrintOnlyElements();
 
-  document.body.classList.add("sgp-print-feedback");
+  preparePrintMode();
   document.title = suggestedTitle;
   els.status.textContent = `Nome sugerido do PDF: ${suggestedTitle}.pdf`;
 
   const restoreTitle = () => {
     document.title = originalTitle;
-    document.body.classList.remove("sgp-print-feedback");
-    restoreHidden();
     window.removeEventListener("afterprint", restoreTitle);
   };
 
   window.addEventListener("afterprint", restoreTitle, { once: true });
   window.print();
-  window.setTimeout(restoreTitle, 15000);
+  window.setTimeout(() => {
+    restoreTitle();
+    restorePrintMode();
+  }, 15000);
+}
+
+function preparePrintMode() {
+  if (activePrintRestore) return;
+  document.body.classList.add("sgp-print-feedback");
+  activePrintRestore = hidePrintOnlyElements();
+}
+
+function restorePrintMode() {
+  document.body.classList.remove("sgp-print-feedback");
+  if (activePrintRestore) {
+    activePrintRestore();
+    activePrintRestore = null;
+  }
 }
 
 function ensurePrintStyles() {

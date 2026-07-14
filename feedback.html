@@ -8,7 +8,7 @@
     <script type="module" src="assistant.js?v=20260701-2"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
     <link rel="stylesheet" href="assistant.css?v=20260701-2" />
-    <link rel="stylesheet" href="feedback.css?v=20260714-15" />
+    <link rel="stylesheet" href="feedback.css?v=20260714-16" />
     <style>
       .print-footer {
         display: none;
@@ -133,10 +133,6 @@
                 <p class="eyebrow">Plano de ação</p>
                 <h2>Combinado da conversa</h2>
               </div>
-              <div class="actions">
-                <button id="saveNoteButton" type="button">Salvar meta</button>
-                <button id="printButton" type="button">Imprimir/PDF</button>
-              </div>
             </div>
             <textarea id="noteInput" rows="5" placeholder="Ex: Meta da próxima semana: reduzir TMR para até 00:02:20 e manter O.S Campo até 25. Acompanhar diariamente."></textarea>
           </section>
@@ -148,7 +144,11 @@
               <p class="eyebrow">Próximo ciclo</p>
               <h2>Meta para a próxima semana</h2>
             </div>
-            <button id="copyFeedbackButton" type="button">Copiar meta</button>
+            <div class="actions actions-main">
+              <button id="copyFeedbackButton" type="button">Copiar meta</button>
+              <button id="saveNoteButton" type="button">Salvar meta</button>
+              <button id="printButton" type="button">Imprimir/PDF</button>
+            </div>
           </div>
           <div class="feedback-text" id="feedbackText"></div>
         </article>
@@ -164,7 +164,7 @@
     </main>
 
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
-    <script src="feedback.js?v=20260714-17"></script>
+    <script src="feedback.js?v=20260714-18"></script>
   </body>
 </html>
 

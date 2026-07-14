@@ -360,7 +360,18 @@ td {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.actions-main {
+  justify-content: flex-end;
+  max-width: 290px;
+}
+
+.actions-main button {
+  min-height: 34px;
+  padding: 0 10px;
 }
 
 textarea {
@@ -413,6 +424,11 @@ body[data-theme="dark"] .tv-card p {
   .metric-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .actions-main {
+    justify-content: flex-start;
+    max-width: none;
   }
 }
 

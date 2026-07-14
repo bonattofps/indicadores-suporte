@@ -8,7 +8,7 @@
     <script type="module" src="assistant.js?v=20260701-2"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
     <link rel="stylesheet" href="assistant.css?v=20260701-2" />
-    <link rel="stylesheet" href="feedback.css?v=20260714-1" />
+    <link rel="stylesheet" href="feedback.css?v=20260714-3" />
   </head>
   <body>
     <main class="screen">
@@ -17,16 +17,16 @@
           <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
             <img src="logo.png" alt="Uni Internet" />
           </a>
-          <p class="eyebrow">SGP - Sistema GestÃ£o do Suporte</p>
+          <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
           <h1>Feedback Individual</h1>
-          <p class="subtitle">Conversa 1:1 com indicadores, metas e plano de aÃ§Ã£o sem expor outros colaboradores.</p>
+          <p class="subtitle">Conversa 1:1 com indicadores, metas e plano de ação sem expor outros colaboradores.</p>
         </div>
-        <nav class="switcher" aria-label="NavegaÃ§Ã£o principal">
+        <nav class="switcher" aria-label="Navegação principal">
           <a href="apresentacao.html">Indicadores Gerais</a>
           <a href="colaboradores.html">Colaboradores</a>
           <a class="active" href="feedback.html">Feedback</a>
-          <a href="usuarios.html" hidden style="display: none">ConfiguraÃ§Ãµes</a>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">â—</button>
+          <a href="usuarios.html" hidden style="display: none">Configurações</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">Tema</button>
         </nav>
       </header>
 
@@ -34,7 +34,7 @@
 
       <section class="filters" aria-label="Filtros do feedback">
         <label>
-          <span>MÃªs</span>
+          <span>Mês</span>
           <select id="monthSelect"></select>
         </label>
         <label>
@@ -47,11 +47,11 @@
         <label>
           <span>Semana</span>
           <select id="weekSelect">
-            <option value="ultima">Ãšltima semana</option>
-            <option value="s1">1Âª semana</option>
-            <option value="s2">2Âª semana</option>
-            <option value="s3">3Âª semana</option>
-            <option value="s4">4Âª semana</option>
+            <option value="ultima">Última semana</option>
+            <option value="s1">1ª semana</option>
+            <option value="s2">2ª semana</option>
+            <option value="s3">3ª semana</option>
+            <option value="s4">4ª semana</option>
           </select>
         </label>
         <label>
@@ -88,10 +88,10 @@
         <article class="panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">Feedback pronto</p>
-              <h2>Resumo para falar com o colaborador</h2>
+              <p class="eyebrow">Próximo ciclo</p>
+              <h2>Meta para a próxima semana</h2>
             </div>
-            <button id="copyFeedbackButton" type="button">Copiar texto</button>
+            <button id="copyFeedbackButton" type="button">Copiar meta</button>
           </div>
           <div class="feedback-text" id="feedbackText"></div>
         </article>
@@ -100,20 +100,20 @@
       <section class="panel action-panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Plano de aÃ§Ã£o</p>
+            <p class="eyebrow">Plano de ação</p>
             <h2>Combinado da conversa</h2>
           </div>
           <div class="actions">
-            <button id="saveNoteButton" type="button">Salvar observaÃ§Ã£o</button>
+            <button id="saveNoteButton" type="button">Salvar meta</button>
             <button id="printButton" type="button">Imprimir/PDF</button>
           </div>
         </div>
-        <textarea id="noteInput" rows="5" placeholder="Ex: Foco da prÃ³xima semana: reduzir TMR para atÃ© 00:02:20 e reforÃ§ar registros operacionais diariamente."></textarea>
+        <textarea id="noteInput" rows="5" placeholder="Ex: Meta da próxima semana: reduzir TMR para até 00:02:20 e manter O.S Campo até 25. Acompanhar diariamente."></textarea>
       </section>
     </main>
 
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
-    <script src="feedback.js?v=20260714-1"></script>
+    <script src="feedback.js?v=20260714-5"></script>
   </body>
 </html>
 

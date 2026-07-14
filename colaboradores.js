@@ -46,7 +46,7 @@ const teams = {
       "O.S Aberta a Campo": { target: 25, direction: "down" },
       "Atendimento OPASuite": { target: 96, direction: "up" },
       "Avaliacao Individual": { target: 4.3, direction: "up" },
-      "Tempo Medio de Atendimento": { target: "00:59:59", direction: "down" },
+      "Tempo Medio de Atendimento": { target: "01:30:00", direction: "down" },
       "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }
     },
     rowsByWeek: emptyRowsByWeek(),
@@ -1130,7 +1130,7 @@ function currentGoals() {
     goals["O.S Aberta a Campo"] = { target: 25, direction: "down" };
     goals["Atendimento OPASuite"] = { target: 96, direction: "up" };
     goals["Avaliacao Individual"] = { target: 4.3, direction: "up" };
-    goals["Tempo Medio de Atendimento"] = { target: "00:59:59", direction: "down" };
+    goals["Tempo Medio de Atendimento"] = { target: "01:30:00", direction: "down" };
     goals["Tempo Medio de Resposta"] = { target: "00:02:20", direction: "down" };
   }
 

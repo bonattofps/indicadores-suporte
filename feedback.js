@@ -3,7 +3,6 @@ const STORAGE_KEYS = {
   notePrefix: "sgpFeedbackNote"
 };
 
-const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4"];
 const WEEK_LABELS = {
   ultima: "Última semana",
   s1: "1ª semana",
@@ -19,13 +18,13 @@ const TEAM_HEADERS = {
     "Registro Financeiro",
     "O.S Aberta a Campo",
     "Atendimento OPASuite",
-    "Avaliacao Individual",
-    "Tempo Medio de Atendimento",
-    "Tempo Medio de Resposta"
+    "Avaliação Individual",
+    "Tempo Médio de Atendimento",
+    "Tempo Médio de Resposta"
   ],
   N2: [
     "Colaborador",
-    "Ativacao de Novo Login",
+    "Ativação de Novo Login",
     "Suporte Interno",
     "O.S Aberta a Campo",
     "Atendimento Externo",
@@ -39,12 +38,12 @@ const TEAM_GOALS = {
     "Registro Financeiro": { target: 38, direction: "up" },
     "O.S Aberta a Campo": { target: 25, direction: "down" },
     "Atendimento OPASuite": { target: 96, direction: "up" },
-    "Avaliacao Individual": { target: 4.3, direction: "up" },
-    "Tempo Medio de Atendimento": { target: "00:59:59", direction: "down" },
-    "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }
+    "Avaliação Individual": { target: 4.3, direction: "up" },
+    "Tempo Médio de Atendimento": { target: "01:30:00", direction: "down" },
+    "Tempo Médio de Resposta": { target: "00:02:20", direction: "down" }
   },
   N2: {
-    "Ativacao de Novo Login": { target: 20, direction: "up" },
+    "Ativação de Novo Login": { target: 20, direction: "up" },
     "Suporte Interno": { target: 0, direction: "up" },
     "O.S Aberta a Campo": { target: 8, direction: "up" },
     "Atendimento Externo": { target: 40, direction: "up" },
@@ -89,7 +88,6 @@ async function init() {
   }
 
   state.month = state.workbook.monthOrder.at(-1) || "";
-  applySelections();
   render();
 }
 
@@ -115,7 +113,7 @@ function bindEvents() {
   });
   els.copy.addEventListener("click", copyFeedback);
   els.save.addEventListener("click", saveNote);
-  els.print.addEventListener("click", () => window.print());
+  els.print.addEventListener("click", printFeedbackPdf);
 }
 
 async function loadWorkbook() {
@@ -148,14 +146,8 @@ function isValidWorkbook(workbook) {
   return workbook?.version === 5 && workbook?.months && Array.isArray(workbook.monthOrder) && workbook.monthOrder.length;
 }
 
-function applySelections() {
-  renderMonthOptions();
-  renderCollaboratorOptions();
-}
-
 function syncCollaboratorSelection() {
-  const rows = currentRows();
-  const names = rows.map((row) => rowObject(row).Colaborador).filter(Boolean);
+  const names = currentRows().map((row) => rowObject(row).Colaborador).filter(Boolean);
   if (!names.includes(state.collaborator)) state.collaborator = names[0] || "";
   renderCollaboratorOptions();
 }
@@ -200,8 +192,8 @@ function renderFeedback() {
   const statusClass = bad.length ? "bad" : warn.length ? "warn" : "good";
 
   els.status.textContent = row
-    ? `Feedback carregado para ${row.Colaborador}.`
-    : "Selecione um colaborador com dados para montar o feedback.";
+    ? `Meta da próxima semana carregada para ${row.Colaborador}.`
+    : "Selecione um colaborador com dados para montar a meta da próxima semana.";
 
   els.profile.innerHTML = `
     <div class="profile-item">
@@ -236,8 +228,14 @@ function renderFeedback() {
     </tr>
   `).join("");
 
-  els.feedback.innerHTML = feedbackParagraphs(row, good, warn, bad)
-    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+  els.feedback.innerHTML = feedbackItems(row, good, warn, bad)
+    .map((item) => `
+      <div class="tv-card tv-${item.kind}">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.text)}</p>
+      </div>
+    `)
     .join("");
 
   els.note.value = localStorage.getItem(noteKey()) || "";
@@ -248,7 +246,7 @@ function renderEmpty() {
   els.collaborator.innerHTML = '<option value="">Sem dados</option>';
   els.profile.innerHTML = "";
   els.metrics.innerHTML = '<tr><td colspan="4">Sem dados para exibir.</td></tr>';
-  els.feedback.innerHTML = "<p>Sem dados para gerar feedback.</p>";
+  els.feedback.innerHTML = '<div class="tv-card tv-neutral"><span>Sem dados</span><strong>Nenhuma meta gerada</strong><p>Carregue os dados dos colaboradores para montar a meta da próxima semana.</p></div>';
 }
 
 function currentMonth() {
@@ -271,14 +269,28 @@ function rowObject(row) {
 }
 
 function currentGoals() {
+  const defaultGoals = TEAM_GOALS[state.team] || {};
   const workbookGoals = currentMonth()?.teams?.[state.team]?.goalsByWeek?.[state.week] || {};
-  const goals = { ...TEAM_GOALS[state.team], ...workbookGoals };
+  const goals = { ...defaultGoals };
 
-  if (state.team === "N1") {
-    return { ...goals, ...TEAM_GOALS.N1 };
-  }
+  Object.entries(workbookGoals).forEach(([metric, goal]) => {
+    const canonicalMetric = canonicalGoalMetric(metric, defaultGoals);
+    if (!canonicalMetric) {
+      goals[metric] = goal;
+      return;
+    }
+
+    if (state.team !== "N1") {
+      goals[canonicalMetric] = { ...goals[canonicalMetric], ...goal };
+    }
+  });
 
   return goals;
+}
+
+function canonicalGoalMetric(metric, defaultGoals) {
+  const metricKey = normalize(metric);
+  return Object.keys(defaultGoals).find((defaultMetric) => normalize(defaultMetric) === metricKey) || "";
 }
 
 function metricStatus(value, goal) {
@@ -301,49 +313,106 @@ function metricValue(value) {
   return Number.isFinite(numeric) ? numeric : NaN;
 }
 
-function feedbackParagraphs(row, good, warn, bad) {
-  if (!row) return ["Selecione um colaborador para gerar o feedback individual."];
+function feedbackItems(row, good, warn, bad) {
+  if (!row) {
+    return [{
+      kind: "neutral",
+      label: "Sem colaborador",
+      title: "Selecione um colaborador",
+      text: "Escolha mês, semana, equipe e colaborador para montar a meta da próxima semana."
+    }];
+  }
 
-  const strengths = good.map((item) => item.metric);
-  const needs = [...bad, ...warn].map((item) => item.metric);
   const mainNeed = bad[0]?.metric || warn[0]?.metric || "";
+  const nextGoal = mainNeed ? goalForMetric(mainNeed) : "Manter todos os indicadores dentro da meta por mais uma semana.";
 
-  const paragraphs = [
-    `${row.Colaborador}, este feedback é referente a ${WEEK_LABELS[state.week] || state.week}. A conversa é individual e o objetivo é alinhar pontos fortes, metas e próximos passos.`,
-    strengths.length
-      ? `Pontos positivos: ${strengths.slice(0, 3).join(", ")} ficaram dentro da meta.`
-      : "Nesta semana não houve indicador totalmente dentro da meta, então o foco será organizar uma recuperação objetiva para o próximo ciclo.",
-    needs.length
-      ? `Pontos de melhoria: ${needs.slice(0, 4).join(", ")}.`
-      : "Todos os indicadores avaliados ficaram dentro da meta. O foco agora é manter consistência na próxima semana.",
-    mainNeed
-      ? `Plano sugerido: priorizar ${mainNeed}. ${actionForMetric(mainNeed)}`
-      : "Plano sugerido: manter a rotina atual, acompanhar diariamente e evitar queda nos indicadores já estabilizados."
+  return [
+    {
+      kind: mainNeed ? "goal" : "good",
+      label: "Meta da próxima semana",
+      title: mainNeed ? mainNeed : "Manter desempenho",
+      text: nextGoal
+    },
+    {
+      kind: "check",
+      label: "Como acompanhar",
+      title: "Verificação diária",
+      text: mainNeed
+        ? actionForMetric(mainNeed)
+        : "Conferir os indicadores no meio da semana e manter a rotina que trouxe o resultado atual."
+    },
+    {
+      kind: "support",
+      label: "Combinado",
+      title: "Próxima conversa",
+      text: secondaryGoal(good, bad, warn)
+    }
   ];
-
-  return paragraphs;
 }
 
 function actionForMetric(metric) {
-  if (metric.includes("Operacional")) return "Revisar a rotina diária de registros operacionais e acompanhar o volume no meio do turno.";
-  if (metric.includes("Financeiro")) return "Garantir registro completo dos contatos financeiros e revisar eventuais atendimentos não classificados.";
-  if (metric.includes("O.S")) return "Avaliar a necessidade real de abertura para campo e alinhar critérios de encaminhamento.";
-  if (metric.includes("OPASuite")) return "Acompanhar a fila com mais frequência e reduzir atendimentos sem tratativa registrada.";
-  if (metric.includes("Avaliacao")) return "Trabalhar qualidade da comunicação, encerramento do atendimento e confirmação de resolução com o cliente.";
-  if (metric.includes("Atendimento")) return "Reduzir tempo médio com respostas objetivas, uso de modelos e priorização da fila.";
+  if (metric.includes("Operacional")) return "Conferir o volume de registros no meio do turno e corrigir a rota antes do fechamento do dia.";
+  if (metric.includes("Financeiro")) return "Registrar todos os contatos financeiros tratados e revisar se algum atendimento ficou sem classificação.";
+  if (metric.includes("O.S")) return "Acompanhar a abertura de O.S diariamente e manter o volume dentro do limite combinado.";
+  if (metric.includes("OPASuite")) return "Acompanhar a fila com mais frequência e evitar atendimentos sem tratativa registrada.";
+  if (metric.includes("Avaliação")) return "Reforçar comunicação clara, confirmação de resolução e encerramento cordial do atendimento.";
+  if (metric.includes("Atendimento")) return "Usar respostas objetivas, modelos prontos e priorização de fila para reduzir o tempo médio.";
   if (metric.includes("Resposta")) return "Responder o cliente com mais agilidade e evitar longos intervalos sem retorno.";
   return "Definir acompanhamento diário e revisar evolução na próxima conversa.";
 }
 
+function goalForMetric(metric) {
+  const goal = currentGoals()[metric];
+  if (!goal) return `Melhorar ${metric} na próxima semana.`;
+  return goal.direction === "down"
+    ? `Fechar a próxima semana com ${metric} em até ${formatCell(goal.target)}.`
+    : `Fechar a próxima semana com ${metric} em no mínimo ${formatCell(goal.target)}.`;
+}
+
+function secondaryGoal(good, bad, warn) {
+  const issues = [...bad, ...warn].map((item) => item.metric);
+  if (issues.length > 1) {
+    return `Prioridade 1: ${issues[0]}. Prioridade 2: ${issues[1]}. Revisar evolução na próxima conversa.`;
+  }
+  if (issues.length === 1) {
+    return `Foco único em ${issues[0]} para evitar dispersão e facilitar o acompanhamento.`;
+  }
+  const strength = good[0]?.metric || "os indicadores dentro da meta";
+  return `Manter ${strength} dentro da meta e repetir o acompanhamento na próxima semana.`;
+}
+
 function copyFeedback() {
-  const text = [...els.feedback.querySelectorAll("p")].map((item) => item.textContent).join("\n\n");
+  const text = [...els.feedback.querySelectorAll(".tv-card")]
+    .map((item) => item.textContent.replace(/\s+/g, " ").trim())
+    .join("\n\n");
   navigator.clipboard?.writeText(text);
-  els.status.textContent = "Texto de feedback copiado.";
+  els.status.textContent = "Meta da próxima semana copiada.";
 }
 
 function saveNote() {
   localStorage.setItem(noteKey(), els.note.value);
-  els.status.textContent = "Observação salva neste navegador.";
+  els.status.textContent = "Meta salva neste navegador.";
+}
+
+function printFeedbackPdf() {
+  const originalTitle = document.title;
+  const row = selectedRowObject();
+  const collaborator = row?.Colaborador || state.collaborator || "Colaborador";
+  const month = currentMonth()?.label || state.month || "Periodo";
+  const week = WEEK_LABELS[state.week] || state.week || "Semana";
+  const suggestedTitle = filenameSafe(`SGP - Feedback - ${collaborator} - ${week} - ${month}`);
+
+  document.title = suggestedTitle;
+  els.status.textContent = `Nome sugerido do PDF: ${suggestedTitle}.pdf`;
+
+  const restoreTitle = () => {
+    document.title = originalTitle;
+    window.removeEventListener("afterprint", restoreTitle);
+  };
+
+  window.addEventListener("afterprint", restoreTitle, { once: true });
+  window.print();
+  window.setTimeout(restoreTitle, 15000);
 }
 
 function noteKey() {
@@ -398,12 +467,12 @@ function setupTheme() {
   const saved = localStorage.getItem("sgp-theme") || "light";
   document.body.dataset.theme = saved;
   if (button) {
-    button.textContent = saved === "dark" ? "☀" : "◐";
+    button.textContent = saved === "dark" ? "Claro" : "Tema";
     button.addEventListener("click", () => {
       const next = document.body.dataset.theme === "dark" ? "light" : "dark";
       document.body.dataset.theme = next;
       localStorage.setItem("sgp-theme", next);
-      button.textContent = next === "dark" ? "☀" : "◐";
+      button.textContent = next === "dark" ? "Claro" : "Tema";
     });
   }
 }
@@ -415,6 +484,13 @@ function normalize(value) {
     .replace(/[^a-z0-9]+/gi, " ")
     .trim()
     .toUpperCase();
+}
+
+function filenameSafe(value) {
+  return String(value ?? "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value) {

@@ -151,7 +151,7 @@ select {
   padding: 16px;
 }
 
-.print-motivation {
+.print-footer {
   display: none;
 }
 
@@ -489,17 +489,35 @@ body[data-theme="dark"] .tv-card p {
     border: 1px solid #93b9c8;
   }
 
-  .print-motivation {
+  .print-footer {
     display: block;
-    margin: 0 0 10px;
+    margin: 12px 0 0;
     padding: 12px 14px;
     border: 1px solid #b9d8e7;
-    border-left: 6px solid #009c67;
     border-radius: 8px;
     color: #102033;
-    background: #f3fff8;
+    background: #f8fcff;
     font-size: 11px;
     line-height: 1.5;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-footer p {
+    margin: 0 0 10px;
+  }
+
+  .print-footer div {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid #d6e8f0;
+  }
+
+  .print-footer strong {
+    color: #102033;
+    font-size: 10px;
   }
 
   .profile-item strong {

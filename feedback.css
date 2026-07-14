@@ -298,6 +298,35 @@ td {
   opacity: 0.45;
 }
 
+.metric-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.45fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d9e8f0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.metric-row span {
+  color: #315a72;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.metric-row strong {
+  color: #102033;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
 .tv-goal {
   border-left-color: var(--red);
   background: linear-gradient(135deg, #fff7f7 0%, #ffffff 100%);
@@ -375,6 +404,11 @@ body[data-theme="dark"] .tv-card p {
   .profile-band {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .metric-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
 
@@ -574,6 +608,25 @@ body[data-theme="dark"] .tv-card p {
     left: 9px;
     width: 7px;
     height: 7px;
+  }
+
+  .metric-list {
+    gap: 5px;
+  }
+
+  .metric-row {
+    grid-template-columns: 95px minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px 8px;
+    background: #ffffff !important;
+  }
+
+  .metric-row span {
+    font-size: 8px;
+  }
+
+  .metric-row strong {
+    font-size: 10px;
   }
 
   .action-panel {

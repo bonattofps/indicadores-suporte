@@ -186,8 +186,9 @@ function renderFeedback() {
   const row = selectedRowObject();
   const month = currentMonth();
   const goals = currentGoals();
-  const metrics = Object.keys(goals).map((metric) => {
-    const status = metricStatus(row?.[metric], goals[metric]);
+  const metricNames = state.team === "N2" ? TEAM_HEADERS.N2.slice(1) : Object.keys(goals);
+  const metrics = metricNames.map((metric) => {
+    const status = state.team === "N2" ? "good" : metricStatus(row?.[metric], goals[metric]);
     return { metric, value: row?.[metric], goal: goals[metric], status };
   });
   const bad = metrics.filter((item) => item.status === "bad");
@@ -228,7 +229,7 @@ function renderFeedback() {
     <tr>
       <td>${escapeHtml(item.metric)}</td>
       <td class="${item.status}-cell">${escapeHtml(formatCell(item.value))}</td>
-      <td>${escapeHtml(goalLabel(item.goal))}</td>
+      <td>${escapeHtml(goalLabel(item.goal, item.metric))}</td>
       <td><span class="badge ${item.status}">${statusLabel(item.status)}</span></td>
     </tr>
   `).join("");
@@ -274,6 +275,8 @@ function rowObject(row) {
 }
 
 function currentGoals() {
+  if (state.team === "N2") return {};
+
   const defaultGoals = TEAM_GOALS[state.team] || {};
   const workbookGoals = currentMonth()?.teams?.[state.team]?.goalsByWeek?.[state.week] || {};
   const goals = { ...defaultGoals };
@@ -328,6 +331,29 @@ function feedbackItems(row, good, warn, bad) {
     }];
   }
 
+  if (state.team === "N2") {
+    return [
+      {
+        kind: "good",
+        label: "Sem meta configurada",
+        title: "N2 sem cobrança de meta",
+        lines: ["Este cargo não possui meta individual configurada. Os indicadores ficam apenas para acompanhamento."]
+      },
+      {
+        kind: "check",
+        label: "Como acompanhar",
+        title: "Acompanhamento operacional",
+        lines: ["Usar os dados para consulta da rotina, sem classificar como atenção ou melhorar."]
+      },
+      {
+        kind: "support",
+        label: "Combinado",
+        title: "Sem plano obrigatório",
+        lines: ["Manter o acompanhamento normal da equipe N2."]
+      }
+    ];
+  }
+
   const needs = [...bad, ...warn];
   const mainNeeds = needs.slice(0, 4);
   const hasNeeds = mainNeeds.length > 0;
@@ -336,17 +362,19 @@ function feedbackItems(row, good, warn, bad) {
     {
       kind: hasNeeds ? "goal" : "good",
       label: "Meta da próxima semana",
-      title: hasNeeds ? goalTitle(mainNeeds) : "Manter desempenho",
+      title: hasNeeds ? `${mainNeeds.length} ${mainNeeds.length === 1 ? "meta pendente" : "metas pendentes"}` : "Manter desempenho",
+      rows: hasNeeds ? goalRowsForMetrics(mainNeeds) : null,
       lines: hasNeeds
-        ? goalsForMetrics(mainNeeds)
+        ? null
         : ["Manter todos os indicadores dentro da meta por mais uma semana."]
     },
     {
       kind: "check",
       label: "Como acompanhar",
       title: "Verificação diária",
+      rows: hasNeeds ? actionRowsForMetrics(mainNeeds) : null,
       lines: hasNeeds
-        ? actionsForMetrics(mainNeeds)
+        ? null
         : ["Conferir os indicadores no meio da semana e manter a rotina que trouxe o resultado atual."]
     },
     {
@@ -359,6 +387,19 @@ function feedbackItems(row, good, warn, bad) {
 }
 
 function renderCardText(item) {
+  if (Array.isArray(item.rows) && item.rows.length) {
+    return `
+      <div class="metric-list">
+        ${item.rows.map((row) => `
+          <div class="metric-row">
+            <span>${escapeHtml(row.label)}</span>
+            <strong>${escapeHtml(row.value)}</strong>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
   if (Array.isArray(item.lines) && item.lines.length > 1) {
     return `<ul>${item.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`;
   }
@@ -378,21 +419,20 @@ function actionForMetric(metric) {
   return "Definir acompanhamento diário e revisar evolução na próxima conversa.";
 }
 
-function goalTitle(items) {
-  const names = items.map((item) => shortMetricName(item.metric));
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} e ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
+function goalRowsForMetrics(items) {
+  return items
+    .map((item) => ({
+      label: shortMetricName(item.metric),
+      value: goalTargetText(item.metric)
+    }));
 }
 
-function goalsForMetrics(items) {
+function actionRowsForMetrics(items) {
   return items
-    .map((item) => goalForMetric(item.metric));
-}
-
-function actionsForMetrics(items) {
-  return items
-    .map((item, index) => `Prioridade ${index + 1}: ${actionForMetric(item.metric)}`);
+    .map((item, index) => ({
+      label: `Prioridade ${index + 1}`,
+      value: actionForMetric(item.metric)
+    }));
 }
 
 function shortMetricName(metric) {
@@ -412,6 +452,14 @@ function goalForMetric(metric) {
   return goal.direction === "down"
     ? `Fechar a próxima semana com ${shortMetricName(metric)} em até ${formatCell(goal.target)}.`
     : `Fechar a próxima semana com ${shortMetricName(metric)} em no mínimo ${formatCell(goal.target)}.`;
+}
+
+function goalTargetText(metric) {
+  const goal = currentGoals()[metric];
+  if (!goal) return "Melhorar";
+  return goal.direction === "down"
+    ? `Até ${formatCell(goal.target)}`
+    : `Mínimo ${formatCell(goal.target)}`;
 }
 
 function secondaryGoal(good, bad, warn) {
@@ -580,7 +628,10 @@ function noteKey() {
   return `${STORAGE_KEYS.notePrefix}:${state.month}:${state.team}:${state.week}:${normalize(state.collaborator)}`;
 }
 
-function goalLabel(goal) {
+function goalLabel(goal, metric = "") {
+  if (state.team === "N2" || !goal) {
+    return metric ? "Sem meta" : "-";
+  }
   const direction = goal?.direction === "down" ? "Até" : "Mínimo";
   return `${direction} ${formatCell(goal?.target)}`;
 }

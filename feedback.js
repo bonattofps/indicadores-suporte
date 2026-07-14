@@ -335,21 +335,21 @@ function feedbackItems(row, good, warn, bad) {
     return [
       {
         kind: "good",
-        label: "Sem meta configurada",
-        title: "N2 sem cobrança de meta",
-        lines: ["Este cargo não possui meta individual configurada. Os indicadores ficam apenas para acompanhamento."]
+        label: "Ok",
+        title: "N2 em acompanhamento",
+        lines: ["Ok"]
       },
       {
         kind: "check",
         label: "Como acompanhar",
         title: "Acompanhamento operacional",
-        lines: ["Usar os dados para consulta da rotina, sem classificar como atenção ou melhorar."]
+        lines: ["Continuar focado nos deveres e manter a rotina operacional alinhada."]
       },
       {
         kind: "support",
         label: "Combinado",
-        title: "Sem plano obrigatório",
-        lines: ["Manter o acompanhamento normal da equipe N2."]
+        title: "Combinado",
+        lines: ["Seguir o que for passado para a equipe."]
       }
     ];
   }
@@ -630,13 +630,14 @@ function noteKey() {
 
 function goalLabel(goal, metric = "") {
   if (state.team === "N2" || !goal) {
-    return metric ? "Sem meta" : "-";
+    return metric ? "Ok" : "-";
   }
   const direction = goal?.direction === "down" ? "Até" : "Mínimo";
   return `${direction} ${formatCell(goal?.target)}`;
 }
 
 function statusLabel(status) {
+  if (state.team === "N2") return "Ok";
   return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Melhorar";
 }
 

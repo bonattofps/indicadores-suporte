@@ -151,6 +151,10 @@ select {
   padding: 16px;
 }
 
+.print-motivation {
+  display: none;
+}
+
 .profile-item {
   display: grid;
   gap: 4px;
@@ -483,6 +487,19 @@ body[data-theme="dark"] .tv-card p {
     margin-bottom: 10px;
     padding: 10px;
     border: 1px solid #93b9c8;
+  }
+
+  .print-motivation {
+    display: block;
+    margin: 0 0 10px;
+    padding: 12px 14px;
+    border: 1px solid #b9d8e7;
+    border-left: 6px solid #009c67;
+    border-radius: 8px;
+    color: #102033;
+    background: #f3fff8;
+    font-size: 11px;
+    line-height: 1.5;
   }
 
   .profile-item strong {

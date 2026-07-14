@@ -77,6 +77,7 @@ const els = {
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  ensurePrintStyles();
   setupTheme();
   bindEvents();
   state.workbook = await loadWorkbook();
@@ -323,22 +324,25 @@ function feedbackItems(row, good, warn, bad) {
     }];
   }
 
-  const mainNeed = bad[0]?.metric || warn[0]?.metric || "";
-  const nextGoal = mainNeed ? goalForMetric(mainNeed) : "Manter todos os indicadores dentro da meta por mais uma semana.";
+  const needs = [...bad, ...warn];
+  const mainNeeds = needs.slice(0, 4);
+  const hasNeeds = mainNeeds.length > 0;
 
   return [
     {
-      kind: mainNeed ? "goal" : "good",
+      kind: hasNeeds ? "goal" : "good",
       label: "Meta da próxima semana",
-      title: mainNeed ? mainNeed : "Manter desempenho",
-      text: nextGoal
+      title: hasNeeds ? goalTitle(mainNeeds) : "Manter desempenho",
+      text: hasNeeds
+        ? goalsForMetrics(mainNeeds)
+        : "Manter todos os indicadores dentro da meta por mais uma semana."
     },
     {
       kind: "check",
       label: "Como acompanhar",
       title: "Verificação diária",
-      text: mainNeed
-        ? actionForMetric(mainNeed)
+      text: hasNeeds
+        ? actionsForMetrics(mainNeeds)
         : "Conferir os indicadores no meio da semana e manter a rotina que trouxe o resultado atual."
     },
     {
@@ -361,24 +365,54 @@ function actionForMetric(metric) {
   return "Definir acompanhamento diário e revisar evolução na próxima conversa.";
 }
 
+function goalTitle(items) {
+  const names = items.map((item) => shortMetricName(item.metric));
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} e ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
+}
+
+function goalsForMetrics(items) {
+  return items
+    .map((item, index) => `${index + 1}. ${goalForMetric(item.metric)}`)
+    .join(" ");
+}
+
+function actionsForMetrics(items) {
+  return items
+    .map((item, index) => `Prioridade ${index + 1}: ${actionForMetric(item.metric)}`)
+    .join(" ");
+}
+
+function shortMetricName(metric) {
+  if (metric.includes("Operacional")) return "Operacional";
+  if (metric.includes("Financeiro")) return "Financeiro";
+  if (metric.includes("O.S")) return "O.S Campo";
+  if (metric.includes("OPASuite")) return "OPASuite";
+  if (metric.includes("Avaliação")) return "Avaliação";
+  if (metric.includes("Atendimento")) return "TMA";
+  if (metric.includes("Resposta")) return "TMR";
+  return metric;
+}
+
 function goalForMetric(metric) {
   const goal = currentGoals()[metric];
   if (!goal) return `Melhorar ${metric} na próxima semana.`;
   return goal.direction === "down"
-    ? `Fechar a próxima semana com ${metric} em até ${formatCell(goal.target)}.`
-    : `Fechar a próxima semana com ${metric} em no mínimo ${formatCell(goal.target)}.`;
+    ? `Fechar a próxima semana com ${shortMetricName(metric)} em até ${formatCell(goal.target)}.`
+    : `Fechar a próxima semana com ${shortMetricName(metric)} em no mínimo ${formatCell(goal.target)}.`;
 }
 
 function secondaryGoal(good, bad, warn) {
   const issues = [...bad, ...warn].map((item) => item.metric);
   if (issues.length > 1) {
-    return `Prioridade 1: ${issues[0]}. Prioridade 2: ${issues[1]}. Revisar evolução na próxima conversa.`;
+    return `Foco nos ${issues.length} indicadores fora da meta. Revisar evolução na próxima conversa e manter os indicadores que já estão dentro.`;
   }
   if (issues.length === 1) {
-    return `Foco único em ${issues[0]} para evitar dispersão e facilitar o acompanhamento.`;
+    return `Foco único em ${shortMetricName(issues[0])} para evitar dispersão e facilitar o acompanhamento.`;
   }
   const strength = good[0]?.metric || "os indicadores dentro da meta";
-  return `Manter ${strength} dentro da meta e repetir o acompanhamento na próxima semana.`;
+  return `Manter ${shortMetricName(strength)} dentro da meta e repetir o acompanhamento na próxima semana.`;
 }
 
 function copyFeedback() {
@@ -401,18 +435,120 @@ function printFeedbackPdf() {
   const month = currentMonth()?.label || state.month || "Periodo";
   const week = WEEK_LABELS[state.week] || state.week || "Semana";
   const suggestedTitle = filenameSafe(`SGP - Feedback - ${collaborator} - ${week} - ${month}`);
+  const restoreHidden = hidePrintOnlyElements();
 
+  document.body.classList.add("sgp-print-feedback");
   document.title = suggestedTitle;
   els.status.textContent = `Nome sugerido do PDF: ${suggestedTitle}.pdf`;
 
   const restoreTitle = () => {
     document.title = originalTitle;
+    document.body.classList.remove("sgp-print-feedback");
+    restoreHidden();
     window.removeEventListener("afterprint", restoreTitle);
   };
 
   window.addEventListener("afterprint", restoreTitle, { once: true });
   window.print();
   window.setTimeout(restoreTitle, 15000);
+}
+
+function ensurePrintStyles() {
+  if (document.querySelector("#sgpFeedbackPrintStyle")) return;
+  const style = document.createElement("style");
+  style.id = "sgpFeedbackPrintStyle";
+  style.textContent = `
+    @media print {
+      body.sgp-print-feedback .switcher,
+      body.sgp-print-feedback .filters,
+      body.sgp-print-feedback .subtitle,
+      body.sgp-print-feedback .sgp-userbar,
+      body.sgp-print-feedback .sgp-assistant-button,
+      body.sgp-print-feedback .sgp-assistant-panel,
+      body.sgp-print-feedback [class*="sgp-assistant"],
+      body.sgp-print-feedback #copyFeedbackButton,
+      body.sgp-print-feedback #saveNoteButton,
+      body.sgp-print-feedback #printButton,
+      body.sgp-print-feedback .notice {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+
+      body.sgp-print-feedback {
+        background: #fff !important;
+      }
+
+      body.sgp-print-feedback .screen {
+        width: 100% !important;
+        padding: 0 !important;
+      }
+
+      body.sgp-print-feedback .profile-band {
+        display: grid !important;
+        grid-template-columns: 1.6fr repeat(4, 0.7fr) !important;
+      }
+
+      body.sgp-print-feedback .feedback-layout {
+        display: block !important;
+      }
+
+      body.sgp-print-feedback .table-scroll {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      body.sgp-print-feedback .good-cell {
+        background: #d8f1dd !important;
+        color: #005f3f !important;
+      }
+
+      body.sgp-print-feedback .warn-cell {
+        background: #fff0bf !important;
+        color: #7a5300 !important;
+      }
+
+      body.sgp-print-feedback .bad-cell {
+        background: #ffd7d7 !important;
+        color: #9f1d1d !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function hidePrintOnlyElements() {
+  const selector = [
+    ".switcher",
+    ".filters",
+    ".subtitle",
+    ".sgp-userbar",
+    ".sgp-assistant-button",
+    ".sgp-assistant-panel",
+    "[class*='sgp-assistant']",
+    "#copyFeedbackButton",
+    "#saveNoteButton",
+    "#printButton",
+    ".notice"
+  ].join(",");
+  const elements = [...document.querySelectorAll(selector)];
+  const previous = elements.map((element) => ({
+    element,
+    display: element.style.getPropertyValue("display"),
+    priority: element.style.getPropertyPriority("display")
+  }));
+
+  elements.forEach(({ style }) => style.setProperty("display", "none", "important"));
+
+  return () => {
+    previous.forEach(({ element, display, priority }) => {
+      if (display) {
+        element.style.setProperty("display", display, priority);
+      } else {
+        element.style.removeProperty("display");
+      }
+    });
+  };
 }
 
 function noteKey() {

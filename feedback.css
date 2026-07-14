@@ -267,6 +267,37 @@ td {
   line-height: 1.55;
 }
 
+.tv-card ul {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tv-card li {
+  position: relative;
+  padding: 9px 11px 9px 34px;
+  border: 1px solid #d9e8f0;
+  border-radius: 7px;
+  color: #17324a;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.tv-card li::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 13px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.45;
+}
+
 .tv-goal {
   border-left-color: var(--red);
   background: linear-gradient(135deg, #fff7f7 0%, #ffffff 100%);
@@ -525,6 +556,24 @@ body[data-theme="dark"] .tv-card p {
 
   .tv-card p {
     font-size: 11px;
+  }
+
+  .tv-card ul {
+    gap: 5px;
+  }
+
+  .tv-card li {
+    padding: 6px 8px 6px 24px;
+    font-size: 10px;
+    line-height: 1.35;
+    background: #ffffff !important;
+  }
+
+  .tv-card li::before {
+    top: 10px;
+    left: 9px;
+    width: 7px;
+    height: 7px;
   }
 
   .action-panel {

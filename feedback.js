@@ -238,7 +238,7 @@ function renderFeedback() {
       <div class="tv-card tv-${item.kind}">
         <span>${escapeHtml(item.label)}</span>
         <strong>${escapeHtml(item.title)}</strong>
-        <p>${escapeHtml(item.text)}</p>
+        ${renderCardText(item)}
       </div>
     `)
     .join("");
@@ -337,25 +337,34 @@ function feedbackItems(row, good, warn, bad) {
       kind: hasNeeds ? "goal" : "good",
       label: "Meta da próxima semana",
       title: hasNeeds ? goalTitle(mainNeeds) : "Manter desempenho",
-      text: hasNeeds
+      lines: hasNeeds
         ? goalsForMetrics(mainNeeds)
-        : "Manter todos os indicadores dentro da meta por mais uma semana."
+        : ["Manter todos os indicadores dentro da meta por mais uma semana."]
     },
     {
       kind: "check",
       label: "Como acompanhar",
       title: "Verificação diária",
-      text: hasNeeds
+      lines: hasNeeds
         ? actionsForMetrics(mainNeeds)
-        : "Conferir os indicadores no meio da semana e manter a rotina que trouxe o resultado atual."
+        : ["Conferir os indicadores no meio da semana e manter a rotina que trouxe o resultado atual."]
     },
     {
       kind: "support",
       label: "Combinado",
       title: "Próxima conversa",
-      text: secondaryGoal(good, bad, warn)
+      lines: [secondaryGoal(good, bad, warn)]
     }
   ];
+}
+
+function renderCardText(item) {
+  if (Array.isArray(item.lines) && item.lines.length > 1) {
+    return `<ul>${item.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`;
+  }
+
+  const text = Array.isArray(item.lines) ? item.lines[0] : item.text;
+  return `<p>${escapeHtml(text || "")}</p>`;
 }
 
 function actionForMetric(metric) {
@@ -378,14 +387,12 @@ function goalTitle(items) {
 
 function goalsForMetrics(items) {
   return items
-    .map((item, index) => `${index + 1}. ${goalForMetric(item.metric)}`)
-    .join(" ");
+    .map((item) => goalForMetric(item.metric));
 }
 
 function actionsForMetrics(items) {
   return items
-    .map((item, index) => `Prioridade ${index + 1}: ${actionForMetric(item.metric)}`)
-    .join(" ");
+    .map((item, index) => `Prioridade ${index + 1}: ${actionForMetric(item.metric)}`);
 }
 
 function shortMetricName(metric) {

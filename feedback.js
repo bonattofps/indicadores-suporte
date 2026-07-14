@@ -230,7 +230,7 @@ function renderFeedback() {
       <td>${escapeHtml(item.metric)}</td>
       <td class="${item.status}-cell">${escapeHtml(formatCell(item.value))}</td>
       <td>${escapeHtml(goalLabel(item.goal, item.metric))}</td>
-      <td><span class="badge ${item.status}">${statusLabel(item.status)}</span></td>
+      <td>${renderStatusCell(item.status)}</td>
     </tr>
   `).join("");
 
@@ -238,7 +238,7 @@ function renderFeedback() {
     .map((item) => `
       <div class="tv-card tv-${item.kind}">
         <span>${escapeHtml(item.label)}</span>
-        <strong>${escapeHtml(item.title)}</strong>
+        ${item.title ? `<strong>${escapeHtml(item.title)}</strong>` : ""}
         ${renderCardText(item)}
       </div>
     `)
@@ -334,21 +334,15 @@ function feedbackItems(row, good, warn, bad) {
   if (state.team === "N2") {
     return [
       {
-        kind: "good",
-        label: "Acompanhamento N2",
-        title: "Sem meta individual",
-        lines: ["Indicadores liberados apenas para acompanhamento da rotina. Não há cobrança individual de meta para N2 neste painel."]
-      },
-      {
         kind: "check",
-        label: "Conduta esperada",
-        title: "Manter foco na operação",
+        label: "Como acompanhar",
+        title: "",
         lines: ["Continuar focado nos deveres do N2, apoiar a operação e manter as tratativas alinhadas com a rotina da equipe."]
       },
       {
         kind: "support",
-        label: "Combinado da equipe",
-        title: "Seguir direcionamentos",
+        label: "Combinado",
+        title: "",
         lines: ["Seguir o que for passado para a equipe e manter alinhamento com a liderança sobre prioridades e demandas do período."]
       }
     ];
@@ -406,6 +400,12 @@ function renderCardText(item) {
 
   const text = Array.isArray(item.lines) ? item.lines[0] : item.text;
   return `<p>${escapeHtml(text || "")}</p>`;
+}
+
+function renderStatusCell(status) {
+  const label = statusLabel(status);
+  if (!label) return "";
+  return `<span class="badge ${status}">${escapeHtml(label)}</span>`;
 }
 
 function actionForMetric(metric) {
@@ -630,14 +630,14 @@ function noteKey() {
 
 function goalLabel(goal, metric = "") {
   if (state.team === "N2" || !goal) {
-    return metric ? "Ok" : "-";
+    return metric ? "SEM META" : "-";
   }
   const direction = goal?.direction === "down" ? "Até" : "Mínimo";
   return `${direction} ${formatCell(goal?.target)}`;
 }
 
 function statusLabel(status) {
-  if (state.team === "N2") return "Ok";
+  if (state.team === "N2") return "";
   return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Melhorar";
 }
 

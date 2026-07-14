@@ -43,10 +43,10 @@ const teams = {
     defaultGoals: {
       "Registros Operacional": { target: 38, direction: "up" },
       "Registro Financeiro": { target: 38, direction: "up" },
-      "O.S Aberta a Campo": { target: 20, direction: "up" },
-      "Atendimento OPASuite": { target: 88, direction: "up" },
-      "Avaliacao Individual": { target: 4.0, direction: "up" },
-      "Tempo Medio de Atendimento": { target: "00:56:58", direction: "down" },
+      "O.S Aberta a Campo": { target: 25, direction: "down" },
+      "Atendimento OPASuite": { target: 96, direction: "up" },
+      "Avaliacao Individual": { target: 4.3, direction: "up" },
+      "Tempo Medio de Atendimento": { target: "00:59:59", direction: "down" },
       "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }
     },
     rowsByWeek: emptyRowsByWeek(),
@@ -478,7 +478,7 @@ function parseGoalsRow(row, teamKey, map) {
     return {
       "Registros Operacional": { target: normalizeImportedValue(row[map.operacional], "number"), direction: "up" },
       "Registro Financeiro": { target: normalizeImportedValue(row[map.financeiro], "number"), direction: "up" },
-      "O.S Aberta a Campo": { target: normalizeImportedValue(row[map.osCampo], "number"), direction: "up" },
+      "O.S Aberta a Campo": { target: 25, direction: "down" },
       "Atendimento OPASuite": { target: normalizeImportedValue(row[map.opaSuite], "number"), direction: "up" },
       "Avaliacao Individual": { target: normalizeImportedValue(row[map.avaliacao], "score"), direction: "up" },
       "Tempo Medio de Atendimento": { target: normalizeImportedValue(row[map.tma], "time"), direction: "down" },
@@ -1120,7 +1120,21 @@ function filteredRows() {
 }
 
 function currentGoals() {
-  return teams[state.currentTeam].goalsByWeek[state.currentWeek] || teams[state.currentTeam].defaultGoals;
+  const goals = {
+    ...(teams[state.currentTeam].goalsByWeek[state.currentWeek] || teams[state.currentTeam].defaultGoals)
+  };
+
+  if (state.currentTeam === "N1") {
+    goals["Registros Operacional"] = { target: 38, direction: "up" };
+    goals["Registro Financeiro"] = { target: 38, direction: "up" };
+    goals["O.S Aberta a Campo"] = { target: 25, direction: "down" };
+    goals["Atendimento OPASuite"] = { target: 96, direction: "up" };
+    goals["Avaliacao Individual"] = { target: 4.3, direction: "up" };
+    goals["Tempo Medio de Atendimento"] = { target: "00:59:59", direction: "down" };
+    goals["Tempo Medio de Resposta"] = { target: "00:02:20", direction: "down" };
+  }
+
+  return goals;
 }
 
 function scoreRow(row) {

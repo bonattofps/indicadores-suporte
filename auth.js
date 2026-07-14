@@ -61,8 +61,10 @@ const dashboardOptions = [
   { page: "index.html", label: "Início" },
   { page: "apresentacao.html", label: "Indicadores Gerais" },
   { page: "colaboradores.html", label: "Colaboradores" },
+  { page: "feedback.html", label: "Feedback Individual" },
   { page: "operacional.html", label: "Reincidência" },
   { page: "ocorrencias.html", label: "Ocorrências" },
+  { page: "relatorio.html", label: "Relatório PDF" },
   { page: "jornada.html", label: "Jornadas do Suporte" },
   { page: "cto.html", label: "Identificação de CTO/Gerador PPPoE" },
   { page: "lancamentos-indicadores.html", label: "Lançamentos" },
@@ -91,8 +93,10 @@ const roleDescriptions = {
 const dashboardDescriptions = {
   "apresentacao.html": "KPIs, TMA, metas e evolução semanal.",
   "colaboradores.html": "Ranking e desempenho N1/N2.",
+  "feedback.html": "Conversa 1:1 por colaborador.",
   "operacional.html": "Clientes reincidentes e análise operacional.",
   "ocorrencias.html": "Ocorrências mensais, cidades e motivos críticos.",
+  "relatorio.html": "Relatório mensal para impressão em PDF.",
   "jornada.html": "Escala, plantões, folgas e férias.",
   "cto.html": "Identificação de CTO e gerador PPPoE.",
   "lancamentos-indicadores.html": "Cadastro manual dos indicadores e colaboradores.",
@@ -229,9 +233,9 @@ const defaultRoleAccess = {
   viewer: ["sem-acesso.html"],
   n1: ["index.html", "apresentacao.html", "cto.html"],
   n2: ["index.html", "apresentacao.html", "colaboradores.html", "jornada.html", "cto.html"],
-  supervisor: ["index.html", "apresentacao.html", "colaboradores.html", "operacional.html", "ocorrencias.html", "jornada.html", "cto.html"],
-  gerente: ["index.html", "apresentacao.html", "colaboradores.html", "operacional.html", "ocorrencias.html", "jornada.html", "cto.html"],
-  administrador: ["index.html", "apresentacao.html", "colaboradores.html", "operacional.html", "ocorrencias.html", "jornada.html", "cto.html", "lancamentos-indicadores.html", "lancamentos-ocorrencias.html", "usuarios.html"]
+  supervisor: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
+  gerente: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
+  administrador: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html", "lancamentos-indicadores.html", "lancamentos-ocorrencias.html", "usuarios.html"]
 };
 
 const defaultIndicatorGoals = {

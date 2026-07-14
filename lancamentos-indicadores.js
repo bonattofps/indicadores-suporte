@@ -56,7 +56,7 @@ const COLLABORATOR_GOALS = {
   N1: {
     "Registros Operacional": { target: 38, direction: "up" },
     "Registro Financeiro": { target: 38, direction: "up" },
-    "O.S Aberta a Campo": { target: 20, direction: "up" },
+    "O.S Aberta a Campo": { target: 25, direction: "down" },
     "Atendimento OPASuite": { target: 96, direction: "up" },
     "Avaliacao Individual": { target: 4.3, direction: "up" },
     "Tempo Medio de Atendimento": { target: "00:59:59", direction: "down" },
@@ -660,7 +660,7 @@ function n2ColumnMap(header) {
 }
 
 function defaultGoalsByWeek(teamKey) {
-  return Object.fromEntries(WEEK_OPTIONS.map((week) => [week.key, COLLABORATOR_GOALS[teamKey]]));
+  return Object.fromEntries(WEEK_OPTIONS.map((week) => [week.key, { ...COLLABORATOR_GOALS[teamKey] }]));
 }
 
 function monthMetaFromSheet(sheetName, index) {

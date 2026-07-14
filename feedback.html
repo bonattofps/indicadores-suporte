@@ -1,0 +1,119 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Feedback Individual</title>
+    <script type="module" src="auth.js?v=20260714-1"></script>
+    <script type="module" src="assistant.js?v=20260701-2"></script>
+    <link rel="stylesheet" href="brand.css?v=20260701-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260701-2" />
+    <link rel="stylesheet" href="feedback.css?v=20260714-1" />
+  </head>
+  <body>
+    <main class="screen">
+      <header class="header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema GestÃ£o do Suporte</p>
+          <h1>Feedback Individual</h1>
+          <p class="subtitle">Conversa 1:1 com indicadores, metas e plano de aÃ§Ã£o sem expor outros colaboradores.</p>
+        </div>
+        <nav class="switcher" aria-label="NavegaÃ§Ã£o principal">
+          <a href="apresentacao.html">Indicadores Gerais</a>
+          <a href="colaboradores.html">Colaboradores</a>
+          <a class="active" href="feedback.html">Feedback</a>
+          <a href="usuarios.html" hidden style="display: none">ConfiguraÃ§Ãµes</a>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">â—</button>
+        </nav>
+      </header>
+
+      <section class="notice" id="feedbackStatus">Carregando dados dos colaboradores...</section>
+
+      <section class="filters" aria-label="Filtros do feedback">
+        <label>
+          <span>MÃªs</span>
+          <select id="monthSelect"></select>
+        </label>
+        <label>
+          <span>Equipe</span>
+          <select id="teamSelect">
+            <option value="N1">N1</option>
+            <option value="N2">N2</option>
+          </select>
+        </label>
+        <label>
+          <span>Semana</span>
+          <select id="weekSelect">
+            <option value="ultima">Ãšltima semana</option>
+            <option value="s1">1Âª semana</option>
+            <option value="s2">2Âª semana</option>
+            <option value="s3">3Âª semana</option>
+            <option value="s4">4Âª semana</option>
+          </select>
+        </label>
+        <label>
+          <span>Colaborador</span>
+          <select id="collaboratorSelect"></select>
+        </label>
+      </section>
+
+      <section class="profile-band" id="profileBand"></section>
+
+      <section class="feedback-layout">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Metas individuais</p>
+              <h2>Resultado da conversa</h2>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Indicador</th>
+                  <th>Resultado</th>
+                  <th>Meta</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="metricsBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Feedback pronto</p>
+              <h2>Resumo para falar com o colaborador</h2>
+            </div>
+            <button id="copyFeedbackButton" type="button">Copiar texto</button>
+          </div>
+          <div class="feedback-text" id="feedbackText"></div>
+        </article>
+      </section>
+
+      <section class="panel action-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Plano de aÃ§Ã£o</p>
+            <h2>Combinado da conversa</h2>
+          </div>
+          <div class="actions">
+            <button id="saveNoteButton" type="button">Salvar observaÃ§Ã£o</button>
+            <button id="printButton" type="button">Imprimir/PDF</button>
+          </div>
+        </div>
+        <textarea id="noteInput" rows="5" placeholder="Ex: Foco da prÃ³xima semana: reduzir TMR para atÃ© 00:02:20 e reforÃ§ar registros operacionais diariamente."></textarea>
+      </section>
+    </main>
+
+    <script src="indicadores-junho-seed.js?v=20260701-2"></script>
+    <script src="feedback.js?v=20260714-1"></script>
+  </body>
+</html>
+

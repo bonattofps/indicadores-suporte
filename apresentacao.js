@@ -1237,7 +1237,7 @@ function parseCollaboratorGoals(row, teamKey, map) {
     return {
       "Registros Operacional": { target: collaboratorValue(row[map.operacional], "number"), direction: "up" },
       "Registro Financeiro": { target: collaboratorValue(row[map.financeiro], "number"), direction: "up" },
-      "O.S Aberta a Campo": { target: collaboratorValue(row[map.osCampo], "number"), direction: "up" },
+      "O.S Aberta a Campo": { target: 25, direction: "down" },
       "Atendimento OPASuite": { target: collaboratorValue(row[map.opaSuite], "number"), direction: "up" },
       "Avaliacao Individual": { target: collaboratorValue(row[map.avaliacao], "score"), direction: "up" },
       "Tempo Medio de Atendimento": { target: collaboratorValue(row[map.tma], "time"), direction: "down" },
@@ -1291,10 +1291,10 @@ function defaultCollaboratorGoals(teamKey) {
     ? {
         "Registros Operacional": { target: 38, direction: "up" },
         "Registro Financeiro": { target: 38, direction: "up" },
-        "O.S Aberta a Campo": { target: 20, direction: "up" },
-        "Atendimento OPASuite": { target: 88, direction: "up" },
-        "Avaliacao Individual": { target: 4.0, direction: "up" },
-        "Tempo Medio de Atendimento": { target: "00:56:58", direction: "down" },
+      "O.S Aberta a Campo": { target: 25, direction: "down" },
+      "Atendimento OPASuite": { target: 96, direction: "up" },
+      "Avaliacao Individual": { target: 4.3, direction: "up" },
+      "Tempo Medio de Atendimento": { target: "00:59:59", direction: "down" },
         "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }
       }
     : {

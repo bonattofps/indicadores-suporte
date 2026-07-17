@@ -11,6 +11,8 @@ const WEEK_LABELS = {
   s4: "4ª semana"
 };
 
+const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4"];
+
 const TEAM_HEADERS = {
   N1: [
     "Colaborador",
@@ -56,6 +58,8 @@ const state = {
   month: "",
   team: "N1",
   week: "ultima",
+  compareWeek: "",
+  mode: "weekly",
   collaborator: ""
 };
 
@@ -66,10 +70,23 @@ const els = {
   month: document.querySelector("#monthSelect"),
   team: document.querySelector("#teamSelect"),
   week: document.querySelector("#weekSelect"),
+  compareWeek: document.querySelector("#compareWeekSelect"),
+  compareControl: document.querySelector("#compareControl"),
+  weeklyMode: document.querySelector("#weeklyModeButton"),
+  comparisonMode: document.querySelector("#comparisonModeButton"),
+  monthlyMode: document.querySelector("#monthlyModeButton"),
   collaborator: document.querySelector("#collaboratorSelect"),
   profile: document.querySelector("#profileBand"),
   metrics: document.querySelector("#metricsBody"),
   feedback: document.querySelector("#feedbackText"),
+  comparisonPanel: document.querySelector("#comparisonPanel"),
+  comparisonBoards: document.querySelector("#comparisonBoards"),
+  comparisonSummary: document.querySelector("#comparisonSummary"),
+  comparisonText: document.querySelector("#comparisonText"),
+  monthlyPanel: document.querySelector("#monthlyPanel"),
+  monthlyWeeks: document.querySelector("#monthlyWeeks"),
+  monthlySummary: document.querySelector("#monthlySummary"),
+  monthlyText: document.querySelector("#monthlyText"),
   note: document.querySelector("#noteInput"),
   copy: document.querySelector("#copyFeedbackButton"),
   save: document.querySelector("#saveNoteButton"),
@@ -97,17 +114,37 @@ async function init() {
 function bindEvents() {
   els.month.addEventListener("change", () => {
     state.month = els.month.value;
+    syncCompareWeek();
     syncCollaboratorSelection();
     render();
   });
   els.team.addEventListener("change", () => {
     state.team = els.team.value;
+    syncCompareWeek();
     syncCollaboratorSelection();
     render();
   });
   els.week.addEventListener("change", () => {
     state.week = els.week.value;
+    syncCompareWeek();
     syncCollaboratorSelection();
+    render();
+  });
+  els.compareWeek?.addEventListener("change", () => {
+    state.compareWeek = els.compareWeek.value;
+    render();
+  });
+  els.weeklyMode?.addEventListener("click", () => {
+    state.mode = "weekly";
+    render();
+  });
+  els.comparisonMode?.addEventListener("click", () => {
+    state.mode = "comparison";
+    syncCompareWeek();
+    render();
+  });
+  els.monthlyMode?.addEventListener("click", () => {
+    state.mode = "monthly";
     render();
   });
   els.collaborator.addEventListener("change", () => {
@@ -152,7 +189,7 @@ function isValidWorkbook(workbook) {
 }
 
 function syncCollaboratorSelection() {
-  const names = currentRows().map((row) => rowObject(row).Colaborador).filter(Boolean);
+  const names = collaboratorNamesForMonth();
   if (!names.includes(state.collaborator)) state.collaborator = names[0] || "";
   renderCollaboratorOptions();
 }
@@ -160,8 +197,11 @@ function syncCollaboratorSelection() {
 function render() {
   if (!isValidWorkbook(state.workbook)) return;
   renderMonthOptions();
+  renderModeControls();
   renderCollaboratorOptions();
   renderFeedback();
+  renderComparison();
+  renderMonthly();
 }
 
 function renderMonthOptions() {
@@ -171,15 +211,70 @@ function renderMonthOptions() {
   els.month.value = state.month;
   els.team.value = state.team;
   els.week.value = state.week;
+  syncCompareWeek();
+}
+
+function renderModeControls() {
+  const isComparison = state.mode === "comparison";
+  const isMonthly = state.mode === "monthly";
+  document.body.dataset.feedbackMode = state.mode;
+  els.weeklyMode?.classList.toggle("active", !isComparison && !isMonthly);
+  els.comparisonMode?.classList.toggle("active", isComparison);
+  els.monthlyMode?.classList.toggle("active", isMonthly);
+  if (els.copy) els.copy.textContent = isMonthly ? "Copiar mensal" : isComparison ? "Copiar comparativo" : "Copiar meta";
+  if (els.compareControl) els.compareControl.hidden = !isComparison;
+  if (els.comparisonPanel) els.comparisonPanel.hidden = !isComparison;
+  if (els.monthlyPanel) els.monthlyPanel.hidden = !isMonthly;
+
+  const options = comparisonOptions()
+    .map((weekKey) => `<option value="${weekKey}">${escapeHtml(WEEK_LABELS[weekKey] || weekKey)}</option>`)
+    .join("");
+
+  if (els.compareWeek) {
+    els.compareWeek.innerHTML = options || '<option value="">Sem semana para comparar</option>';
+    els.compareWeek.value = state.compareWeek;
+    els.compareWeek.disabled = true;
+  }
+}
+
+function availableWeeks() {
+  const rowsByWeek = currentMonth()?.teams?.[state.team]?.rowsByWeek || {};
+  return WEEK_ORDER.filter((weekKey) => Array.isArray(rowsByWeek[weekKey]) && rowsByWeek[weekKey].length);
+}
+
+function syncCompareWeek() {
+  const expected = expectedComparisonWeek(state.week);
+  state.compareWeek = availableWeeks().includes(expected) ? expected : "";
+}
+
+function expectedComparisonWeek(weekKey) {
+  const index = WEEK_ORDER.indexOf(weekKey);
+  if (index <= 0) return "";
+  return WEEK_ORDER[index - 1] || "";
+}
+
+function comparisonOptions() {
+  return state.compareWeek ? [state.compareWeek] : [];
 }
 
 function renderCollaboratorOptions() {
-  const names = currentRows().map((row) => rowObject(row).Colaborador).filter(Boolean);
+  const names = collaboratorNamesForMonth();
   els.collaborator.innerHTML = names.length
     ? names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")
     : '<option value="">Sem colaboradores</option>';
   if (!state.collaborator || !names.includes(state.collaborator)) state.collaborator = names[0] || "";
   els.collaborator.value = state.collaborator;
+}
+
+function collaboratorNamesForMonth() {
+  const names = new Set();
+  availableWeeks().forEach((weekKey) => {
+    currentRows(weekKey)
+      .map((row) => rowObject(row).Colaborador)
+      .filter(Boolean)
+      .forEach((name) => names.add(name));
+  });
+  return [...names].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function renderFeedback() {
@@ -194,7 +289,7 @@ function renderFeedback() {
   const bad = metrics.filter((item) => item.status === "bad");
   const warn = metrics.filter((item) => item.status === "warn");
   const good = metrics.filter((item) => item.status === "good");
-  const status = bad.length ? "Em desenvolvimento" : warn.length ? "Atenção" : "Dentro";
+  const status = bad.length ? "Evoluir" : warn.length ? "Atenção" : "Dentro";
   const statusClass = bad.length ? "bad" : warn.length ? "warn" : "good";
 
   els.status.textContent = row
@@ -220,7 +315,7 @@ function renderFeedback() {
       <strong>${warn.length}</strong>
     </div>
     <div class="profile-item">
-      <span class="eyebrow">Em desenvolvimento</span>
+      <span class="eyebrow">Evoluir</span>
       <strong>${bad.length}</strong>
     </div>
   `;
@@ -247,6 +342,477 @@ function renderFeedback() {
   els.note.value = localStorage.getItem(noteKey()) || "";
 }
 
+function renderComparison() {
+  if (!els.comparisonPanel) return;
+  if (state.mode !== "comparison") {
+    els.comparisonPanel.hidden = true;
+    return;
+  }
+
+  els.comparisonPanel.hidden = false;
+
+  if (state.team !== "N1") {
+    els.comparisonSummary.innerHTML = `
+      <article class="comparison-card neutral">
+        <span>Comparativo</span>
+        <strong>N2 sem metas comparativas</strong>
+        <p>Use este modo para N1, onde existem metas individuais configuradas.</p>
+      </article>
+    `;
+    els.comparisonBody.innerHTML = '<tr><td colspan="4">Comparativo por meta disponível para N1.</td></tr>';
+    els.comparisonText.innerHTML = "";
+    return;
+  }
+
+  const current = selectedRowObject(state.week);
+  const previous = selectedRowObject(state.compareWeek);
+  const goals = currentGoals();
+  const comparisons = Object.keys(goals).map((metric) => compareMetric(metric, current, previous, goals[metric]));
+  const improved = comparisons.filter((item) => item.trend === "improved");
+  const worsened = comparisons.filter((item) => item.trend === "worse");
+  const stable = comparisons.filter((item) => item.trend === "same");
+  const missing = comparisons.filter((item) => item.trend === "missing");
+
+  els.comparisonSummary.innerHTML = `
+    <article class="comparison-card good">
+      <span>Melhorou</span>
+      <strong>${improved.length}</strong>
+      <p>${escapeHtml(metricListText(improved, "Nenhum indicador melhorou."))}</p>
+    </article>
+    <article class="comparison-card bad">
+      <span>Oscilou</span>
+      <strong>${worsened.length}</strong>
+      <p>${escapeHtml(metricListText(worsened, "Nenhum indicador oscilou."))}</p>
+    </article>
+    <article class="comparison-card neutral">
+      <span>Manteve</span>
+      <strong>${stable.length}</strong>
+      <p>${escapeHtml(metricListText(stable, "Nenhum indicador ficou igual."))}</p>
+    </article>
+  `;
+
+  els.comparisonBody.innerHTML = comparisons.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.metric)}</td>
+      <td>${escapeHtml(item.previousLabel)}</td>
+      <td>${escapeHtml(item.currentLabel)}</td>
+      <td>
+        <span class="trend-badge ${item.trend}">${escapeHtml(item.trendLabel)}</span>
+        <small>${escapeHtml(item.diffLabel)}</small>
+      </td>
+    </tr>
+  `).join("");
+
+  const currentLabel = WEEK_LABELS[state.week] || state.week;
+  const previousLabel = WEEK_LABELS[state.compareWeek] || state.compareWeek || "semana anterior";
+  const attention = [...worsened, ...missing].slice(0, 4);
+
+  els.comparisonText.innerHTML = `
+    <div class="comparison-note">
+      <strong>Leitura para a conversa</strong>
+      <p>${escapeHtml(state.collaborator || "Colaborador")} teve ${improved.length} indicador(es) com evolução positiva comparando ${escapeHtml(currentLabel)} com ${escapeHtml(previousLabel)}.</p>
+      <p>${attention.length
+        ? `Pontos para acompanhar: ${escapeHtml(metricListText(attention, ""))}.`
+        : "Não há pontos críticos novos na comparação selecionada."}</p>
+    </div>
+  `;
+}
+
+function renderComparison() {
+  if (!els.comparisonPanel) return;
+  if (state.mode !== "comparison") {
+    els.comparisonPanel.hidden = true;
+    return;
+  }
+
+  els.comparisonPanel.hidden = false;
+
+  if (state.team !== "N1") {
+    els.comparisonBoards.innerHTML = "";
+    els.comparisonSummary.innerHTML = `
+      <article class="comparison-card neutral">
+        <span>Comparativo</span>
+        <strong>N2 sem metas comparativas</strong>
+        <p>Use este modo para N1, onde existem metas individuais configuradas.</p>
+      </article>
+    `;
+    els.comparisonText.innerHTML = "";
+    return;
+  }
+
+  const current = selectedRowObject(state.week);
+  const previous = selectedRowObject(state.compareWeek);
+  const goals = currentGoals();
+  const metrics = Object.keys(goals);
+
+  if (!state.compareWeek || !previous) {
+    els.comparisonBoards.innerHTML = "";
+    els.comparisonSummary.innerHTML = `
+      <article class="comparison-card neutral">
+        <span>Comparativo</span>
+        <strong>Sem base anterior</strong>
+        <p>Para esta semana, ainda não existe a semana anterior necessária para comparação.</p>
+      </article>
+    `;
+    els.comparisonText.innerHTML = "";
+    return;
+  }
+
+  const comparisons = metrics.map((metric) => compareMetric(metric, current, previous, goals[metric]));
+  const improved = comparisons.filter((item) => item.trend === "improved");
+  const worsened = comparisons.filter((item) => item.trend === "worse");
+  const stable = comparisons.filter((item) => item.trend === "same");
+  const missing = comparisons.filter((item) => item.trend === "missing");
+  const currentLabel = WEEK_LABELS[state.week] || state.week;
+  const previousLabel = WEEK_LABELS[state.compareWeek] || state.compareWeek || "semana anterior";
+  const attention = [...worsened, ...missing].slice(0, 4);
+
+  els.comparisonBoards.innerHTML = `
+    ${renderComparisonBoard(previousLabel, previous, metrics, goals, "compare")}
+    ${renderComparisonBoard(currentLabel, current, metrics, goals, "current")}
+  `;
+
+  els.comparisonSummary.innerHTML = `
+    <article class="comparison-card good">
+      <span>Melhorou</span>
+      <strong>${improved.length}</strong>
+      <p>${escapeHtml(metricListText(improved, "Nenhum indicador melhorou."))}</p>
+    </article>
+    <article class="comparison-card bad">
+      <span>Oscilou</span>
+      <strong>${worsened.length}</strong>
+      <p>${escapeHtml(metricListText(worsened, "Nenhum indicador oscilou."))}</p>
+    </article>
+    <article class="comparison-card neutral">
+      <span>Manteve</span>
+      <strong>${stable.length}</strong>
+      <p>${escapeHtml(metricListText(stable, "Nenhum indicador ficou igual."))}</p>
+    </article>
+  `;
+
+  els.comparisonText.innerHTML = `
+    <div class="comparison-note">
+      <strong>Relatório da evolução</strong>
+      <div class="comparison-report">
+        <section>
+          <span>Melhorou</span>
+          <p>${escapeHtml(metricListText(improved, "Nenhum indicador apresentou melhora na comparação."))}</p>
+        </section>
+        <section>
+          <span>Oscilou</span>
+          <p>${escapeHtml(metricListText(worsened, "Nenhum indicador oscilou na comparação."))}</p>
+        </section>
+        <section>
+          <span>Manter atenção</span>
+          <p>${attention.length
+            ? escapeHtml(metricListText(attention, ""))
+            : "Não há pontos críticos novos na comparação selecionada."}</p>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
+function renderComparisonBoard(label, row, metrics, goals, kind) {
+  const statusItems = metrics.map((metric) => {
+    const status = metricStatus(row?.[metric], goals[metric]);
+    return { metric, value: row?.[metric], goal: goals[metric], status };
+  });
+
+  return `
+    <article class="comparison-board ${kind}">
+      <div class="comparison-board-head">
+        <span>${escapeHtml(kind === "current" ? "Semana atual" : "Semana comparada")}</span>
+        <strong>${escapeHtml(label)}</strong>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th>Resultado</th>
+              <th>Meta</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${statusItems.map((item) => `
+              <tr>
+                <td>${escapeHtml(item.metric)}</td>
+                <td class="${item.status}-cell">${escapeHtml(formatCell(item.value))}</td>
+                <td>${escapeHtml(goalLabel(item.goal, item.metric))}</td>
+                <td>${renderStatusCell(item.status)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+function renderMonthly() {
+  if (!els.monthlyPanel) return;
+  if (state.mode !== "monthly") {
+    els.monthlyPanel.hidden = true;
+    return;
+  }
+
+  els.monthlyPanel.hidden = false;
+
+  if (state.team !== "N1") {
+    els.monthlyWeeks.innerHTML = "";
+    els.monthlySummary.innerHTML = `
+      <article class="monthly-card neutral">
+        <span>Mensal</span>
+        <strong>N2 em acompanhamento</strong>
+        <p>O fechamento mensal com metas e médias está configurado para N1.</p>
+      </article>
+    `;
+    els.monthlyText.innerHTML = "";
+    return;
+  }
+
+  const goals = currentGoals();
+  const metrics = Object.keys(goals);
+  const weekRows = monthlyRowsForCollaborator();
+  const aggregates = monthlyAggregates(weekRows);
+  els.status.textContent = weekRows.length
+    ? `Fechamento mensal carregado para ${state.collaborator}.`
+    : "Sem dados mensais do colaborador nas semanas deste mês.";
+
+  els.monthlyWeeks.innerHTML = weekRows.length
+    ? renderMonthlyWeekBoard(weekRows, metrics, goals)
+    : '<div class="monthly-empty">Sem dados deste colaborador nas semanas do mês.</div>';
+
+  els.monthlySummary.innerHTML = aggregates.map((item) => `
+    <article class="monthly-card ${item.kind}">
+      <span>${escapeHtml(item.type)}</span>
+      <strong>${escapeHtml(item.value)}</strong>
+      <small>${escapeHtml(item.target)}</small>
+      <p>${escapeHtml(item.label)}</p>
+    </article>
+  `).join("");
+
+  const belowGoal = aggregates.filter((item) => item.kind === "bad").map((item) => item.label);
+  els.monthlyText.innerHTML = `
+    <div class="monthly-note">
+      <strong>Leitura mensal</strong>
+      <p>${escapeHtml(state.collaborator || "Colaborador")} teve ${weekRows.length} semana(s) considerada(s) em ${escapeHtml(currentMonth()?.label || state.month)}.</p>
+      <p>${belowGoal.length
+        ? `Pontos para evoluir no mês: ${escapeHtml(belowGoal.join(", "))}.`
+        : "Fechamento mensal dentro dos principais limites configurados."}</p>
+    </div>
+  `;
+}
+
+function monthlyRowsForCollaborator() {
+  return monthlyWeeks()
+    .map((weekKey) => ({ weekKey, row: selectedRowObject(weekKey) }))
+    .filter((item) => item.row);
+}
+
+function monthlyWeeks() {
+  return availableWeeks().filter((weekKey) => weekKey !== "ultima");
+}
+
+function renderMonthlyWeekBoard(weekRows, metrics, goals) {
+  return `
+    <article class="monthly-week monthly-matrix">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              ${weekRows.map((item) => `<th>${escapeHtml(WEEK_LABELS[item.weekKey] || item.weekKey)}</th>`).join("")}
+              <th>Mensal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${metrics.map((metric) => {
+              const monthlyValue = monthlyValueForMetric(weekRows, metric);
+              const monthlyStatus = monthlyStatusKind(metric, monthlyValue, weekRows.length, monthlyAggregationMode(metric));
+              return `
+                <tr>
+                  <td>${escapeHtml(metric)}</td>
+                  ${weekRows.map((item) => {
+                    const status = metricStatus(item.row?.[metric], goals[metric]);
+                    return `<td class="${status}-cell">${escapeHtml(formatCell(item.row?.[metric]))}</td>`;
+                  }).join("")}
+                  <td class="${monthlyStatus}-cell"><strong>${escapeHtml(formatMonthlyMetric(metric, monthlyValue))}</strong></td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+function monthlyAggregates(weekRows) {
+  const sumMetrics = monthlySumMetrics();
+  const averageMetrics = monthlyAverageMetrics();
+
+  return [
+    ...sumMetrics.map((metric) => {
+      const value = sumMetric(weekRows, metric);
+      return {
+        type: "Soma mensal",
+        label: metric,
+        value: formatMonthlyMetric(metric, value),
+        target: monthlyTargetLabel(metric, weekRows.length, "sum"),
+        kind: monthlyStatusKind(metric, value, weekRows.length, "sum")
+      };
+    }),
+    ...averageMetrics.map((metric) => {
+      const value = averageMetric(weekRows, metric);
+      return {
+        type: "Média mensal",
+        label: metric,
+        value: formatMonthlyMetric(metric, value),
+        target: monthlyTargetLabel(metric, weekRows.length, "average"),
+        kind: monthlyStatusKind(metric, value, weekRows.length, "average")
+      };
+    })
+  ];
+}
+
+function monthlySumMetrics() {
+  return [
+    "Registros Operacional",
+    "Registro Financeiro",
+    "O.S Aberta a Campo",
+    "Atendimento OPASuite"
+  ];
+}
+
+function monthlyAverageMetrics() {
+  return [
+    "Avaliação Individual",
+    "Tempo Médio de Atendimento",
+    "Tempo Médio de Resposta"
+  ];
+}
+
+function monthlyAggregationMode(metric) {
+  return monthlyAverageMetrics().includes(metric) ? "average" : "sum";
+}
+
+function monthlyValueForMetric(weekRows, metric) {
+  return monthlyAggregationMode(metric) === "average"
+    ? averageMetric(weekRows, metric)
+    : sumMetric(weekRows, metric);
+}
+
+function sumMetric(weekRows, metric) {
+  return weekRows.reduce((total, item) => {
+    const value = metricValue(item.row?.[metric]);
+    return Number.isFinite(value) ? total + value : total;
+  }, 0);
+}
+
+function averageMetric(weekRows, metric) {
+  const values = weekRows
+    .map((item) => metricValue(item.row?.[metric]))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) return NaN;
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function formatMonthlyMetric(metric, value) {
+  if (!Number.isFinite(value)) return "-";
+  if (metric.includes("Tempo")) return secondsToTime(value);
+  if (metric.includes("Avaliação")) {
+    return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return Math.round(value).toLocaleString("pt-BR");
+}
+
+function monthlyTargetLabel(metric, weekCount, mode) {
+  const goal = currentGoals()[metric];
+  if (!goal) return "Meta mensal: -";
+  const baseTarget = metricValue(goal.target);
+  if (!Number.isFinite(baseTarget)) return "Meta mensal: -";
+  const target = mode === "sum" ? baseTarget * Math.max(weekCount, 1) : baseTarget;
+  const direction = goal.direction === "down" ? "até" : "mínimo";
+  return `Meta mensal: ${direction} ${formatMonthlyMetric(metric, target)}`;
+}
+
+function monthlyStatusKind(metric, value, weekCount, mode) {
+  const goal = currentGoals()[metric];
+  if (!goal || !Number.isFinite(value)) return "neutral";
+  const baseTarget = metricValue(goal.target);
+  const target = mode === "sum" ? baseTarget * Math.max(weekCount, 1) : baseTarget;
+  if (!Number.isFinite(target)) return "neutral";
+  if (goal.direction === "down") return value <= target ? "good" : "bad";
+  return value >= target ? "good" : "bad";
+}
+
+function compareMetric(metric, currentRow, previousRow, goal) {
+  const currentValue = currentRow?.[metric];
+  const previousValue = previousRow?.[metric];
+  const currentNumber = metricValue(currentValue);
+  const previousNumber = metricValue(previousValue);
+  const hasData = Number.isFinite(currentNumber) && Number.isFinite(previousNumber);
+
+  if (!hasData) {
+    return {
+      metric,
+      trend: "missing",
+      trendLabel: "Sem dados",
+      previousLabel: formatCell(previousValue),
+      currentLabel: formatCell(currentValue),
+      diffLabel: "Comparação incompleta"
+    };
+  }
+
+  const diff = currentNumber - previousNumber;
+  const same = Math.abs(diff) < 0.0001;
+  const improved = goal?.direction === "down" ? diff < 0 : diff > 0;
+  const trend = same ? "same" : improved ? "improved" : "worse";
+
+  return {
+    metric,
+    trend,
+    trendLabel: trendLabel(trend),
+    previousLabel: formatCell(previousValue),
+    currentLabel: formatCell(currentValue),
+    diffLabel: diffLabel(metric, diff)
+  };
+}
+
+function trendLabel(trend) {
+  if (trend === "improved") return "Melhorou";
+  if (trend === "worse") return "Oscilou";
+  if (trend === "missing") return "Sem dados";
+  return "Manteve";
+}
+
+function diffLabel(metric, diff) {
+  if (!Number.isFinite(diff)) return "-";
+  const sign = diff > 0 ? "+" : diff < 0 ? "-" : "";
+  const absolute = Math.abs(diff);
+  if (metric.includes("Tempo")) return `${sign}${secondsToTime(absolute)}`;
+  const value = Number.isInteger(absolute)
+    ? String(absolute)
+    : absolute.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${sign}${value}`;
+}
+
+function secondsToTime(seconds) {
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return [hours, minutes, secs].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function metricListText(items, fallback) {
+  if (!items.length) return fallback;
+  return items.map((item) => shortMetricName(item.metric)).join(", ");
+}
+
 function renderEmpty() {
   els.month.innerHTML = '<option value="">Sem dados</option>';
   els.collaborator.innerHTML = '<option value="">Sem dados</option>';
@@ -259,12 +825,12 @@ function currentMonth() {
   return state.workbook?.months?.[state.month] || null;
 }
 
-function currentRows() {
-  return currentMonth()?.teams?.[state.team]?.rowsByWeek?.[state.week] || [];
+function currentRows(weekKey = state.week) {
+  return currentMonth()?.teams?.[state.team]?.rowsByWeek?.[weekKey] || [];
 }
 
-function selectedRowObject() {
-  return currentRows()
+function selectedRowObject(weekKey = state.week) {
+  return currentRows(weekKey)
     .map(rowObject)
     .find((row) => row.Colaborador === state.collaborator) || null;
 }
@@ -475,11 +1041,12 @@ function secondaryGoal(good, bad, warn) {
 }
 
 function copyFeedback() {
-  const text = [...els.feedback.querySelectorAll(".tv-card")]
+  const source = state.mode === "monthly" ? els.monthlyPanel : state.mode === "comparison" ? els.comparisonPanel : els.feedback;
+  const text = [...source.querySelectorAll(".tv-card, .comparison-board, .comparison-card, .comparison-note, .monthly-week, .monthly-card, .monthly-note")]
     .map((item) => item.textContent.replace(/\s+/g, " ").trim())
     .join("\n\n");
   navigator.clipboard?.writeText(text);
-  els.status.textContent = "Meta da próxima semana copiada.";
+  els.status.textContent = state.mode === "monthly" ? "Fechamento mensal copiado." : state.mode === "comparison" ? "Comparativo copiado." : "Meta da próxima semana copiada.";
 }
 
 function saveNote() {
@@ -488,38 +1055,67 @@ function saveNote() {
 }
 
 function printFeedbackPdf() {
+  if (state.mode === "comparison") {
+    els.status.textContent = "Será gerado um PDF com 2 páginas: feedback semanal e comparativo semanal.";
+    printReportForMode("comparison-complete");
+    return;
+  }
+
+  printReportForMode(state.mode);
+}
+
+function printReportSequence(modes) {
+  const [mode, ...nextModes] = modes;
+  if (!mode) return;
+  printReportForMode(mode, () => {
+    if (nextModes.length) {
+      window.setTimeout(() => printReportSequence(nextModes), 800);
+    }
+  });
+}
+
+function printReportForMode(mode, afterPrintCallback) {
   const originalTitle = document.title;
   const row = selectedRowObject();
   const collaborator = row?.Colaborador || state.collaborator || "Colaborador";
   const month = currentMonth()?.label || state.month || "Periodo";
   const week = WEEK_LABELS[state.week] || state.week || "Semana";
-  const suggestedTitle = filenameSafe(`SGP - Feedback - ${collaborator} - ${week} - ${month}`);
+  const compareWeek = WEEK_LABELS[state.compareWeek] || state.compareWeek || "Semana anterior";
+  const titlePrefix = mode === "monthly" ? "SGP - Mensal" : mode === "comparison" || mode === "comparison-complete" ? "SGP - Feedback e Comparativo" : "SGP - Feedback";
+  const titleSuffix = mode === "monthly" ? "Fechamento mensal" : mode === "comparison" || mode === "comparison-complete" ? `${compareWeek} x ${week}` : week;
+  const suggestedTitle = filenameSafe(`${titlePrefix} - ${collaborator} - ${titleSuffix} - ${month}`);
 
-  preparePrintMode();
+  preparePrintMode(mode);
   document.title = suggestedTitle;
   els.status.textContent = `Nome sugerido do PDF: ${suggestedTitle}.pdf`;
 
+  let restored = false;
   const restoreTitle = () => {
+    if (restored) return;
+    restored = true;
     document.title = originalTitle;
     window.removeEventListener("afterprint", restoreTitle);
+    restorePrintMode();
+    if (typeof afterPrintCallback === "function") afterPrintCallback();
   };
 
   window.addEventListener("afterprint", restoreTitle, { once: true });
   window.print();
   window.setTimeout(() => {
     restoreTitle();
-    restorePrintMode();
   }, 15000);
 }
 
-function preparePrintMode() {
+function preparePrintMode(mode = state.mode) {
   if (activePrintRestore) return;
   document.body.classList.add("sgp-print-feedback");
+  document.body.dataset.printMode = mode;
   activePrintRestore = hidePrintOnlyElements();
 }
 
 function restorePrintMode() {
   document.body.classList.remove("sgp-print-feedback");
+  delete document.body.dataset.printMode;
   if (activePrintRestore) {
     activePrintRestore();
     activePrintRestore = null;
@@ -534,6 +1130,7 @@ function ensurePrintStyles() {
     @media print {
       body.sgp-print-feedback .switcher,
       body.sgp-print-feedback .filters,
+      body.sgp-print-feedback .feedback-mode,
       body.sgp-print-feedback .subtitle,
       body.sgp-print-feedback .sgp-userbar,
       body.sgp-print-feedback .sgp-assistant-button,
@@ -588,6 +1185,29 @@ function ensurePrintStyles() {
         background: #ffd7d7 !important;
         color: #9f1d1d !important;
       }
+
+      body.sgp-print-feedback[data-print-mode="weekly"] .comparison-panel,
+      body.sgp-print-feedback[data-print-mode="weekly"] .monthly-panel,
+      body.sgp-print-feedback[data-print-mode="comparison"] .feedback-layout,
+      body.sgp-print-feedback[data-print-mode="comparison"] .monthly-panel,
+      body.sgp-print-feedback[data-print-mode="comparison-complete"] .monthly-panel,
+      body.sgp-print-feedback[data-print-mode="monthly"] .feedback-layout,
+      body.sgp-print-feedback[data-print-mode="monthly"] .comparison-panel {
+        display: none !important;
+      }
+
+      body.sgp-print-feedback[data-print-mode="monthly"] .monthly-panel,
+      body.sgp-print-feedback[data-print-mode="comparison"] .comparison-panel,
+      body.sgp-print-feedback[data-print-mode="comparison-complete"] .comparison-panel {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+
+      body.sgp-print-feedback[data-print-mode="comparison-complete"] .comparison-panel {
+        break-before: page !important;
+        page-break-before: always !important;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -597,6 +1217,7 @@ function hidePrintOnlyElements() {
   const selector = [
     ".switcher",
     ".filters",
+    ".feedback-mode",
     ".subtitle",
     ".sgp-userbar",
     ".sgp-assistant-button",
@@ -641,7 +1262,7 @@ function goalLabel(goal, metric = "") {
 
 function statusLabel(status) {
   if (state.team === "N2") return "";
-  return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Em desenvolvimento";
+  return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Evoluir";
 }
 
 function formatCell(value) {

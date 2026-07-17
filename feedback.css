@@ -14,6 +14,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -124,6 +128,36 @@ button {
   margin-bottom: 16px;
 }
 
+.feedback-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  justify-content: space-between;
+  margin: -4px 0 16px;
+}
+
+.mode-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(159, 197, 216, 0.52);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.mode-tabs button.active {
+  color: #ffffff;
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.compare-control {
+  display: grid;
+  min-width: 240px;
+  gap: 5px;
+}
+
 .filters label {
   display: grid;
   min-width: 220px;
@@ -183,6 +217,12 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
   gap: 16px;
+}
+
+body[data-feedback-mode="monthly"] .profile-band,
+body[data-feedback-mode="monthly"] .feedback-layout,
+body[data-feedback-mode="monthly"] .compare-control {
+  display: none !important;
 }
 
 .panel {
@@ -358,6 +398,211 @@ td {
   margin-top: 16px;
 }
 
+.comparison-panel {
+  margin-top: 16px;
+}
+
+.monthly-panel {
+  margin-top: 16px;
+}
+
+.comparison-boards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.monthly-weeks {
+  display: block;
+  margin-top: 14px;
+}
+
+.comparison-board,
+.monthly-week {
+  padding: 12px;
+  border: 1px solid #cfe2ee;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.monthly-matrix .table-scroll {
+  max-height: none;
+  overflow: auto;
+}
+
+.monthly-matrix table {
+  min-width: 860px;
+}
+
+.monthly-matrix th,
+.monthly-matrix td {
+  text-align: center;
+}
+
+.monthly-matrix th:first-child,
+.monthly-matrix td:first-child {
+  text-align: left;
+  min-width: 220px;
+}
+
+.comparison-board-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(159, 197, 216, 0.42);
+}
+
+.comparison-board-head span,
+.comparison-report span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.comparison-board-head strong {
+  color: #102033;
+  font-size: 1.05rem;
+}
+
+.comparison-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.monthly-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.comparison-card,
+.comparison-note,
+.monthly-card,
+.monthly-note,
+.monthly-empty {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #d9e8f0;
+  border-left: 6px solid var(--blue);
+  border-radius: 8px;
+  background: #f8fcff;
+}
+
+.monthly-card {
+  min-height: 104px;
+}
+
+.comparison-card.good { border-left-color: var(--green); background: #f3fff8; }
+.comparison-card.bad { border-left-color: var(--red); background: #fff7f7; }
+.comparison-card.neutral { border-left-color: var(--yellow); background: #fffbf0; }
+.monthly-card.good { border-left-color: var(--green); background: #f3fff8; }
+.monthly-card.bad { border-left-color: var(--red); background: #fff7f7; }
+.monthly-card.neutral { border-left-color: var(--yellow); background: #fffbf0; }
+
+.comparison-card span,
+.monthly-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.comparison-card strong,
+.monthly-card strong {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.monthly-card small {
+  color: #315a72;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.comparison-card p,
+.comparison-note p,
+.monthly-card p,
+.monthly-note p,
+.monthly-empty {
+  color: #17324a;
+  line-height: 1.45;
+}
+
+.comparison-table td:last-child {
+  display: grid;
+  gap: 5px;
+}
+
+.comparison-table small {
+  color: #315a72;
+  font-weight: 900;
+}
+
+.trend-badge {
+  width: fit-content;
+  min-width: 86px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #102033;
+  background: #e6edf3;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.trend-badge.improved {
+  color: #ffffff;
+  background: var(--green);
+}
+
+.trend-badge.worse {
+  color: #ffffff;
+  background: var(--red);
+}
+
+.trend-badge.same {
+  background: var(--yellow);
+}
+
+.trend-badge.missing {
+  color: #315a72;
+  background: #e6edf3;
+}
+
+.comparison-text {
+  margin-top: 14px;
+}
+
+.monthly-text {
+  margin-top: 14px;
+}
+
+.comparison-report {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.comparison-report section {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #d9e8f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -416,7 +661,12 @@ body[data-theme="dark"] .tv-card p {
 @media (max-width: 960px) {
   .header,
   .feedback-layout,
-  .profile-band {
+  .profile-band,
+  .comparison-summary,
+  .comparison-boards,
+  .comparison-report,
+  .monthly-weeks,
+  .monthly-summary {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -444,6 +694,7 @@ body[data-theme="dark"] .tv-card p {
 
   .switcher,
   .filters,
+  .feedback-mode,
   .subtitle,
   .sgp-userbar,
   .sgp-assistant-button,
@@ -546,6 +797,114 @@ body[data-theme="dark"] .tv-card p {
     grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
     gap: 8px;
     align-items: start;
+  }
+
+  body[data-print-mode="weekly"] .comparison-panel,
+  body[data-print-mode="weekly"] .monthly-panel,
+  body[data-print-mode="comparison"] .feedback-layout {
+    display: none !important;
+  }
+
+  body[data-print-mode="comparison"] .comparison-panel,
+  body[data-print-mode="comparison-complete"] .comparison-panel {
+    display: block !important;
+  }
+
+  body[data-print-mode="comparison"] .monthly-panel,
+  body[data-print-mode="comparison-complete"] .monthly-panel,
+  body[data-print-mode="monthly"] .feedback-layout,
+  body[data-print-mode="monthly"] .comparison-panel {
+    display: none !important;
+  }
+
+  body[data-print-mode="comparison-complete"] .comparison-panel {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  body[data-print-mode="monthly"] .monthly-panel {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .comparison-panel {
+    margin-top: 8px;
+  }
+
+  .comparison-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .comparison-boards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .monthly-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  .monthly-matrix table {
+    min-width: 0;
+    font-size: 8px;
+  }
+
+  .comparison-board,
+  .monthly-week {
+    padding: 7px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .comparison-board-head {
+    padding-bottom: 6px;
+  }
+
+  .comparison-card,
+  .comparison-note,
+  .monthly-card,
+  .monthly-note {
+    padding: 8px;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .comparison-card strong,
+  .monthly-card strong {
+    font-size: 18px;
+  }
+
+  .comparison-card p,
+  .comparison-note p,
+  .monthly-card p,
+  .monthly-note p {
+    font-size: 9px;
+  }
+
+  .monthly-card small {
+    font-size: 8px;
+  }
+
+  .comparison-report {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .comparison-report section {
+    padding: 7px;
+  }
+
+  .trend-badge {
+    min-width: 58px;
+    padding: 4px 7px;
+    font-size: 8px;
   }
 
   .panel,

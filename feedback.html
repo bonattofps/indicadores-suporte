@@ -8,7 +8,7 @@
     <script type="module" src="assistant.js?v=20260701-2"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
     <link rel="stylesheet" href="assistant.css?v=20260701-2" />
-    <link rel="stylesheet" href="feedback.css?v=20260714-17" />
+    <link rel="stylesheet" href="feedback.css?v=20260717-11" />
     <style>
       .print-footer {
         display: none;
@@ -103,6 +103,18 @@
         </label>
       </section>
 
+      <section class="feedback-mode" aria-label="Modo do feedback">
+        <div class="mode-tabs" role="tablist" aria-label="Escolha do relatório">
+          <button id="weeklyModeButton" type="button" class="active">Feedback semanal</button>
+          <button id="comparisonModeButton" type="button">Comparar semanas</button>
+          <button id="monthlyModeButton" type="button">Mensal</button>
+        </div>
+        <label class="compare-control" id="compareControl" hidden>
+          <span>Comparar com</span>
+          <select id="compareWeekSelect"></select>
+        </label>
+      </section>
+
       <section class="profile-band" id="profileBand"></section>
 
       <section class="feedback-layout">
@@ -154,6 +166,30 @@
         </article>
       </section>
 
+      <section class="panel comparison-panel" id="comparisonPanel" hidden>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Comparativo semanal</p>
+            <h2>Evolução entre semanas</h2>
+          </div>
+        </div>
+        <div class="comparison-boards" id="comparisonBoards"></div>
+        <div class="comparison-summary" id="comparisonSummary"></div>
+        <div class="comparison-text" id="comparisonText"></div>
+      </section>
+
+      <section class="panel monthly-panel" id="monthlyPanel" hidden>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Fechamento mensal</p>
+            <h2>Resultado do mês</h2>
+          </div>
+        </div>
+        <div class="monthly-weeks" id="monthlyWeeks"></div>
+        <div class="monthly-summary" id="monthlySummary"></div>
+        <div class="monthly-text" id="monthlyText"></div>
+      </section>
+
       <footer class="print-footer" aria-label="Rodapé do feedback">
         <p>Cada indicador mostra uma oportunidade de crescimento. Com foco, constância e acompanhamento, a evolução vem semana após semana.</p>
         <div>
@@ -164,7 +200,7 @@
     </main>
 
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
-    <script src="feedback.js?v=20260717-1"></script>
+    <script src="feedback.js?v=20260717-11"></script>
   </body>
 </html>
 

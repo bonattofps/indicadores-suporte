@@ -194,7 +194,7 @@ function renderFeedback() {
   const bad = metrics.filter((item) => item.status === "bad");
   const warn = metrics.filter((item) => item.status === "warn");
   const good = metrics.filter((item) => item.status === "good");
-  const status = bad.length ? "Crítico" : warn.length ? "Atenção" : "Bom";
+  const status = bad.length ? "Em desenvolvimento" : warn.length ? "Atenção" : "Dentro";
   const statusClass = bad.length ? "bad" : warn.length ? "warn" : "good";
 
   els.status.textContent = row
@@ -220,7 +220,7 @@ function renderFeedback() {
       <strong>${warn.length}</strong>
     </div>
     <div class="profile-item">
-      <span class="eyebrow">Melhorar</span>
+      <span class="eyebrow">Em desenvolvimento</span>
       <strong>${bad.length}</strong>
     </div>
   `;
@@ -448,7 +448,7 @@ function shortMetricName(metric) {
 
 function goalForMetric(metric) {
   const goal = currentGoals()[metric];
-  if (!goal) return `Melhorar ${metric} na próxima semana.`;
+  if (!goal) return `Acompanhar ${metric} na próxima semana.`;
   return goal.direction === "down"
     ? `Fechar a próxima semana com ${shortMetricName(metric)} em até ${formatCell(goal.target)}.`
     : `Fechar a próxima semana com ${shortMetricName(metric)} em no mínimo ${formatCell(goal.target)}.`;
@@ -456,7 +456,7 @@ function goalForMetric(metric) {
 
 function goalTargetText(metric) {
   const goal = currentGoals()[metric];
-  if (!goal) return "Melhorar";
+  if (!goal) return "Acompanhar";
   return goal.direction === "down"
     ? `Até ${formatCell(goal.target)}`
     : `Mínimo ${formatCell(goal.target)}`;
@@ -641,7 +641,7 @@ function goalLabel(goal, metric = "") {
 
 function statusLabel(status) {
   if (state.team === "N2") return "";
-  return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Melhorar";
+  return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Em desenvolvimento";
 }
 
 function formatCell(value) {

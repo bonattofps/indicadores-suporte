@@ -413,6 +413,7 @@ function mergeSeedCollaborators(target, seedMonth, teamKey) {
     const targetRows = target.collaborators[teamKey][weekKey] ||= [];
     const seedRows = seedMonth.collaborators[teamKey][weekKey] || [];
     seedRows.forEach((seedRow) => {
+      if (isRemovedCollaborator(target, teamKey, seedRow)) return;
       const row = findCollaboratorRow(targetRows, seedRow);
       if (!row) {
         targetRows.push(cloneData(seedRow));
@@ -785,6 +786,9 @@ function normalizeMonthStructure(month) {
   month.collaborators ||= { N1: emptyRowsByWeek(), N2: emptyRowsByWeek() };
   month.collaborators.N1 ||= emptyRowsByWeek();
   month.collaborators.N2 ||= emptyRowsByWeek();
+  month.removedCollaborators ||= { N1: [], N2: [] };
+  month.removedCollaborators.N1 = normalizeRemovedCollaborators(month.removedCollaborators.N1);
+  month.removedCollaborators.N2 = normalizeRemovedCollaborators(month.removedCollaborators.N2);
   normalizeCollaboratorTeam(month, "N1");
   normalizeCollaboratorTeam(month, "N2");
 }
@@ -795,6 +799,7 @@ function normalizeCollaboratorTeam(month, teamKey) {
     rowsByWeek[weekKey] = Array.isArray(rowsByWeek[weekKey])
       ? rowsByWeek[weekKey].map((row) => normalizeCollaboratorRow(teamKey, row))
       : [];
+    rowsByWeek[weekKey] = rowsByWeek[weekKey].filter((row) => !isRemovedCollaborator(month, teamKey, row));
   });
 
   const masterRows = [];
@@ -820,6 +825,41 @@ function normalizeCollaboratorTeam(month, teamKey) {
       };
     });
   });
+}
+
+function normalizeRemovedCollaborators(items = []) {
+  return Array.from(new Set((Array.isArray(items) ? items : [])
+    .map((item) => normalizeText(item))
+    .filter(Boolean)));
+}
+
+function removedCollaboratorKey(teamKey, row = {}) {
+  if (!row?._id && !String(row?.name || "").trim()) return "";
+  const id = row?._id || collaboratorIdFromName(teamKey, row?.name);
+  const nameKey = normalizeText(row?.name || "");
+  return normalizeText(id || nameKey);
+}
+
+function isRemovedCollaborator(month, teamKey, row = {}) {
+  const key = removedCollaboratorKey(teamKey, row);
+  const nameKey = normalizeText(row?.name || "");
+  const removed = month?.removedCollaborators?.[teamKey] || [];
+  return Boolean(key && removed.includes(key)) || Boolean(nameKey && removed.includes(nameKey));
+}
+
+function markRemovedCollaborator(month, teamKey, row = {}) {
+  if (!row) return;
+  month.removedCollaborators ||= { N1: [], N2: [] };
+  month.removedCollaborators[teamKey] = normalizeRemovedCollaborators(month.removedCollaborators[teamKey]);
+  const keys = [removedCollaboratorKey(teamKey, row), normalizeText(row.name || "")].filter(Boolean);
+  month.removedCollaborators[teamKey] = Array.from(new Set([...month.removedCollaborators[teamKey], ...keys]));
+}
+
+function unmarkRemovedCollaborator(month, teamKey, row = {}) {
+  month.removedCollaborators ||= { N1: [], N2: [] };
+  const keys = new Set([removedCollaboratorKey(teamKey, row), normalizeText(row.name || "")].filter(Boolean));
+  month.removedCollaborators[teamKey] = normalizeRemovedCollaborators(month.removedCollaborators[teamKey])
+    .filter((key) => !keys.has(key));
 }
 
 function ensureCollaboratorsForAllMonths() {
@@ -868,6 +908,7 @@ function copyCollaboratorRoster(target, source, teamKey) {
     target.collaborators[teamKey][weekKey] ||= [];
     const currentRows = target.collaborators[teamKey][weekKey];
     roster.forEach((person) => {
+      if (isRemovedCollaborator(target, teamKey, person)) return;
       if (findCollaboratorRow(currentRows, person)) return;
       currentRows.push(createBlankCollaboratorRow(teamKey, person.name, person._id));
       changed = true;
@@ -973,6 +1014,7 @@ function mergeCollaboratorWeek(target, source, teamKey, targetWeek, sourceWeek) 
   let changed = false;
 
   sourceRows.forEach((sourceRow) => {
+    if (isRemovedCollaborator(target, teamKey, sourceRow)) return;
     const row = findCollaboratorRow(targetRows, sourceRow);
     if (!row) {
       targetRows.push(cloneData(sourceRow));
@@ -1309,6 +1351,7 @@ function addCollaborator(teamKey) {
 
 function syncCollaboratorName(teamKey, rowId, name) {
   if (!rowId) return;
+  unmarkRemovedCollaborator(currentMonth(), teamKey, { _id: rowId, name });
   const rowsByWeek = currentMonth().collaborators[teamKey];
   TEAM_WEEK_KEYS.forEach((weekKey) => {
     const row = rowsByWeek[weekKey]?.find((item) => item._id === rowId);
@@ -1317,7 +1360,12 @@ function syncCollaboratorName(teamKey, rowId, name) {
 }
 
 function removeCollaborator(teamKey, rowId, rowIndex) {
-  const rowsByWeek = currentMonth().collaborators[teamKey];
+  const month = currentMonth();
+  const rowsByWeek = month.collaborators[teamKey];
+  const sampleRow = TEAM_WEEK_KEYS
+    .flatMap((weekKey) => rowsByWeek[weekKey] || [])
+    .find((row) => (rowId && row._id === rowId) || (!rowId && rowsByWeek[state.currentWeek]?.[rowIndex]?._id === row._id));
+  markRemovedCollaborator(month, teamKey, sampleRow);
   TEAM_WEEK_KEYS.forEach((weekKey) => {
     const rows = rowsByWeek[weekKey] || [];
     const index = rowId ? rows.findIndex((row) => row._id === rowId) : rowIndex;
@@ -1370,8 +1418,6 @@ function syncGeneralInputsFromState() {
 
 async function saveData() {
   syncCurrentInputs();
-  ensureCollaboratorsForAllMonths();
-  ensurePreviousMonthLatestWeekForAllMonths();
   const manualData = normalizedManualData();
   const generalWorkbook = buildGeneralWorkbook(manualData);
   const collaboratorWorkbook = buildCollaboratorWorkbook(manualData);

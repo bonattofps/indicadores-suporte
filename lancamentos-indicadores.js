@@ -60,6 +60,7 @@ const COLLABORATOR_GOALS = {
     "Registro Financeiro": { target: 38, direction: "up" },
     "O.S Aberta a Campo": { target: 25, direction: "down" },
     "Atendimento OPASuite": { target: 96, direction: "up" },
+    "Chamadas Atendidas - OPA": { target: 20, direction: "up" },
     "Avaliacao Individual": { target: 4.3, direction: "up" },
     "Tempo Medio de Atendimento": { target: "01:30:00", direction: "down" },
     "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }

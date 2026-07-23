@@ -23,6 +23,7 @@ const GENERAL_METRICS = [
   { key: "tmrClienteOpa", label: "Tempo Médio de Resposta ao Cliente - OPA", type: "time" },
   { key: "tmrDoClienteOpa", label: "Tempo Médio de Resposta do Cliente - OPA", type: "time" },
   { key: "iaOpa", label: "Quantidade de atendimento realizado pela IA - OPA", type: "number" },
+  { key: "chamadasOpa", label: "Chamadas Atendidas - OPA", type: "number" },
   { key: "avaliacaoOpa", label: "Qualidade Percebida na Avaliação Geral - OPA", type: "score" },
   { key: "slaLoginN2", label: "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2", type: "percent" },
   { key: "equipeN2", label: "Quantidade de Atendimentos Realizados pela Equipe - N2", type: "number" },
@@ -39,6 +40,7 @@ const N1_COLUMNS = [
   { key: "financeiro", label: "Registro Financeiro", type: "number" },
   { key: "osCampo", label: "O.S Aberta a Campo", type: "number" },
   { key: "opaSuite", label: "Quantidade de Atendimento OPASuite", type: "number" },
+  { key: "chamadasAtendidas", label: "Chamadas Atendidas - OPA", type: "number" },
   { key: "avaliacao", label: "Avaliação Individual", type: "score" },
   { key: "tma", label: "Tempo Médio de Atendimento - TMA", type: "time" },
   { key: "tmr", label: "Tempo Médio de Resposta - TMR", type: "time" }
@@ -482,7 +484,8 @@ function n1Object(row = []) {
     opaSuite: displayValue(row[4], "number"),
     avaliacao: displayValue(row[5], "score"),
     tma: displayValue(row[6], "time"),
-    tmr: displayValue(row[7], "time")
+    tmr: displayValue(row[7], "time"),
+    chamadasAtendidas: displayValue(row[8], "number")
   };
 }
 
@@ -618,7 +621,8 @@ function parseCollaboratorBlock(rows, startIndex, teamKey) {
           normalizeValue(row[map.opaSuite], "number"),
           normalizeValue(row[map.avaliacao], "score"),
           normalizeValue(row[map.tma], "time") || "00:00:00",
-          normalizeValue(row[map.tmr], "time") || "00:00:00"
+          normalizeValue(row[map.tmr], "time") || "00:00:00",
+          normalizeValue(row[map.chamadasAtendidas], "number")
         ]
       : [
           name,
@@ -634,13 +638,14 @@ function parseCollaboratorBlock(rows, startIndex, teamKey) {
 }
 
 function n1ColumnMap(header) {
-  const map = { operacional: 1, financeiro: 2, osCampo: 3, opaSuite: 4, avaliacao: 5, tma: 6, tmr: 7 };
+  const map = { operacional: 1, financeiro: 2, osCampo: 3, opaSuite: 4, avaliacao: 5, tma: 6, tmr: 7, chamadasAtendidas: -1 };
   header.forEach((cell, index) => {
     const label = normalizeText(cell);
     if (label.includes("REGISTROS OPERACIONAL")) map.operacional = index;
     if (label.includes("REGISTRO FINANCEIRO")) map.financeiro = index;
     if (label.includes("O.S ABERTA") || label.includes("OS ABERTA")) map.osCampo = index;
     if (label.includes("OPASUITE")) map.opaSuite = index;
+    if (label.includes("CHAMADAS ATENDIDAS")) map.chamadasAtendidas = index;
     if (label.includes("AVALIACAO")) map.avaliacao = index;
     if (label.includes("TEMPO MEDIO") && label.includes("ATENDIMENTO")) map.tma = index;
     if (label.includes("TEMPO MEDIO") && label.includes("RESPOSTA")) map.tmr = index;
@@ -1046,7 +1051,7 @@ function normalizeCollaboratorRow(teamKey, row = {}) {
 
 function createBlankCollaboratorRow(teamKey, name = "", id = createRowId(teamKey)) {
   return teamKey === "N1"
-    ? { _id: id, name, operacional: "", financeiro: "", osCampo: "", opaSuite: "", avaliacao: "", tma: "", tmr: "" }
+    ? { _id: id, name, operacional: "", financeiro: "", osCampo: "", opaSuite: "", chamadasAtendidas: "", avaliacao: "", tma: "", tmr: "" }
     : { _id: id, name, externo: "", interno: "", osCampo: "", login: "" };
 }
 
@@ -1382,12 +1387,14 @@ function calculateGeneralFromCollaborators() {
     const operacional = sumRowKeys(n1, ["operacional"]);
     const financeiro = sumRowKeys(n1, ["financeiro"]);
     const campo = sumRowKeys(n1, ["osCampo"]);
+    const chamadas = sumRowKeys(n1, ["chamadasAtendidas"]);
     const solucionados = addNumericValues(operacional, financeiro);
     const realizados = addNumericValues(operacional, financeiro, campo);
     const totalClientes = parseQuantityNumber(month.values.totalClientes?.[period.key]);
 
     setGeneralValue("tmaOpa", period.key, averageTime(n1.map((row) => row.tma)));
     setGeneralValue("tmrClienteOpa", period.key, averageTime(n1.map((row) => row.tmr)));
+    setGeneralValue("chamadasOpa", period.key, chamadas);
     setGeneralValue("avaliacaoOpa", period.key, averageScore(n1.map((row) => row.avaliacao), 2));
     setGeneralValue("equipeN2", period.key, sumRowKeys(n2, ["externo", "interno", "osCampo", "login"]));
     setGeneralValue("campoIxc", period.key, campo);
@@ -1526,7 +1533,8 @@ function n1Row(row) {
     normalizeValue(row.opaSuite, "number"),
     normalizeValue(row.avaliacao, "score"),
     normalizeValue(row.tma, "time") || "00:00:00",
-    normalizeValue(row.tmr, "time") || "00:00:00"
+    normalizeValue(row.tmr, "time") || "00:00:00",
+    normalizeValue(row.chamadasAtendidas, "number")
   ];
 }
 
@@ -1579,6 +1587,7 @@ function teamTotals(teamKey, rows) {
       financeiro: sumRows(rows, "financeiro"),
       osCampo: sumRows(rows, "osCampo"),
       opaSuite: sumRows(rows, "opaSuite"),
+      chamadasAtendidas: sumRows(rows, "chamadasAtendidas"),
       avaliacao: averageScore(rows.map((row) => row.avaliacao), 2),
       tma: averageTime(rows.map((row) => row.tma)),
       tmr: averageTime(rows.map((row) => row.tmr))

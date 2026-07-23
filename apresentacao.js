@@ -49,6 +49,7 @@ const metricDefinitions = [
   { name: "Tempo Médio de Resposta ao Cliente - OPA", type: "time", aliases: ["tempo medio de resposta ao cliente - opa", "tempo medio de resposta ao cliente - fluctuS", "tempo medio de resposta ao cliente"] },
   { name: "Tempo Médio de Resposta do Cliente - OPA", type: "time", aliases: ["tempo medio de resposta do cliente - opa", "tempo medio de resposta do cliente - fluctuS", "tempo medio de resposta do cliente"] },
   { name: "Quantidade de atendimento realizado pela IA - OPA", type: "number", aliases: ["quantidade de atendimento realizado pela ia - opa"] },
+  { name: "Chamadas Atendidas - OPA", type: "number", aliases: ["chamadas atendidas - opa", "total de chamadas atendidas - n1", "chamadas atendidas"] },
   { name: "Qualidade Percebida na Avaliação Geral - OPA", type: "score", aliases: ["qualidade percebida na avaliacao geral - opa", "qualidade percebida na avaliacao geral - fluctuS", "qualidade percebida na avaliacao geral"] },
   { name: "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2", type: "percent", aliases: ["taxa de cumprimento de sla em (%) ativacao de login - n2", "taxa de cumprimento de sla em (%) ativacao de login", "taxa de cumprimento de sla em ( % ) ativacao de login"] },
   { name: "Quantidade de Atendimentos Realizados pela Equipe - N2", type: "number", aliases: ["quantidade de atendimentos realizados pela equipe - n2"] },
@@ -553,7 +554,8 @@ function renderKpis() {
     "Quantidade Total de Cliente UNI - IXC",
     "Taxa de Cumprimento de SLA em (%) Ativação de Login - N2",
     "Taxa de Cliente que entrou em contato com o suporte em %",
-    "Registros Operacional + Financeiro - N1"
+    "Registros Operacional + Financeiro - N1",
+    "Chamadas Atendidas - OPA"
   ];
 
   const basePeriod = comparisonPeriodKey();
@@ -1335,6 +1337,7 @@ function dashboardMetricForMonth(name, month) {
   if (name === "Resolutividade IXC") return resolutividadeMetricForMonth(month);
   if (name === "Clientes que entraram em contato com o suporte") return clientContactTotalMetricForMonth(month);
   if (name === "Registros Operacional + Financeiro - N1") return collaboratorRegistryTotalMetricForMonth(month);
+  if (name === "Chamadas Atendidas - OPA") return collaboratorCallsTotalMetricForMonth(month);
   return month?.metrics?.find((metric) => metric.name === name) || emptyMetric(name, inferMetricType(name));
 }
 
@@ -1408,6 +1411,38 @@ function collaboratorRegistryTotalMetricForMonth(month) {
     values,
     matched: Boolean(collaboratorMonth)
   };
+}
+
+function collaboratorCallsTotalMetricForMonth(month) {
+  const values = {};
+  const collaboratorMonth = collaboratorMonthForDashboard(month);
+  const rowsByWeek = collaboratorMonth?.teams?.N1?.rowsByWeek || {};
+
+  (month?.periods || []).forEach((period) => {
+    const label = normalizeText(period.label);
+    const rows = label.includes("MENSAL")
+      ? ["s1", "s2", "s3", "s4"].flatMap((weekKey) => rowsByWeek[weekKey] || [])
+      : rowsByWeek[collaboratorWeekKeyFromPeriod(period.label, rowsByWeek)] || [];
+    values[period.key] = callsRowsHaveData(rows) ? callsRowsTotal(rows) : "";
+  });
+
+  return {
+    name: "Chamadas Atendidas - OPA",
+    type: "number",
+    values,
+    matched: Boolean(collaboratorMonth)
+  };
+}
+
+function callsRowsTotal(rows) {
+  return rows.reduce((total, row) => {
+    const calls = splitRowNumber(row, "chamadasAtendidas", 8);
+    return total + (Number.isFinite(calls) ? calls : 0);
+  }, 0);
+}
+
+function callsRowsHaveData(rows) {
+  return rows.some((row) => Number.isFinite(splitRowNumber(row, "chamadasAtendidas", 8)));
 }
 
 function splitRowsTotal(rows) {

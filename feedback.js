@@ -22,7 +22,8 @@ const TEAM_HEADERS = {
     "Atendimento OPASuite",
     "Avaliação Individual",
     "Tempo Médio de Atendimento",
-    "Tempo Médio de Resposta"
+    "Tempo Médio de Resposta",
+    "Chamadas Atendidas - OPA"
   ],
   N2: [
     "Colaborador",
@@ -281,9 +282,13 @@ function renderFeedback() {
   const row = selectedRowObject();
   const month = currentMonth();
   const goals = currentGoals();
-  const metricNames = state.team === "N2" ? TEAM_HEADERS.N2.slice(1) : Object.keys(goals);
+  const metricNames = state.team === "N2" ? TEAM_HEADERS.N2.slice(1) : trackedMetricNames(goals);
   const metrics = metricNames.map((metric) => {
-    const status = state.team === "N2" ? "good" : metricStatus(row?.[metric], goals[metric]);
+    const status = state.team === "N2"
+      ? "good"
+      : goals[metric]
+        ? metricStatus(row?.[metric], goals[metric])
+        : "neutral";
     return { metric, value: row?.[metric], goal: goals[metric], status };
   });
   const bad = metrics.filter((item) => item.status === "bad");
@@ -367,7 +372,7 @@ function renderComparison() {
   const current = selectedRowObject(state.week);
   const previous = selectedRowObject(state.compareWeek);
   const goals = currentGoals();
-  const comparisons = Object.keys(goals).map((metric) => compareMetric(metric, current, previous, goals[metric]));
+  const comparisons = trackedMetricNames(goals).map((metric) => compareMetric(metric, current, previous, goals[metric]));
   const improved = comparisons.filter((item) => item.trend === "improved");
   const worsened = comparisons.filter((item) => item.trend === "worse");
   const stable = comparisons.filter((item) => item.trend === "same");
@@ -443,7 +448,7 @@ function renderComparison() {
   const current = selectedRowObject(state.week);
   const previous = selectedRowObject(state.compareWeek);
   const goals = currentGoals();
-  const metrics = Object.keys(goals);
+  const metrics = trackedMetricNames(goals);
 
   if (!state.compareWeek || !previous) {
     els.comparisonBoards.innerHTML = "";
@@ -515,7 +520,7 @@ function renderComparison() {
 
 function renderComparisonBoard(label, row, metrics, goals, kind) {
   const statusItems = metrics.map((metric) => {
-    const status = metricStatus(row?.[metric], goals[metric]);
+    const status = goals[metric] ? metricStatus(row?.[metric], goals[metric]) : "neutral";
     return { metric, value: row?.[metric], goal: goals[metric], status };
   });
 
@@ -574,7 +579,7 @@ function renderMonthly() {
   }
 
   const goals = currentGoals();
-  const metrics = Object.keys(goals);
+  const metrics = trackedMetricNames(goals);
   const weekRows = monthlyRowsForCollaborator();
   const aggregates = monthlyAggregates(weekRows);
   els.status.textContent = weekRows.length
@@ -636,7 +641,7 @@ function renderMonthlyWeekBoard(weekRows, metrics, goals) {
                 <tr>
                   <td>${escapeHtml(metric)}</td>
                   ${weekRows.map((item) => {
-                    const status = metricStatus(item.row?.[metric], goals[metric]);
+                    const status = goals[metric] ? metricStatus(item.row?.[metric], goals[metric]) : "neutral";
                     return `<td class="${status}-cell">${escapeHtml(formatCell(item.row?.[metric]))}</td>`;
                   }).join("")}
                   <td class="${monthlyStatus}-cell"><strong>${escapeHtml(formatMonthlyMetric(metric, monthlyValue))}</strong></td>
@@ -683,7 +688,8 @@ function monthlySumMetrics() {
     "Registros Operacional",
     "Registro Financeiro",
     "O.S Aberta a Campo",
-    "Atendimento OPASuite"
+    "Atendimento OPASuite",
+    "Chamadas Atendidas - OPA"
   ];
 }
 
@@ -850,6 +856,7 @@ function currentGoals() {
   Object.entries(workbookGoals).forEach(([metric, goal]) => {
     const canonicalMetric = canonicalGoalMetric(metric, defaultGoals);
     if (!canonicalMetric) {
+      if (state.team === "N1") return;
       goals[metric] = goal;
       return;
     }
@@ -860,6 +867,14 @@ function currentGoals() {
   });
 
   return goals;
+}
+
+function trackedMetricNames(goals = currentGoals()) {
+  if (state.team !== "N1") return Object.keys(goals);
+  return Array.from(new Set([
+    ...Object.keys(goals),
+    "Chamadas Atendidas - OPA"
+  ]));
 }
 
 function canonicalGoalMetric(metric, defaultGoals) {
@@ -1262,6 +1277,7 @@ function goalLabel(goal, metric = "") {
 
 function statusLabel(status) {
   if (state.team === "N2") return "";
+  if (status === "neutral") return "";
   return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Evoluir";
 }
 
@@ -1315,12 +1331,26 @@ function setupTheme() {
 }
 
 function normalize(value) {
-  return String(value ?? "")
+  return fixMojibake(String(value ?? ""))
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/gi, " ")
     .trim()
     .toUpperCase();
+}
+
+function fixMojibake(value) {
+  return String(value ?? "")
+    .replaceAll("\u00C3\u0161", "Ú")
+    .replaceAll("\u00C3\u00A7", "ç")
+    .replaceAll("\u00C3\u00A3", "ã")
+    .replaceAll("\u00C3\u00A9", "é")
+    .replaceAll("\u00C3\u00A1", "á")
+    .replaceAll("\u00C3\u00B3", "ó")
+    .replaceAll("\u00C3\u00AD", "í")
+    .replaceAll("\u00C3\u00BA", "ú")
+    .replaceAll("\u00C3\u00AA", "ê")
+    .replaceAll("\u00C2\u00AA", "ª");
 }
 
 function filenameSafe(value) {
@@ -1331,7 +1361,7 @@ function filenameSafe(value) {
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
+  return fixMojibake(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")

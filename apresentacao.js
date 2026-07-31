@@ -1122,26 +1122,27 @@ function parseCollaboratorSheetRows(rows) {
 }
 
 function collaboratorWeekKeyBySequence(index) {
-  return ["s1", "s2", "s3", "s4"][Math.min(index, 3)] || "s4";
+  return ["s1", "s2", "s3", "s4", "s5"][Math.min(index, 4)] || "s5";
 }
 
 function createCollaboratorParsedTeam(teamKey) {
   return {
     rows: [],
     goals: defaultCollaboratorGoals(teamKey),
-    weeks: { ultima: [], s1: [], s2: [], s3: [], s4: [] },
+    weeks: { ultima: [], s1: [], s2: [], s3: [], s4: [], s5: [] },
     goalsByWeek: {
       ultima: defaultCollaboratorGoals(teamKey),
       s1: defaultCollaboratorGoals(teamKey),
       s2: defaultCollaboratorGoals(teamKey),
       s3: defaultCollaboratorGoals(teamKey),
-      s4: defaultCollaboratorGoals(teamKey)
+      s4: defaultCollaboratorGoals(teamKey),
+      s5: defaultCollaboratorGoals(teamKey)
     }
   };
 }
 
 function finalizeCollaboratorParsedTeam(parsedTeam) {
-  const latestWeek = ["s4", "s3", "s2", "s1", "ultima"].find((weekKey) => parsedTeam.weeks[weekKey].length);
+  const latestWeek = ["s5", "s4", "s3", "s2", "s1", "ultima"].find((weekKey) => parsedTeam.weeks[weekKey].length);
   if (!latestWeek) return;
   parsedTeam.rows = parsedTeam.weeks[latestWeek];
   parsedTeam.goals = parsedTeam.goalsByWeek[latestWeek];
@@ -1258,8 +1259,8 @@ function parseCollaboratorGoals(row, teamKey, map) {
 
 function collaboratorTeamState(defaultGoals, parsedTeam) {
   return {
-    rowsByWeek: parsedTeam.weeks || { ultima: parsedTeam.rows, s1: [], s2: [], s3: [], s4: [] },
-    goalsByWeek: parsedTeam.goalsByWeek || { ultima: parsedTeam.goals, s1: { ...defaultGoals }, s2: { ...defaultGoals }, s3: { ...defaultGoals }, s4: { ...defaultGoals } }
+    rowsByWeek: parsedTeam.weeks || { ultima: parsedTeam.rows, s1: [], s2: [], s3: [], s4: [], s5: [] },
+    goalsByWeek: parsedTeam.goalsByWeek || { ultima: parsedTeam.goals, s1: { ...defaultGoals }, s2: { ...defaultGoals }, s3: { ...defaultGoals }, s4: { ...defaultGoals }, s5: { ...defaultGoals } }
   };
 }
 
@@ -1421,7 +1422,7 @@ function collaboratorCallsTotalMetricForMonth(month) {
   (month?.periods || []).forEach((period) => {
     const label = normalizeText(period.label);
     const rows = label.includes("MENSAL")
-      ? ["s1", "s2", "s3", "s4"].flatMap((weekKey) => rowsByWeek[weekKey] || [])
+      ? ["s1", "s2", "s3", "s4", "s5"].flatMap((weekKey) => rowsByWeek[weekKey] || [])
       : rowsByWeek[collaboratorWeekKeyFromPeriod(period.label, rowsByWeek)] || [];
     values[period.key] = callsRowsHaveData(rows) ? callsRowsTotal(rows) : "";
   });
@@ -1535,14 +1536,14 @@ function nearestCollaboratorMonth(workbook, currentMonth) {
 function collaboratorWeekKeyFromPeriod(label, rowsByWeek = null) {
   const normalized = normalizeText(label);
   if (normalized.includes("ULTIMA")) return latestFilledCollaboratorWeek(rowsByWeek) || "ultima";
-  const weekMatch = normalized.match(/\b([1-4])\s*(?:A|O|ª|º|°)?\s*SEMANA\b/);
+  const weekMatch = normalized.match(/\b([1-5])\s*(?:A|O|ª|º|°)?\s*SEMANA\b/);
   if (weekMatch) return `s${weekMatch[1]}`;
   return "ultima";
 }
 
 function latestFilledCollaboratorWeek(rowsByWeek) {
   if (!rowsByWeek) return "";
-  return ["s4", "s3", "s2", "s1"].find((weekKey) => splitRowsHaveData(rowsByWeek[weekKey] || [])) || "";
+  return ["s5", "s4", "s3", "s2", "s1"].find((weekKey) => splitRowsHaveData(rowsByWeek[weekKey] || [])) || "";
 }
 
 function getCurrentMonth() {

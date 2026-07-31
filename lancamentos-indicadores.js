@@ -13,7 +13,8 @@ const WEEK_OPTIONS = [
   { key: "s1", label: "1° Semana" },
   { key: "s2", label: "2° Semana" },
   { key: "s3", label: "3° Semana" },
-  { key: "s4", label: "4° Semana" }
+  { key: "s4", label: "4° Semana" },
+  { key: "s5", label: "5° Semana" }
 ];
 
 const TEAM_WEEK_KEYS = WEEK_OPTIONS.map((week) => week.key);
@@ -60,7 +61,7 @@ const COLLABORATOR_GOALS = {
     "Registro Financeiro": { target: 38, direction: "up" },
     "O.S Aberta a Campo": { target: 25, direction: "down" },
     "Atendimento OPASuite": { target: 96, direction: "up" },
-    "Chamadas Atendidas - OPA": { target: 20, direction: "up" },
+    "Chamadas Atendidas - OPA": { target: 12, direction: "up" },
     "Avaliacao Individual": { target: 4.3, direction: "up" },
     "Tempo Medio de Atendimento": { target: "01:30:00", direction: "down" },
     "Tempo Medio de Resposta": { target: "00:02:20", direction: "down" }
@@ -88,6 +89,7 @@ const els = {
   monthKey: document.querySelector("#monthKey"),
   newMonthButton: document.querySelector("#newMonthButton"),
   addPeriodButton: document.querySelector("#addPeriodButton"),
+  removePeriodSelect: document.querySelector("#removePeriodSelect"),
   removePeriodButton: document.querySelector("#removePeriodButton"),
   calculateButton: document.querySelector("#calculateButton"),
   saveButton: document.querySelector("#saveButton"),
@@ -140,7 +142,7 @@ function bindEvents() {
 
   els.newMonthButton.addEventListener("click", createNewMonth);
   els.addPeriodButton.addEventListener("click", addPeriodColumn);
-  els.removePeriodButton.addEventListener("click", removeLastPeriodColumn);
+  els.removePeriodButton.addEventListener("click", removePeriodColumn);
   els.calculateButton.addEventListener("click", () => {
     calculateGeneralFromCollaborators();
     renderGeneralBody();
@@ -585,13 +587,13 @@ function parseCollaboratorTeams(rows) {
     if (!label.includes("EQUIPE DE COLABORADORES")) return;
     const teamKey = label.includes("N1") ? "N1" : label.includes("N2") ? "N2" : "";
     if (!teamKey) return;
-    const week = ["s1", "s2", "s3", "s4"][counters[teamKey]] || "s4";
+    const week = ["s1", "s2", "s3", "s4", "s5"][counters[teamKey]] || "s5";
     counters[teamKey] += 1;
     teams[teamKey].rowsByWeek[week] = parseCollaboratorBlock(rows, index, teamKey);
   });
 
   ["N1", "N2"].forEach((teamKey) => {
-    const latest = ["s4", "s3", "s2", "s1"].find((week) => teams[teamKey].rowsByWeek[week].length);
+    const latest = ["s5", "s4", "s3", "s2", "s1"].find((week) => teams[teamKey].rowsByWeek[week].length);
     if (latest && !teams[teamKey].rowsByWeek.ultima.length) {
       teams[teamKey].rowsByWeek.ultima = teams[teamKey].rowsByWeek[latest];
     }
@@ -1006,7 +1008,7 @@ function latestFilledWeeklyPeriod(month) {
 }
 
 function latestFilledCollaboratorWeek(month, teamKey) {
-  return ["s4", "s3", "s2", "s1"].find((weekKey) =>
+  return ["s5", "s4", "s3", "s2", "s1"].find((weekKey) =>
     (month.collaborators?.[teamKey]?.[weekKey] || []).some((row) => String(row?.name || "").trim())
   ) || "";
 }
@@ -1068,7 +1070,7 @@ function createRowId(teamKey) {
 function addPeriodColumn() {
   const month = currentMonth();
   normalizeMonthStructure(month);
-  const label = window.prompt("Nome da nova coluna", "Mensal");
+  const label = window.prompt("Nome da nova coluna", nextPeriodLabel(month));
   if (!label) return;
   const key = nextPeriodKey(month.periods);
   month.periods.push({ key, label, week: inferWeekFromPeriodLabel(label), startDate: "", endDate: "" });
@@ -1076,10 +1078,12 @@ function addPeriodColumn() {
     month.values[metric.key] ||= {};
     month.values[metric.key][key] = "";
   });
-  renderGeneralBody();
+  normalizeMonthStructure(month);
+  render();
+  setStatus(`Coluna ${label} adicionada. Salve para sincronizar.`, "success");
 }
 
-function removeLastPeriodColumn() {
+function removePeriodColumn() {
   const month = currentMonth();
   normalizeMonthStructure(month);
   if (month.periods.length <= 1) {
@@ -1087,12 +1091,37 @@ function removeLastPeriodColumn() {
     return;
   }
 
-  const removed = month.periods.pop();
+  const periodKey = els.removePeriodSelect.value;
+  const periodIndex = month.periods.findIndex((period) => period.key === periodKey);
+  if (periodIndex < 0) {
+    setStatus("Selecione a coluna que deseja remover.", "error");
+    return;
+  }
+
+  const [removed] = month.periods.splice(periodIndex, 1);
   GENERAL_METRICS.forEach((metric) => {
     delete month.values[metric.key]?.[removed.key];
   });
-  renderGeneralBody();
+  const removedWeek = removed.week || inferWeekFromPeriodLabel(removed.label);
+  const weekStillUsed = month.periods.some((period) =>
+    (period.week || inferWeekFromPeriodLabel(period.label)) === removedWeek
+  );
+  if (TEAM_WEEK_KEYS.includes(removedWeek) && !weekStillUsed) {
+    month.collaborators.N1[removedWeek] = [];
+    month.collaborators.N2[removedWeek] = [];
+    normalizeMonthStructure(month);
+  }
+  render();
   setStatus(`Coluna ${removed.label} removida. Salve para sincronizar.`, "success");
+}
+
+function nextPeriodLabel(month) {
+  const usedWeeks = new Set(
+    (month.periods || []).map((period) => period.week || inferWeekFromPeriodLabel(period.label))
+  );
+  const nextWeek = ["s1", "s2", "s3", "s4", "s5"].find((weekKey) => !usedWeeks.has(weekKey));
+  if (nextWeek) return `${nextWeek.slice(1)}ª Semana`;
+  return "Nova coluna";
 }
 
 function nextPeriodKey(periods) {
@@ -1108,6 +1137,7 @@ function inferWeekFromPeriodLabel(label) {
   if (normalized.includes("2")) return "s2";
   if (normalized.includes("3")) return "s3";
   if (normalized.includes("4")) return "s4";
+  if (normalized.includes("5")) return "s5";
   if (normalized.includes("MENSAL")) return "mensal";
   return "";
 }
@@ -1136,6 +1166,7 @@ function render() {
   renderMonthOptions();
   renderMonthInputs();
   renderWeekOptions();
+  renderPeriodRemovalOptions();
   renderGeneralBody();
   renderCollaborators();
 }
@@ -1175,16 +1206,45 @@ function renderMonthInputs() {
 
 function renderWeekOptions() {
   const month = currentMonth();
-  els.weekSelect.innerHTML = WEEK_OPTIONS
-    .map((week) => `<option value="${week.key}">${weekOptionLabel(week, month)}</option>`)
+  const options = collaboratorPeriodOptions(month);
+  if (!options.some((option) => option.key === state.currentWeek)) {
+    state.currentWeek = options.find((option) => option.key !== "mensal")?.key || "mensal";
+  }
+  els.weekSelect.innerHTML = options
+    .map((option) => `<option value="${option.key}">${escapeHtml(option.label)}</option>`)
     .join("");
   els.weekSelect.value = state.currentWeek;
+  const monthly = state.currentWeek === "mensal";
+  els.addN1Button.disabled = monthly;
+  els.addN2Button.disabled = monthly;
 }
 
-function weekOptionLabel(week, month) {
-  const period = month.periods?.find((item) => item.week === week.key);
-  const range = dateRangeLabel(period);
-  return range ? `${week.label} (${range})` : week.label;
+function collaboratorPeriodOptions(month) {
+  const options = [];
+  const seen = new Set();
+  (month.periods || []).forEach((period) => {
+    const weekKey = period.week || inferWeekFromPeriodLabel(period.label);
+    if (!TEAM_WEEK_KEYS.includes(weekKey) || seen.has(weekKey)) return;
+    seen.add(weekKey);
+    options.push({
+      key: weekKey,
+      label: periodDisplayLabel(period)
+    });
+  });
+  options.push({ key: "mensal", label: "Mensal (calculado)" });
+  return options;
+}
+
+function renderPeriodRemovalOptions() {
+  const month = currentMonth();
+  const selected = els.removePeriodSelect.value;
+  els.removePeriodSelect.innerHTML = month.periods
+    .map((period) => `<option value="${period.key}">${escapeHtml(period.label)}</option>`)
+    .join("");
+  els.removePeriodSelect.value = month.periods.some((period) => period.key === selected)
+    ? selected
+    : month.periods.at(-1)?.key || "";
+  els.removePeriodButton.disabled = month.periods.length <= 1;
 }
 
 function renderGeneralBody() {
@@ -1244,6 +1304,9 @@ function renderGeneralBody() {
       if (!period) return;
       period.label = input.value;
       period.week = inferWeekFromPeriodLabel(input.value);
+      normalizeMonthStructure(month);
+      renderWeekOptions();
+      renderPeriodRemovalOptions();
     });
   });
 
@@ -1282,6 +1345,7 @@ function renderCollaborators() {
 
 function renderTeam(teamKey, columns, body, foot, summary) {
   const rows = collaboratorRows(teamKey);
+  const monthly = state.currentWeek === "mensal";
   body.innerHTML = rows.map((row, index) => `
     <tr>
       ${columns.map((column) => `
@@ -1292,11 +1356,12 @@ function renderTeam(teamKey, columns, body, foot, summary) {
             data-team="${teamKey}"
             data-row="${index}"
             data-column="${column.key}"
+            ${monthly ? "disabled" : ""}
           />
         </td>
       `).join("")}
       <td class="row-actions">
-        <button class="danger" type="button" data-remove-row="${index}" data-remove-id="${escapeHtml(row._id || "")}" data-remove-team="${teamKey}">Remover</button>
+        ${monthly ? "" : `<button class="danger" type="button" data-remove-row="${index}" data-remove-id="${escapeHtml(row._id || "")}" data-remove-team="${teamKey}">Remover</button>`}
       </td>
     </tr>
   `).join("");
@@ -1324,7 +1389,9 @@ function renderTeam(teamKey, columns, body, foot, summary) {
     });
   });
 
-  summary.textContent = `${rows.length} colaborador(es)`;
+  summary.textContent = monthly
+    ? `${rows.length} colaborador(es) · consolidado mensal`
+    : `${rows.length} colaborador(es)`;
   foot.innerHTML = footerMarkup(teamKey, columns, rows);
 }
 
@@ -1344,6 +1411,7 @@ function footerMarkup(teamKey, columns, rows) {
 }
 
 function addCollaborator(teamKey) {
+  if (state.currentWeek === "mensal") return;
   const month = currentMonth();
   normalizeMonthStructure(month);
   const row = createBlankCollaboratorRow(teamKey);
@@ -1407,7 +1475,7 @@ function calculateGeneralFromCollaborators() {
 
 function rowsForPeriod(month, teamKey, period) {
   if (period.week === "mensal") {
-    return ["s1", "s2", "s3", "s4"].flatMap((week) => month.collaborators[teamKey][week] || []);
+    return monthlyWeekKeys(month).flatMap((week) => month.collaborators[teamKey][week] || []);
   }
   return month.collaborators[teamKey][period.week] || [];
 }
@@ -1571,8 +1639,47 @@ function currentMonth() {
 function collaboratorRows(teamKey) {
   const month = currentMonth();
   normalizeMonthStructure(month);
+  if (state.currentWeek === "mensal") return monthlyCollaboratorRows(month, teamKey);
   month.collaborators[teamKey][state.currentWeek] ||= [];
   return month.collaborators[teamKey][state.currentWeek];
+}
+
+function monthlyWeekKeys(month) {
+  const keys = (month.periods || [])
+    .map((period) => period.week || inferWeekFromPeriodLabel(period.label))
+    .filter((weekKey) => /^s[1-5]$/.test(weekKey));
+  return Array.from(new Set(keys));
+}
+
+function monthlyCollaboratorRows(month, teamKey) {
+  const weeks = monthlyWeekKeys(month);
+  const roster = collaboratorRoster(month, teamKey);
+  return roster.map((person) => {
+    const rows = weeks
+      .map((weekKey) => findCollaboratorRow(month.collaborators[teamKey][weekKey] || [], person))
+      .filter(Boolean);
+    const base = createBlankCollaboratorRow(teamKey, person.name, person._id);
+    if (teamKey === "N1") {
+      return {
+        ...base,
+        operacional: sumRows(rows, "operacional"),
+        financeiro: sumRows(rows, "financeiro"),
+        osCampo: sumRows(rows, "osCampo"),
+        opaSuite: sumRows(rows, "opaSuite"),
+        chamadasAtendidas: sumRows(rows, "chamadasAtendidas"),
+        avaliacao: averageScore(rows.map((row) => row.avaliacao), 2),
+        tma: averageTime(rows.map((row) => row.tma)),
+        tmr: averageTime(rows.map((row) => row.tmr))
+      };
+    }
+    return {
+      ...base,
+      externo: sumRows(rows, "externo"),
+      interno: sumRows(rows, "interno"),
+      osCampo: sumRows(rows, "osCampo"),
+      login: sumRows(rows, "login")
+    };
+  });
 }
 
 function syncCurrentInputs() {

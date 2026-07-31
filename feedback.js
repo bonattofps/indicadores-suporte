@@ -8,10 +8,11 @@ const WEEK_LABELS = {
   s1: "1ª semana",
   s2: "2ª semana",
   s3: "3ª semana",
-  s4: "4ª semana"
+  s4: "4ª semana",
+  s5: "5ª semana"
 };
 
-const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4"];
+const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4", "s5"];
 
 const TEAM_HEADERS = {
   N1: [
@@ -41,7 +42,7 @@ const TEAM_GOALS = {
     "Registro Financeiro": { target: 38, direction: "up" },
     "O.S Aberta a Campo": { target: 25, direction: "down" },
     "Atendimento OPASuite": { target: 96, direction: "up" },
-    "Chamadas Atendidas - OPA": { target: 20, direction: "up" },
+    "Chamadas Atendidas - OPA": { target: 12, direction: "up" },
     "Avaliação Individual": { target: 4.3, direction: "up" },
     "Tempo Médio de Atendimento": { target: "01:30:00", direction: "down" },
     "Tempo Médio de Resposta": { target: "00:02:20", direction: "down" }
@@ -991,7 +992,7 @@ function renderStatusCell(status) {
 }
 
 function actionForMetric(metric) {
-  if (metric.includes("Chamadas")) return "Acompanhar a disponibilidade na fila e manter pelo menos 20 chamadas atendidas na semana.";
+  if (metric.includes("Chamadas")) return "Acompanhar a disponibilidade na fila e manter pelo menos 12 chamadas atendidas na semana.";
   if (metric.includes("Operacional")) return "Conferir o volume de registros no meio do turno e corrigir a rota antes do fechamento do dia.";
   if (metric.includes("Financeiro")) return "Registrar todos os contatos financeiros tratados e revisar se algum atendimento ficou sem classificação.";
   if (metric.includes("O.S")) return "Acompanhar a abertura de O.S diariamente e manter o volume dentro do limite combinado.";

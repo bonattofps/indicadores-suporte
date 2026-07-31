@@ -4,13 +4,14 @@ const STORAGE_KEYS = {
   importedAt: "indicadoresImportedAt"
 };
 
-const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4"];
+const WEEK_ORDER = ["ultima", "s1", "s2", "s3", "s4", "s5"];
 const WEEK_LABELS = {
   ultima: "Ultima Semana",
   s1: "1a Semana",
   s2: "2a Semana",
   s3: "3a Semana",
-  s4: "4a Semana"
+  s4: "4a Semana",
+  s5: "5a Semana"
 };
 
 const MONTH_MAP = {
@@ -346,7 +347,7 @@ function parseCollaboratorSheetRows(rows) {
 }
 
 function weekKeyBySequence(index) {
-  return ["s1", "s2", "s3", "s4"][Math.min(index, 3)] || "s4";
+  return ["s1", "s2", "s3", "s4", "s5"][Math.min(index, 4)] || "s5";
 }
 
 function createParsedTeam(teamKey) {
@@ -359,7 +360,7 @@ function createParsedTeam(teamKey) {
 }
 
 function finalizeParsedTeam(parsedTeam) {
-  const latestWeek = ["s4", "s3", "s2", "s1", "ultima"].find((weekKey) => parsedTeam.weeks[weekKey].length);
+  const latestWeek = ["s5", "s4", "s3", "s2", "s1", "ultima"].find((weekKey) => parsedTeam.weeks[weekKey].length);
   if (!latestWeek) return;
   parsedTeam.rows = parsedTeam.weeks[latestWeek];
   parsedTeam.goals = parsedTeam.goalsByWeek[latestWeek];
@@ -922,7 +923,7 @@ function findCollaboratorRow(team, teamKey, weekKey, name) {
 }
 
 function latestCollaboratorRow(team, teamKey, name) {
-  for (const weekKey of ["s4", "s3", "s2", "s1", "ultima"]) {
+  for (const weekKey of ["s5", "s4", "s3", "s2", "s1", "ultima"]) {
     const row = findCollaboratorRow(team, teamKey, weekKey, name);
     if (row) return row;
   }
@@ -1394,12 +1395,13 @@ function cloneGoalsByWeek(baseGoals) {
     s1: { ...baseGoals },
     s2: { ...baseGoals },
     s3: { ...baseGoals },
-    s4: { ...baseGoals }
+    s4: { ...baseGoals },
+    s5: { ...baseGoals }
   };
 }
 
 function emptyRowsByWeek() {
-  return { ultima: [], s1: [], s2: [], s3: [], s4: [] };
+  return { ultima: [], s1: [], s2: [], s3: [], s4: [], s5: [] };
 }
 
 function shortName(name) {

@@ -1208,15 +1208,14 @@ function renderWeekOptions() {
   const month = currentMonth();
   const options = collaboratorPeriodOptions(month);
   if (!options.some((option) => option.key === state.currentWeek)) {
-    state.currentWeek = options.find((option) => option.key !== "mensal")?.key || "mensal";
+    state.currentWeek = options[0]?.key || "ultima";
   }
   els.weekSelect.innerHTML = options
     .map((option) => `<option value="${option.key}">${escapeHtml(option.label)}</option>`)
     .join("");
   els.weekSelect.value = state.currentWeek;
-  const monthly = state.currentWeek === "mensal";
-  els.addN1Button.disabled = monthly;
-  els.addN2Button.disabled = monthly;
+  els.addN1Button.disabled = false;
+  els.addN2Button.disabled = false;
 }
 
 function collaboratorPeriodOptions(month) {
@@ -1231,7 +1230,9 @@ function collaboratorPeriodOptions(month) {
       label: periodDisplayLabel(period)
     });
   });
-  options.push({ key: "mensal", label: "Mensal (calculado)" });
+  if (!options.length) {
+    options.push({ key: "ultima", label: "Última Semana" });
+  }
   return options;
 }
 
@@ -1547,26 +1548,83 @@ function buildGeneralWorkbook(manualData) {
   manualData.monthOrder.forEach((monthId) => {
     const month = manualData.months[monthId];
     normalizeMonthStructure(month);
+    const workbookPeriods = generalWorkbookPeriods(month);
+    const monthlyPeriod = workbookPeriods.find((period) => period.key === "mensal");
     months[monthId] = {
       id: monthId,
       label: month.label,
       sortKey: month.sortKey,
       sourceSheet: "Lançamento manual",
-      periods: month.periods.map((period) => ({
+      periods: workbookPeriods.map((period) => ({
         key: period.key,
-        label: periodDisplayLabel(period),
+        label: period.label,
         startDate: period.startDate || "",
         endDate: period.endDate || ""
       })),
       metrics: GENERAL_METRICS.map((metric) => ({
         name: metric.label,
         type: metric.type,
-        values: Object.fromEntries(month.periods.map((period) => [period.key, normalizeValue(month.values[metric.key]?.[period.key], metric.type)])),
+        values: Object.fromEntries(workbookPeriods.map((period) => [
+          period.key,
+          period === monthlyPeriod
+            ? monthlyGeneralValue(month, metric)
+            : normalizeValue(month.values[metric.key]?.[period.key], metric.type)
+        ])),
         matched: true
       }))
     };
   });
   return { months, monthOrder: manualData.monthOrder };
+}
+
+function generalWorkbookPeriods(month) {
+  const periods = month.periods
+    .filter((period) => !normalizeText(period.label).includes("MENSAL") && period.week !== "mensal")
+    .map((period) => ({
+      key: period.key,
+      label: periodDisplayLabel(period),
+      startDate: period.startDate || "",
+      endDate: period.endDate || ""
+    }));
+  const weeklyPeriods = monthlySourcePeriods(month);
+  const first = weeklyPeriods.find((period) => period.startDate);
+  const last = [...weeklyPeriods].reverse().find((period) => period.endDate);
+  const range = dateRangeLabel({
+    startDate: first?.startDate || "",
+    endDate: last?.endDate || ""
+  });
+  periods.push({
+    key: "mensal",
+    label: range ? `MENSAL ${range}` : "MENSAL",
+    startDate: first?.startDate || "",
+    endDate: last?.endDate || ""
+  });
+  return periods;
+}
+
+function monthlySourcePeriods(month) {
+  return (month.periods || []).filter((period) => {
+    const weekKey = period.week || inferWeekFromPeriodLabel(period.label);
+    return /^s[1-5]$/.test(weekKey);
+  });
+}
+
+function monthlyGeneralValue(month, metric) {
+  const values = monthlySourcePeriods(month)
+    .map((period) => normalizeValue(month.values[metric.key]?.[period.key], metric.type))
+    .filter((value) => value !== "" && value !== null && value !== undefined && !Number.isNaN(value));
+  if (!values.length) return "";
+  if (metric.type === "time") return averageTime(values);
+  if (metric.type === "score") return averageNumber(values, 2);
+  if (metric.type === "percent") return averageDecimal(values);
+  if (metric.key === "totalClientes") return averageNumber(values);
+  return values.reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function averageDecimal(values) {
+  const numbers = values.map(Number).filter(Number.isFinite);
+  if (!numbers.length) return "";
+  return numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
 }
 
 function buildCollaboratorWorkbook(manualData) {

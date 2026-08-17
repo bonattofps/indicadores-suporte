@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
-    <script type="module" src="auth.js?v=20260714-1"></script>
+    <script type="module" src="auth.js?v=20260813-3"></script>
     <script type="module" src="assistant.js?v=20260701-2"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
     <link rel="stylesheet" href="assistant.css?v=20260701-2" />
@@ -153,12 +153,21 @@
         <p class="eyebrow">Dashboard corporativa</p>
         <h1>SGP - Sistema Gestão do Suporte</h1>
         <p class="subtitle">
-          Acesse as visões executivas, importe arquivos CSV ou XLSX no navegador e acompanhe indicadores gerais,
-          desempenho N1/N2, metas batidas e pontos de melhoria semanais.
+          Acesse as visões executivas e acompanhe indicadores gerais, desempenho N1/N2,
+          metas batidas e pontos de melhoria semanais.
         </p>
       </section>
 
       <section class="cards" aria-label="Dashboards disponíveis">
+        <article class="card">
+          <div>
+            <p class="eyebrow">Diretoria</p>
+            <h2>Relatório Executivo</h2>
+            <p>Resultado geral, comparação, evolução e conclusão automática para tomada de decisão.</p>
+          </div>
+          <a class="button" href="direx.html">Abrir Relatório Executivo</a>
+        </article>
+
         <article class="card">
           <div>
             <p class="eyebrow">Visão executiva</p>
@@ -215,15 +224,6 @@
 
         <article class="card">
           <div>
-            <p class="eyebrow">Rede</p>
-            <h2>Identificação de CTO/Gerador PPPoE</h2>
-            <p>Identificação de CTO, registro tecnico com evidencia e gerador de logins PPPoE padronizados.</p>
-          </div>
-          <a class="button" href="cto.html">Abrir Identificação</a>
-        </article>
-
-        <article class="card">
-          <div>
             <p class="eyebrow">Lançamentos</p>
             <h2>Entrada Manual de Indicadores</h2>
             <p>Cadastre métricas e colaboradores direto no SGP para alimentar a dashboard sem depender da planilha.</p>
@@ -240,15 +240,6 @@
           <a class="button" href="lancamentos-ocorrencias.html">Abrir Ocorrências</a>
         </article>
 
-        <article class="card">
-          <div>
-            <p class="eyebrow">Gerencial</p>
-            <h2>Relat&oacute;rio PDF</h2>
-            <p>Resumo mensal com indicadores, ocorr&ecirc;ncias, gr&aacute;ficos e pontos cr&iacute;ticos para reuni&otilde;es.</p>
-          </div>
-          <a class="button secondary" href="relatorio.html">Abrir Relat&oacute;rio</a>
-        </article>
-
         <article class="card" hidden style="display: none">
           <div>
             <p class="eyebrow">Acessos</p>
@@ -263,6 +254,8 @@
     </main>
   </body>
 </html>
+
+
 
 
 

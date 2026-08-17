@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Relatório Executivo</title>
+    <script type="module" src="auth.js?v=20260813-3"></script>
+    <link rel="stylesheet" href="brand.css?v=20260701-2" />
+    <link rel="stylesheet" href="direx.css?v=20260813-4" />
+  </head>
+  <body>
+    <main class="direx-shell">
+      <header class="topbar no-print">
+        <div class="brand-title">
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <div>
+            <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+            <h1>Relatório Executivo</h1>
+            <p>Indicadores e ocorrências traduzidos para tomada de decisão.</p>
+          </div>
+        </div>
+        <nav class="top-actions" aria-label="Ações do relatório executivo">
+          <a href="index.html">Início</a>
+          <a href="apresentacao.html">Ver detalhes</a>
+          <button id="presentationButton" type="button">Modo apresentação</button>
+          <button id="printButton" class="primary" type="button">Gerar relatório executivo</button>
+        </nav>
+      </header>
+
+      <section class="filter-panel no-print" aria-label="Filtros executivos">
+        <label class="filter-type-field">
+          Filtrar por
+          <select id="modeSelect" aria-label="Selecionar tipo de filtro">
+            <option value="weekly">Semana</option>
+            <option value="custom">Data</option>
+            <option value="monthly">Mês</option>
+            <option value="yearly">Ano</option>
+          </select>
+        </label>
+        <label id="monthField">
+          Mês
+          <select id="monthSelect" aria-label="Selecionar mês"></select>
+        </label>
+        <label id="weekField">
+          Semana
+          <select id="weekSelect" aria-label="Selecionar semana"></select>
+        </label>
+        <label id="yearField" hidden>
+          Ano
+          <select id="yearSelect" aria-label="Selecionar ano"></select>
+        </label>
+        <label id="customStartField" hidden>
+          Data inicial
+          <input id="customStart" type="date" />
+        </label>
+        <label id="customEndField" hidden>
+          Data final
+          <input id="customEnd" type="date" />
+        </label>
+        <div class="comparison-summary" aria-live="polite">
+          <span>Comparação automática</span>
+          <strong id="comparisonLabel">Período anterior</strong>
+        </div>
+      </section>
+
+      <section class="data-notice no-print" id="dataStatus">Carregando resultados...</section>
+
+      <section class="executive-page page-one">
+        <div class="print-heading">
+          <img src="logo.png" alt="Uni Internet" />
+          <div><span>Dashboard Executiva - Suporte</span><strong id="printPeriod">Período</strong></div>
+        </div>
+
+        <article class="result-hero" id="resultHero">
+          <div>
+            <p class="eyebrow">Resumo executivo</p>
+            <div class="result-status neutral" id="resultStatus">Aguardando dados</div>
+            <p class="executive-copy" id="executiveSummary">Os resultados serão interpretados automaticamente.</p>
+          </div>
+          <div class="evolution-index">
+            <span>Índice de evolução</span>
+            <strong id="evolutionIndex">-</strong>
+            <small id="evolutionMethod">Comparação ponderada dos indicadores</small>
+          </div>
+        </article>
+
+        <section class="section-block">
+          <div class="section-title">
+            <div><p class="eyebrow">Indicadores principais</p><h2>Resultado, meta e comparação</h2></div>
+            <span id="activePeriodLabel">-</span>
+          </div>
+          <div class="executive-cards" id="executiveCards"></div>
+        </section>
+      </section>
+
+      <section class="executive-page page-two">
+        <div class="print-heading">
+          <img src="logo.png" alt="Uni Internet" />
+          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
+        </div>
+        <div class="section-title">
+          <div><p class="eyebrow">Evolução semanal</p><h2>Leitura das últimas semanas</h2></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Semana</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Resultado</th></tr></thead>
+            <tbody id="weeklyBody"></tbody>
+          </table>
+        </div>
+        <article class="narrative-panel">
+          <p class="eyebrow">Interpretação automática</p>
+          <p id="weeklyNarrative">Sem semanas suficientes para análise.</p>
+        </article>
+      </section>
+
+      <section class="executive-page page-three">
+        <div class="print-heading">
+          <img src="logo.png" alt="Uni Internet" />
+          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
+        </div>
+        <div class="section-title">
+          <div><p class="eyebrow">Evolução mensal</p><h2>Visão consolidada por mês</h2></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mês</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Metas</th><th>Evolução</th></tr></thead>
+            <tbody id="monthlyBody"></tbody>
+          </table>
+        </div>
+        <section class="goal-result">
+          <div class="section-title compact"><div><p class="eyebrow">Meta x resultado</p><h2>Cumprimento das metas</h2></div></div>
+          <div id="goalResultList"></div>
+        </section>
+      </section>
+
+      <section class="executive-page page-four">
+        <div class="print-heading">
+          <img src="logo.png" alt="Uni Internet" />
+          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
+        </div>
+        <section class="occurrence-report">
+          <div class="section-title compact">
+            <div><p class="eyebrow">Ocorrências mensais</p><h2>Impacto operacional do período</h2></div>
+            <span id="occurrencePeriodLabel">-</span>
+          </div>
+          <div class="occurrence-cards" id="occurrenceCards"></div>
+          <p class="occurrence-narrative" id="occurrenceNarrative">Carregando ocorrências...</p>
+        </section>
+        <div class="decision-grid">
+          <article class="decision-panel positive">
+            <p class="eyebrow">O que melhorou?</p>
+            <h2>Avanços do período</h2>
+            <ul id="improvedList"></ul>
+          </article>
+          <article class="decision-panel attention">
+            <p class="eyebrow">O que precisa de atenção?</p>
+            <h2>Pontos para decisão</h2>
+            <ul id="attentionList"></ul>
+          </article>
+        </div>
+        <article class="conclusion-panel">
+          <p class="eyebrow">Conclusão do período</p>
+          <h2 id="conclusionTitle">Leitura executiva</h2>
+          <p id="executiveConclusion">A conclusão será construída com os dados selecionados.</p>
+        </article>
+        <article class="method-panel">
+          <button id="detailsButton" class="no-print" type="button" aria-expanded="false">Ver metodologia e detalhes</button>
+          <div id="detailsContent" hidden>
+            <h3>Como o índice é calculado</h3>
+            <p>Cada indicador recebe 100 pontos quando melhora, 50 quando permanece estável e 0 quando piora. O índice é a média ponderada pelos pesos configurados em Configurações. As ocorrências são consolidadas pelo mesmo período selecionado, mas não alteram o Índice de Evolução.</p>
+            <div class="detail-links no-print">
+              <a href="apresentacao.html">Indicadores operacionais</a>
+              <a href="colaboradores.html">Dados por colaborador</a>
+              <a href="ocorrencias.html">Ocorrências e O.S.</a>
+              <a href="usuarios.html">Configurar metas e pesos</a>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="indicadores-junho-seed.js?v=20260701-2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="direx.js?v=20260813-4"></script>
+  </body>
+</html>

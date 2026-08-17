@@ -90,7 +90,7 @@ function init() {
 }
 
 function bindEvents() {
-  elements.workbookInput.addEventListener("change", handleWorkbookUpload);
+  elements.workbookInput?.addEventListener("change", handleWorkbookUpload);
   elements.monthSelect.addEventListener("change", handleMonthChange);
   elements.teamSelect.addEventListener("change", handleTeamChange);
   elements.collaboratorInput.addEventListener("input", handleCollaboratorInput);
@@ -950,7 +950,7 @@ function toggleDateSort() {
 function clearFilters() {
   if (!state.workbook) {
     resetAfterWorkbookFailure();
-    elements.workbookInput.value = "";
+    if (elements.workbookInput) elements.workbookInput.value = "";
     setMessage("Carregue a planilha para iniciar a consulta.", "info");
     return;
   }

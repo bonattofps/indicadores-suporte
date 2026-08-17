@@ -111,7 +111,7 @@ function bindEvents() {
   });
   els.clearRowsButton.addEventListener("click", clearCurrentRows);
   els.saveButton.addEventListener("click", saveManualOccurrences);
-  els.fileInput.addEventListener("change", importWorkbook);
+  els.fileInput?.addEventListener("change", importWorkbook);
   els.rows.addEventListener("input", handleRowEdit);
   els.rows.addEventListener("change", handleRowEdit);
 

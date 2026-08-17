@@ -1,16 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Configurações</title>
-    <script type="module" src="auth.js?v=20260629-3"></script>
-    <script type="module" src="assistant.js?v=20260611-9"></script>
-    <link rel="stylesheet" href="brand.css?v=20260608-2" />
-    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
-    <link rel="stylesheet" href="admin-panels.css?v=20260609-1" />
-    <script type="module" src="pendencias.js?v=20260609-2"></script>
-    <script type="module" src="status-planilhas.js?v=20260609-2"></script>
+    <script type="module" src="auth.js?v=20260813-3"></script>
+    <script type="module" src="assistant.js?v=20260701-2"></script>
+    <link rel="stylesheet" href="brand.css?v=20260701-2" />
+    <link rel="stylesheet" href="assistant.css?v=20260701-2" />
+    <link rel="stylesheet" href="admin-panels.css?v=20260701-2" />
+    <script type="module" src="pendencias.js?v=20260701-2"></script>
+    <script type="module" src="status-planilhas.js?v=20260701-2"></script>
     <style>
       :root {
         --bg: #f4fbff;
@@ -580,6 +580,7 @@
           <h1>Configurações</h1>
         </div>
         <div class="switcher">
+          <a href="direx.html">Relatório Executivo</a>
           <a href="apresentacao.html">Indicadores Gerais</a>
           <a href="colaboradores.html">Colaboradores</a>
           <a href="operacional.html">Reincidencia</a>
@@ -635,11 +636,35 @@
             Atendimentos máx.
             <input name="totalTicketsMax" type="number" min="0" step="1" />
           </label>
+          <label>
+            TMA executivo máximo
+            <input name="executiveTmaMax" type="text" inputmode="numeric" placeholder="00:45:00" />
+          </label>
+          <label>
+            TMR executivo máximo
+            <input name="executiveTmrMax" type="text" inputmode="numeric" placeholder="00:02:40" />
+          </label>
+          <label>
+            CSAT executivo mínimo
+            <input name="executiveCsatMin" type="number" min="0" max="5" step="0.01" />
+          </label>
+          <label>
+            Peso TMA no índice
+            <input name="evolutionTmaWeight" type="number" min="0.01" step="0.01" />
+          </label>
+          <label>
+            Peso TMR no índice
+            <input name="evolutionTmrWeight" type="number" min="0.01" step="0.01" />
+          </label>
+          <label>
+            Peso CSAT no índice
+            <input name="evolutionCsatWeight" type="number" min="0.01" step="0.01" />
+          </label>
           <div class="create-actions">
             <button type="submit">Salvar metas</button>
           </div>
         </form>
-        <p class="goals-help">Use tempo no formato HH:MM:SS. TMA/TMR, atendimentos totais e atendimentos a campo ficam melhores quando estão abaixo da meta. SLA, satisfação, qualidade, solucionados e resolutividade ficam melhores quando estão acima.</p>
+        <p class="goals-help">Use tempo no formato HH:MM:SS. As metas executivas são exclusivas do Relatório Executivo. Os pesos definem a participação de TMA, TMR e CSAT no Índice de Evolução; pesos iguais produzem média simples.</p>
       </section>
 
       <section class="panel">
@@ -850,5 +875,9 @@
     </main>
   </body>
 </html>
+
+
+
+
 
 

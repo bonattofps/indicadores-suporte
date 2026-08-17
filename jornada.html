@@ -1,17 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SGP - Jornadas do Suporte</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <script type="module" src="auth.js?v=20260629-3"></script>
-    <script type="module" src="assistant.js?v=20260611-9"></script>
-<link rel="stylesheet" href="jornada.css?v=20260605-1">
-    <link rel="stylesheet" href="brand.css?v=20260608-2">
-    <link rel="stylesheet" href="assistant.css?v=20260611-8" />
+    <script type="module" src="auth.js?v=20260813-3"></script>
+    <script type="module" src="assistant.js?v=20260701-2"></script>
+<link rel="stylesheet" href="jornada.css?v=20260701-2">
+    <link rel="stylesheet" href="brand.css?v=20260701-2">
+    <link rel="stylesheet" href="assistant.css?v=20260701-2" />
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="jornada.js?v=20260605-3" defer></script>
+  <script src="jornada.js?v=20260701-2" defer></script>
   </head>
 <body>
   <header class="app-header">
@@ -41,17 +41,12 @@
       <div class="section-heading">
         <div>
           <h2 id="filtersTitle">Filtros de consulta</h2>
-          <p>Carregue a planilha, escolha o mês e pesquise o colaborador.</p>
+          <p>Escolha o mês e pesquise o colaborador na jornada sincronizada.</p>
         </div>
         <button class="secondary-button" id="clearFilters" type="button">Limpar filtros</button>
       </div>
 
       <div class="filters-grid">
-        <div class="field-group file-field">
-          <label for="workbookInput">Carregar planilha Jornada de Suporte</label>
-          <input id="workbookInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-        </div>
-
         <div class="field-group">
           <label for="monthSelect">Selecionar mês</label>
           <select id="monthSelect" disabled required>
@@ -190,5 +185,9 @@
   </main>
 </body>
 </html>
+
+
+
+
 
 

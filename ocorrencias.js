@@ -96,7 +96,7 @@ const els = {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
-  els.fileInput.addEventListener("change", handleImport);
+  els.fileInput?.addEventListener("change", handleImport);
   els.clearButton.addEventListener("click", clearData);
   els.monthSelect.addEventListener("change", () => {
     occurrenceState.selectedMonth = els.monthSelect.value;

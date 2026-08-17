@@ -59,6 +59,7 @@ const protectedRoleKeys = new Set(roleOptions.map((role) => role.key));
 const dashboardOptions = [
   { page: "sem-acesso.html", label: "Sem acesso", systemOnly: true },
   { page: "index.html", label: "Início" },
+  { page: "direx.html", label: "Relatório Executivo" },
   { page: "apresentacao.html", label: "Indicadores Gerais" },
   { page: "colaboradores.html", label: "Colaboradores" },
   { page: "feedback.html", label: "Feedback Individual" },
@@ -91,6 +92,7 @@ const roleDescriptions = {
 };
 
 const dashboardDescriptions = {
+  "direx.html": "Indicadores, ocorrências, comparação, evolução e conclusão para a Diretoria.",
   "apresentacao.html": "KPIs, TMA, metas e evolução semanal.",
   "colaboradores.html": "Ranking e desempenho N1/N2.",
   "feedback.html": "Conversa 1:1 por colaborador.",
@@ -233,9 +235,9 @@ const defaultRoleAccess = {
   viewer: ["sem-acesso.html"],
   n1: ["index.html", "apresentacao.html", "cto.html"],
   n2: ["index.html", "apresentacao.html", "colaboradores.html", "jornada.html", "cto.html"],
-  supervisor: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
-  gerente: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
-  administrador: ["index.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html", "lancamentos-indicadores.html", "lancamentos-ocorrencias.html", "usuarios.html"]
+  supervisor: ["index.html", "direx.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
+  gerente: ["index.html", "direx.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html"],
+  administrador: ["index.html", "direx.html", "apresentacao.html", "colaboradores.html", "feedback.html", "operacional.html", "ocorrencias.html", "relatorio.html", "jornada.html", "cto.html", "lancamentos-indicadores.html", "lancamentos-ocorrencias.html", "usuarios.html"]
 };
 
 const defaultIndicatorGoals = {
@@ -247,7 +249,13 @@ const defaultIndicatorGoals = {
   fieldOpenMax: 450,
   solvedTicketsMin: 1400,
   solvedMin: 75,
-  totalTicketsMax: 2200
+  totalTicketsMax: 2200,
+  executiveTmaMax: "00:45:00",
+  executiveTmrMax: "00:02:40",
+  executiveCsatMin: 4.5,
+  evolutionTmaWeight: 1,
+  evolutionTmrWeight: 1,
+  evolutionCsatWeight: 1
 };
 
 const roleHome = {
@@ -255,7 +263,7 @@ const roleHome = {
   n1: "apresentacao.html",
   n2: "apresentacao.html",
   supervisor: "index.html",
-  gerente: "index.html",
+  gerente: "direx.html",
   administrador: "index.html"
 };
 
@@ -412,7 +420,8 @@ const canAccess = (role, page) => activeRoleAccess[normalizeRoleKey(role)]?.incl
 
 const homeForRole = (role) => {
   const normalizedRole = normalizeRoleKey(role);
-  if (roleHome[normalizedRole]) return roleHome[normalizedRole];
+  const preferredHome = roleHome[normalizedRole];
+  if (preferredHome && canAccess(normalizedRole, preferredHome)) return preferredHome;
   const pages = activeRoleAccess[normalizedRole] || [];
   return pages.find((page) => page !== "index.html" && dashboardPages.has(page)) || "index.html";
 };
@@ -996,7 +1005,13 @@ const renderIndicatorGoalsPanel = async (profile) => {
       fieldOpenMax: parseGoalNumber(valueFromForm(form, "fieldOpenMax"), defaultIndicatorGoals.fieldOpenMax),
       solvedTicketsMin: parseGoalNumber(valueFromForm(form, "solvedTicketsMin"), defaultIndicatorGoals.solvedTicketsMin),
       solvedMin: parseGoalNumber(valueFromForm(form, "solvedMin"), defaultIndicatorGoals.solvedMin),
-      totalTicketsMax: parseGoalNumber(valueFromForm(form, "totalTicketsMax"), defaultIndicatorGoals.totalTicketsMax)
+      totalTicketsMax: parseGoalNumber(valueFromForm(form, "totalTicketsMax"), defaultIndicatorGoals.totalTicketsMax),
+      executiveTmaMax: valueFromForm(form, "executiveTmaMax").trim() || defaultIndicatorGoals.executiveTmaMax,
+      executiveTmrMax: valueFromForm(form, "executiveTmrMax").trim() || defaultIndicatorGoals.executiveTmrMax,
+      executiveCsatMin: parseGoalNumber(valueFromForm(form, "executiveCsatMin"), defaultIndicatorGoals.executiveCsatMin),
+      evolutionTmaWeight: parseGoalNumber(valueFromForm(form, "evolutionTmaWeight"), defaultIndicatorGoals.evolutionTmaWeight),
+      evolutionTmrWeight: parseGoalNumber(valueFromForm(form, "evolutionTmrWeight"), defaultIndicatorGoals.evolutionTmrWeight),
+      evolutionCsatWeight: parseGoalNumber(valueFromForm(form, "evolutionCsatWeight"), defaultIndicatorGoals.evolutionCsatWeight)
     };
 
     try {

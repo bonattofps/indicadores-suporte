@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Relatório Executivo</title>
-    <script type="module" src="auth.js?v=20260813-3"></script>
+    <script type="module" src="auth.js?v=20260817-1"></script>
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
-    <link rel="stylesheet" href="direx.css?v=20260813-4" />
+    <link rel="stylesheet" href="direx.css?v=20260817-2" />
   </head>
   <body>
     <main class="direx-shell">
@@ -16,20 +16,24 @@
             <img src="logo.png" alt="Uni Internet" />
           </a>
           <div>
-            <p class="eyebrow">SGP - Sistema Gestão do Suporte</p>
+            <p class="eyebrow">SGP · Inteligência de Operações</p>
             <h1>Relatório Executivo</h1>
-            <p>Indicadores e ocorrências traduzidos para tomada de decisão.</p>
+            <p>Resultados, impacto operacional e prioridades para tomada de decisão.</p>
           </div>
         </div>
         <nav class="top-actions" aria-label="Ações do relatório executivo">
-          <a href="index.html">Início</a>
-          <a href="apresentacao.html">Ver detalhes</a>
-          <button id="presentationButton" type="button">Modo apresentação</button>
-          <button id="printButton" class="primary" type="button">Gerar relatório executivo</button>
+          <a href="index.html"><i data-lucide="house" aria-hidden="true"></i><span>Início</span></a>
+          <a href="apresentacao.html"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Operação</span></a>
+          <button id="presentationButton" type="button"><i data-lucide="presentation" aria-hidden="true"></i><span>Apresentar</span></button>
+          <button id="printButton" class="primary" type="button"><i data-lucide="file-down" aria-hidden="true"></i><span>Gerar PDF</span></button>
         </nav>
       </header>
 
       <section class="filter-panel no-print" aria-label="Filtros executivos">
+        <div class="filter-intro">
+          <span class="filter-icon"><i data-lucide="sliders-horizontal" aria-hidden="true"></i></span>
+          <div><strong>Recorte do relatório</strong><small>Selecione o período de análise</small></div>
+        </div>
         <label class="filter-type-field">
           Filtrar por
           <select id="modeSelect" aria-label="Selecionar tipo de filtro">
@@ -60,129 +64,127 @@
           <input id="customEnd" type="date" />
         </label>
         <div class="comparison-summary" aria-live="polite">
-          <span>Comparação automática</span>
+          <span>Comparado automaticamente com</span>
           <strong id="comparisonLabel">Período anterior</strong>
         </div>
       </section>
 
-      <section class="data-notice no-print" id="dataStatus">Carregando resultados...</section>
+      <section class="data-notice no-print">
+        <i data-lucide="database" aria-hidden="true"></i><span id="dataStatus">Carregando resultados...</span>
+      </section>
 
-      <section class="executive-page page-one">
+      <section class="executive-page page-one" aria-labelledby="overviewTitle">
         <div class="print-heading">
           <img src="logo.png" alt="Uni Internet" />
-          <div><span>Dashboard Executiva - Suporte</span><strong id="printPeriod">Período</strong></div>
+          <div><span>Relatório Executivo · SGP</span><strong id="printPeriod">Período</strong></div>
         </div>
 
         <article class="result-hero" id="resultHero">
-          <div>
-            <p class="eyebrow">Resumo executivo</p>
-            <div class="result-status neutral" id="resultStatus">Aguardando dados</div>
+          <div class="hero-copy">
+            <div class="hero-meta">
+              <span class="period-chip" id="activePeriodLabel">Período em análise</span>
+              <span class="result-status neutral" id="resultStatus">Aguardando dados</span>
+            </div>
+            <p class="eyebrow">Leitura para decisão</p>
+            <h2 id="overviewTitle">Síntese do desempenho operacional</h2>
             <p class="executive-copy" id="executiveSummary">Os resultados serão interpretados automaticamente.</p>
+            <div class="hero-footnote"><i data-lucide="refresh-cw" aria-hidden="true"></i><span id="reportGeneratedAt">Atualizado agora</span></div>
           </div>
-          <div class="evolution-index">
-            <span>Índice de evolução</span>
-            <strong id="evolutionIndex">-</strong>
+
+          <div class="evolution-index" id="evolutionGauge" style="--gauge-value: 0deg">
+            <div class="gauge-ring"><div class="gauge-center"><strong id="evolutionIndex">-</strong><span>Índice de evolução</span></div></div>
             <small id="evolutionMethod">Comparação ponderada dos indicadores</small>
           </div>
         </article>
 
+        <section class="executive-snapshot" aria-label="Resumo do período" id="executiveSnapshot"></section>
+
         <section class="section-block">
           <div class="section-title">
-            <div><p class="eyebrow">Indicadores principais</p><h2>Resultado, meta e comparação</h2></div>
-            <span id="activePeriodLabel">-</span>
+            <div><p class="eyebrow">Indicadores estratégicos</p><h2>Resultado, meta e tendência</h2></div>
+            <p>Verde indica meta atendida. A tendência compara com o período imediatamente anterior.</p>
           </div>
           <div class="executive-cards" id="executiveCards"></div>
         </section>
       </section>
 
-      <section class="executive-page page-two">
-        <div class="print-heading">
-          <img src="logo.png" alt="Uni Internet" />
-          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
-        </div>
+      <section class="executive-page page-two" aria-labelledby="weeklyTitle">
+        <div class="print-heading"><img src="logo.png" alt="Uni Internet" /><div><span>Relatório Executivo · SGP</span><strong class="print-period-copy">Período</strong></div></div>
         <div class="section-title">
-          <div><p class="eyebrow">Evolução semanal</p><h2>Leitura das últimas semanas</h2></div>
+          <div><p class="eyebrow">Desempenho recente</p><h2 id="weeklyTitle">Evolução semanal</h2></div>
+          <span>100% representa a meta configurada</span>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Semana</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Resultado</th></tr></thead>
-            <tbody id="weeklyBody"></tbody>
-          </table>
+        <div class="analysis-grid weekly-analysis">
+          <article class="chart-panel">
+            <header><div><strong>Aderência às metas</strong><small>Evolução normalizada por indicador</small></div><span class="legend-target">Meta 100%</span></header>
+            <div class="chart-canvas"><canvas id="weeklyTrendChart" aria-label="Gráfico de aderência semanal às metas"></canvas></div>
+          </article>
+          <article class="narrative-panel">
+            <span class="panel-icon"><i data-lucide="scan-line" aria-hidden="true"></i></span>
+            <p class="eyebrow">Leitura automática</p><h3>Tendência do período</h3>
+            <p id="weeklyNarrative">Sem semanas suficientes para análise.</p>
+            <div class="narrative-points" id="weeklyHighlights"></div>
+          </article>
         </div>
-        <article class="narrative-panel">
-          <p class="eyebrow">Interpretação automática</p>
-          <p id="weeklyNarrative">Sem semanas suficientes para análise.</p>
-        </article>
+        <div class="table-panel">
+          <header><div><strong>Histórico semanal</strong><small>Resultados consolidados no mês selecionado</small></div></header>
+          <div class="table-wrap"><table><thead><tr><th>Semana</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Leitura</th></tr></thead><tbody id="weeklyBody"></tbody></table></div>
+        </div>
       </section>
 
-      <section class="executive-page page-three">
-        <div class="print-heading">
-          <img src="logo.png" alt="Uni Internet" />
-          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
-        </div>
+      <section class="executive-page page-three" aria-labelledby="monthlyTitle">
+        <div class="print-heading"><img src="logo.png" alt="Uni Internet" /><div><span>Relatório Executivo · SGP</span><strong class="print-period-copy">Período</strong></div></div>
         <div class="section-title">
-          <div><p class="eyebrow">Evolução mensal</p><h2>Visão consolidada por mês</h2></div>
+          <div><p class="eyebrow">Visão consolidada</p><h2 id="monthlyTitle">Evolução mensal e cumprimento das metas</h2></div>
+          <span>Janela móvel de até 12 meses</span>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Mês</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Metas</th><th>Evolução</th></tr></thead>
-            <tbody id="monthlyBody"></tbody>
-          </table>
+        <div class="analysis-grid monthly-analysis">
+          <article class="chart-panel">
+            <header><div><strong>Consistência dos resultados</strong><small>Aderência mensal às metas executivas</small></div><span class="legend-target">Meta 100%</span></header>
+            <div class="chart-canvas"><canvas id="monthlyTrendChart" aria-label="Gráfico de aderência mensal às metas"></canvas></div>
+          </article>
+          <section class="goal-result" aria-labelledby="goalTitle">
+            <div class="compact-heading"><div><p class="eyebrow">Meta x resultado</p><h3 id="goalTitle">Painel de cumprimento</h3></div><span id="goalScore">0/3</span></div>
+            <div id="goalResultList"></div>
+          </section>
         </div>
-        <section class="goal-result">
-          <div class="section-title compact"><div><p class="eyebrow">Meta x resultado</p><h2>Cumprimento das metas</h2></div></div>
-          <div id="goalResultList"></div>
-        </section>
+        <div class="table-panel monthly-table-panel">
+          <header><div><strong>Histórico mensal</strong><small>Visão comparativa da operação</small></div></header>
+          <div class="table-wrap"><table><thead><tr><th>Mês</th><th>TMA</th><th>TMR</th><th>CSAT</th><th>Metas</th><th>Evolução</th></tr></thead><tbody id="monthlyBody"></tbody></table></div>
+        </div>
       </section>
 
-      <section class="executive-page page-four">
-        <div class="print-heading">
-          <img src="logo.png" alt="Uni Internet" />
-          <div><span>Dashboard Executiva - Suporte</span><strong class="print-period-copy">Período</strong></div>
-        </div>
+      <section class="executive-page page-four" aria-labelledby="occurrenceTitle">
+        <div class="print-heading"><img src="logo.png" alt="Uni Internet" /><div><span>Relatório Executivo · SGP</span><strong class="print-period-copy">Período</strong></div></div>
         <section class="occurrence-report">
-          <div class="section-title compact">
-            <div><p class="eyebrow">Ocorrências mensais</p><h2>Impacto operacional do período</h2></div>
-            <span id="occurrencePeriodLabel">-</span>
-          </div>
+          <div class="section-title"><div><p class="eyebrow">Impacto operacional</p><h2 id="occurrenceTitle">Ocorrências do período</h2></div><span id="occurrencePeriodLabel">-</span></div>
           <div class="occurrence-cards" id="occurrenceCards"></div>
+          <div class="occurrence-analysis">
+            <article class="chart-panel"><header><div><strong>Evolução das ocorrências</strong><small>Volume mensal consolidado</small></div></header><div class="chart-canvas compact-chart"><canvas id="occurrenceTrendChart" aria-label="Gráfico de evolução mensal das ocorrências"></canvas></div></article>
+            <article class="chart-panel"><header><div><strong>Principais causas</strong><small>Concentração no período selecionado</small></div></header><div class="chart-canvas compact-chart"><canvas id="occurrenceReasonChart" aria-label="Gráfico das principais causas das ocorrências"></canvas></div></article>
+          </div>
           <p class="occurrence-narrative" id="occurrenceNarrative">Carregando ocorrências...</p>
         </section>
         <div class="decision-grid">
-          <article class="decision-panel positive">
-            <p class="eyebrow">O que melhorou?</p>
-            <h2>Avanços do período</h2>
-            <ul id="improvedList"></ul>
-          </article>
-          <article class="decision-panel attention">
-            <p class="eyebrow">O que precisa de atenção?</p>
-            <h2>Pontos para decisão</h2>
-            <ul id="attentionList"></ul>
-          </article>
+          <article class="decision-panel positive"><span class="panel-icon"><i data-lucide="trending-up" aria-hidden="true"></i></span><p class="eyebrow">Avanços</p><h2>O que evoluiu</h2><ul id="improvedList"></ul></article>
+          <article class="decision-panel attention"><span class="panel-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span><p class="eyebrow">Riscos</p><h2>O que exige atuação</h2><ul id="attentionList"></ul></article>
         </div>
-        <article class="conclusion-panel">
-          <p class="eyebrow">Conclusão do período</p>
-          <h2 id="conclusionTitle">Leitura executiva</h2>
-          <p id="executiveConclusion">A conclusão será construída com os dados selecionados.</p>
-        </article>
+        <section class="recommendation-panel">
+          <div class="section-title compact"><div><p class="eyebrow">Agenda Direx</p><h2>Encaminhamentos recomendados</h2></div><span>Prioridades geradas conforme os resultados</span></div>
+          <div class="recommendation-list" id="recommendedActions"></div>
+        </section>
+        <article class="conclusion-panel"><div class="conclusion-icon"><i data-lucide="flag" aria-hidden="true"></i></div><div><p class="eyebrow">Conclusão executiva</p><h2 id="conclusionTitle">Leitura do período</h2><p id="executiveConclusion">A conclusão será construída com os dados selecionados.</p></div></article>
         <article class="method-panel">
-          <button id="detailsButton" class="no-print" type="button" aria-expanded="false">Ver metodologia e detalhes</button>
-          <div id="detailsContent" hidden>
-            <h3>Como o índice é calculado</h3>
-            <p>Cada indicador recebe 100 pontos quando melhora, 50 quando permanece estável e 0 quando piora. O índice é a média ponderada pelos pesos configurados em Configurações. As ocorrências são consolidadas pelo mesmo período selecionado, mas não alteram o Índice de Evolução.</p>
-            <div class="detail-links no-print">
-              <a href="apresentacao.html">Indicadores operacionais</a>
-              <a href="colaboradores.html">Dados por colaborador</a>
-              <a href="ocorrencias.html">Ocorrências e O.S.</a>
-              <a href="usuarios.html">Configurar metas e pesos</a>
-            </div>
-          </div>
+          <button id="detailsButton" class="no-print" type="button" aria-expanded="false"><i data-lucide="info" aria-hidden="true"></i><span>Metodologia e fontes</span><i data-lucide="chevron-down" aria-hidden="true"></i></button>
+          <div id="detailsContent" hidden><h3>Como interpretar este relatório</h3><p>Cada indicador recebe 100 pontos quando melhora, 50 quando permanece estável e 0 quando piora. O índice é a média ponderada pelos pesos configurados em Configurações. As ocorrências são consolidadas pelo mesmo período selecionado, mas não alteram o Índice de Evolução.</p><div class="detail-links no-print"><a href="apresentacao.html">Indicadores operacionais</a><a href="colaboradores.html">Dados por colaborador</a><a href="ocorrencias.html">Ocorrências e O.S.</a><a href="usuarios.html">Configurar metas e pesos</a></div></div>
         </article>
       </section>
     </main>
 
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="direx.js?v=20260813-4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="direx.js?v=20260817-2"></script>
   </body>
 </html>

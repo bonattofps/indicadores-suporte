@@ -55,4 +55,20 @@ Classificação:
 - TMA e TMR são convertidos para segundos durante os cálculos e voltam ao formato `HH:MM:SS` na exibição.
 - CSAT é calculado como média simples dos valores válidos disponíveis no período.
 
-Arquivos XLSX/CSV importados são tratados apenas na memória do navegador. A base original não é alterada.
+## Aderência exibida nos gráficos
+
+Os gráficos normalizam cada indicador em relação à própria meta. A linha de `100%` representa o objetivo configurado:
+
+- TMA e TMR: `meta / resultado * 100`;
+- CSAT: `resultado / meta * 100`.
+
+Valores acima de `100%` indicam que a meta foi superada. O gráfico limita a escala visual em `180%` para evitar distorções, sem alterar o valor original.
+
+## Ocorrências
+
+- O volume, a cidade, a causa e o tempo offline usam o mesmo recorte selecionado no relatório.
+- A comparação usa o período imediatamente anterior conforme a regra de semana, mês, ano ou intervalo personalizado.
+- O histórico mensal considera até 12 meses disponíveis.
+- As ocorrências complementam a leitura executiva, mas não alteram o Índice de Evolução de TMA, TMR e CSAT.
+
+As bases de indicadores e ocorrências são apenas consultadas e consolidadas pelo relatório. Nenhum dado original é alterado.

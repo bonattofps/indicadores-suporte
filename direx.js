@@ -61,7 +61,8 @@ const state = {
   monthId: "",
   periodKey: "",
   mode: "weekly",
-  goals: { ...DEFAULT_GOALS }
+  goals: { ...DEFAULT_GOALS },
+  charts: {}
 };
 
 const els = {
@@ -86,16 +87,26 @@ const els = {
   resultStatus: document.querySelector("#resultStatus"),
   executiveSummary: document.querySelector("#executiveSummary"),
   evolutionIndex: document.querySelector("#evolutionIndex"),
+  evolutionGauge: document.querySelector("#evolutionGauge"),
   evolutionMethod: document.querySelector("#evolutionMethod"),
+  generatedAt: document.querySelector("#reportGeneratedAt"),
   activePeriodLabel: document.querySelector("#activePeriodLabel"),
   printPeriod: document.querySelector("#printPeriod"),
+  snapshot: document.querySelector("#executiveSnapshot"),
   cards: document.querySelector("#executiveCards"),
   weeklyBody: document.querySelector("#weeklyBody"),
   weeklyNarrative: document.querySelector("#weeklyNarrative"),
+  weeklyHighlights: document.querySelector("#weeklyHighlights"),
+  weeklyChart: document.querySelector("#weeklyTrendChart"),
   monthlyBody: document.querySelector("#monthlyBody"),
+  monthlyChart: document.querySelector("#monthlyTrendChart"),
   goalResults: document.querySelector("#goalResultList"),
+  goalScore: document.querySelector("#goalScore"),
+  occurrenceTrendChart: document.querySelector("#occurrenceTrendChart"),
+  occurrenceReasonChart: document.querySelector("#occurrenceReasonChart"),
   improved: document.querySelector("#improvedList"),
   attention: document.querySelector("#attentionList"),
+  recommendations: document.querySelector("#recommendedActions"),
   conclusionTitle: document.querySelector("#conclusionTitle"),
   conclusion: document.querySelector("#executiveConclusion"),
   detailsButton: document.querySelector("#detailsButton"),
@@ -122,6 +133,7 @@ async function init() {
   state.periodKey = defaultWeeklyPeriod(currentMonth())?.key || "";
   setCustomDateDefaults();
   render();
+  window.lucide?.createIcons();
 }
 
 function bindEvents() {
@@ -150,14 +162,16 @@ function bindEvents() {
     const expanded = els.detailsButton.getAttribute("aria-expanded") === "true";
     els.detailsButton.setAttribute("aria-expanded", String(!expanded));
     els.detailsContent.hidden = expanded;
-    els.detailsButton.textContent = expanded ? "Ver metodologia e detalhes" : "Ocultar metodologia e detalhes";
+    setButtonLabel(els.detailsButton, expanded ? "Metodologia e fontes" : "Ocultar metodologia e fontes");
   });
   document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement && document.body.classList.contains("presentation-mode")) {
       document.body.classList.remove("presentation-mode");
-      els.presentationButton.textContent = "Modo apresentação";
+      setButtonLabel(els.presentationButton, "Apresentar");
     }
   });
+  window.addEventListener("beforeprint", resizeCharts);
+  window.addEventListener("afterprint", resizeCharts);
 }
 
 async function loadWorkbook() {
@@ -279,14 +293,19 @@ function render() {
   renderFilters();
   const report = buildReport();
   renderHeadline(report);
+  renderExecutiveSnapshot(report);
   renderCards(report);
   renderWeekly(report);
+  renderWeeklyHighlights(report);
   renderMonthly(report);
   renderGoalResults(report);
   renderOccurrences(report);
+  renderCharts(report);
   renderDecisionLists(report);
+  renderRecommendations(report);
   renderConclusion(report);
   els.status.textContent = `${state.workbook.monthOrder.length} mês(es) de indicadores e ${state.occurrences.length.toLocaleString("pt-BR")} ocorrência(s) disponíveis. Comparações calculadas automaticamente sem alterar as bases originais.`;
+  window.lucide?.createIcons();
 }
 
 function renderFilters() {
@@ -331,7 +350,7 @@ function buildReport() {
   const hasResults = indicators.some((indicator) => hasValue(indicator.current));
   const className = !hasResults ? "neutral" : index >= 70 ? "good" : index >= 45 ? "warn" : "bad";
   const status = !hasResults ? "Sem dados" : index >= 70 ? "Evolução positiva" : index >= 45 ? "Cenário de atenção" : "Necessita atenção";
-  return {
+  const report = {
     selection,
     indicators,
     index,
@@ -340,6 +359,8 @@ function buildReport() {
     weekly: weeklyTimeline(),
     monthly: monthlyTimeline()
   };
+  report.occurrence = buildOccurrenceSummary(selection);
+  return report;
 }
 
 function selectionContext() {
@@ -463,6 +484,10 @@ function renderHeadline(report) {
     ? "var(--green)"
     : report.className === "warn" ? "var(--amber)" : report.className === "bad" ? "var(--red)" : "var(--blue)";
   els.evolutionIndex.textContent = `${report.index}%`;
+  els.evolutionGauge.style.setProperty("--gauge-value", `${Math.max(0, Math.min(100, report.index)) * 3.6}deg`);
+  els.evolutionGauge.style.setProperty("--gauge-color", report.className === "good"
+    ? "var(--green)"
+    : report.className === "warn" ? "var(--amber)" : report.className === "bad" ? "var(--red)" : "var(--blue)");
   els.evolutionMethod.textContent = `Pesos: TMA ${metricWeight("tma")} · TMR ${metricWeight("tmr")} · CSAT ${metricWeight("csat")}`;
   els.executiveSummary.textContent = executiveSummaryText(report, improved, worsened, met, available);
   els.activePeriodLabel.textContent = `${report.selection.label} x ${report.selection.comparisonLabel}`;
@@ -470,6 +495,7 @@ function renderHeadline(report) {
   els.printPeriod.textContent = printPeriodLabel;
   document.querySelectorAll(".print-period-copy").forEach((element) => { element.textContent = printPeriodLabel; });
   els.comparisonLabel.textContent = report.selection.comparisonLabel;
+  els.generatedAt.textContent = `Atualizado em ${new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`;
 }
 
 function executiveSummaryText(report, improved, worsened, met, available) {
@@ -484,17 +510,76 @@ function executiveSummaryText(report, improved, worsened, met, available) {
   return `${opening}${improvementText}${attentionText} ${met.length} de ${available.length} metas foram atingidas.`;
 }
 
+function renderExecutiveSnapshot(report) {
+  const available = report.indicators.filter((item) => hasValue(item.current));
+  const met = available.filter((item) => item.goalMet);
+  const improved = report.indicators.filter((item) => item.trend === "good").sort(byVariationMagnitude);
+  const priorities = report.indicators.filter((item) => hasValue(item.current) && (!item.goalMet || item.trend === "bad")).sort(byVariationMagnitude);
+  const occurrence = report.occurrence;
+  const occurrenceDetail = occurrence.previousRows.length
+    ? `${occurrence.delta > 0 ? "+" : ""}${occurrence.delta} frente ao período anterior`
+    : "Sem base anterior comparável";
+  const items = [
+    {
+      icon: "target",
+      label: "Metas atingidas",
+      value: `${met.length} de ${available.length || METRICS.length}`,
+      detail: available.length ? `${Math.round((met.length / available.length) * 100)}% de cumprimento` : "Sem dados suficientes",
+      className: available.length && met.length === available.length ? "good" : met.length ? "warn" : "bad"
+    },
+    {
+      icon: "trending-up",
+      label: "Principal avanço",
+      value: improved[0]?.label || "Sem avanço",
+      detail: improved[0] ? changeHeadline(improved[0]) : "Nenhuma melhora comparável",
+      className: improved.length ? "good" : "warn"
+    },
+    {
+      icon: "triangle-alert",
+      label: "Prioridade executiva",
+      value: priorities[0]?.label || "Manter padrão",
+      detail: priorities[0] ? priorityDetail(priorities[0]) : "Indicadores principais controlados",
+      className: priorities.length ? "bad" : "good"
+    },
+    {
+      icon: "radio-tower",
+      label: "Ocorrências",
+      value: occurrence.currentRows.length.toLocaleString("pt-BR"),
+      detail: occurrenceDetail,
+      className: occurrence.comparisonClass
+    }
+  ];
+  els.snapshot.innerHTML = items.map((item) => `
+    <article class="snapshot-item ${item.className}">
+      <span class="snapshot-icon"><i data-lucide="${item.icon}" aria-hidden="true"></i></span>
+      <div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong><small>${escapeHtml(item.detail)}</small></div>
+    </article>
+  `).join("");
+}
+
+function renderWeeklyHighlights(report) {
+  if (!els.weeklyHighlights) return;
+  const points = [];
+  const available = report.indicators.filter((item) => hasValue(item.current));
+  const improved = available.filter((item) => item.trend === "good").sort(byVariationMagnitude);
+  const risks = available.filter((item) => item.trend === "bad" || !item.goalMet).sort(byVariationMagnitude);
+  if (improved[0]) points.push({ className: "good", text: `${improved[0].label}: ${decisionSentence(improved[0], true)}` });
+  if (risks[0]) points.push({ className: "bad", text: `${risks[0].label}: ${priorityDetail(risks[0])}` });
+  const met = available.filter((item) => item.goalMet).length;
+  points.push({ className: met === available.length && available.length ? "good" : "neutral", text: `${met} de ${available.length || METRICS.length} indicadores encerraram dentro da meta.` });
+  els.weeklyHighlights.innerHTML = points.slice(0, 3).map((point) => `<div class="narrative-point ${point.className}">${escapeHtml(point.text)}</div>`).join("");
+}
+
 function renderCards(report) {
   els.cards.innerHTML = report.indicators.map((item) => `
     <article class="metric-card ${item.statusClass}">
-      <header><h3>${escapeHtml(item.label)}</h3><span class="status-pill ${item.statusClass}">${escapeHtml(item.status)}</span></header>
-      <div class="metric-value">${escapeHtml(formatMetric(item.current, item.type))}</div>
+      <header><div><h3>${escapeHtml(item.label)}</h3><span class="metric-name">${escapeHtml(item.fullName)}</span></div><span class="status-pill ${item.statusClass}">${escapeHtml(item.status)}</span></header>
+      <div class="metric-value-row"><div class="metric-value">${escapeHtml(formatMetric(item.current, item.type))}</div><div class="metric-change ${item.trend}">${escapeHtml(changeHeadline(item))}</div></div>
       <div class="metric-facts">
         <span>Meta<strong>${escapeHtml(formatMetric(item.goal, item.type))}</strong></span>
         <span>Anterior<strong>${escapeHtml(formatMetric(item.previous, item.type))}</strong></span>
       </div>
-      <div class="metric-change ${item.trend}">${escapeHtml(changeHeadline(item))}</div>
-      <small>${escapeHtml(changeExplanation(item))}</small>
+      <footer>${escapeHtml(changeExplanation(item))}</footer>
     </article>
   `).join("");
 }
@@ -526,11 +611,13 @@ function renderMonthly(report) {
 }
 
 function renderGoalResults(report) {
+  const available = report.indicators.filter((item) => hasValue(item.current));
+  const met = available.filter((item) => item.goalMet).length;
+  els.goalScore.textContent = `${met}/${available.length || METRICS.length}`;
   els.goalResults.innerHTML = report.indicators.map((item) => `
     <div class="goal-row">
       <div><span>Indicador</span><strong>${escapeHtml(item.label)}</strong></div>
-      <div><span>Meta</span><strong>${escapeHtml(formatMetric(item.goal, item.type))}</strong></div>
-      <div><span>Resultado</span><strong>${escapeHtml(formatMetric(item.current, item.type))}</strong></div>
+      <div class="goal-result-value"><span>Meta / resultado</span><strong>${escapeHtml(formatMetric(item.goal, item.type))} / ${escapeHtml(formatMetric(item.current, item.type))}</strong></div>
       <div>${renderTableStatus(
         !hasValue(item.current) ? "neutral" : item.goalMet ? "good" : "bad",
         !hasValue(item.current) ? "Sem dados" : item.goalMet ? "Atingiu" : "Não atingiu"
@@ -539,12 +626,12 @@ function renderGoalResults(report) {
   `).join("");
 }
 
-function renderOccurrences(report) {
-  if (!els.occurrenceCards || !els.occurrenceNarrative) return;
-  const currentRows = occurrencesInRange(report.selection.currentRange);
-  const previousRows = occurrencesInRange(report.selection.previousRange);
+function buildOccurrenceSummary(selection) {
+  const currentRows = occurrencesInRange(selection.currentRange);
+  const previousRows = occurrencesInRange(selection.previousRange);
   const city = occurrenceRanking(currentRows, "city")[0];
-  const reason = occurrenceRanking(currentRows, "reason")[0];
+  const reasonRanking = occurrenceRanking(currentRows, "reason");
+  const reason = reasonRanking[0];
   const offlineSeconds = currentRows.reduce((total, row) => {
     const seconds = occurrenceOfflineSeconds(row.downtime);
     return total + (Number.isFinite(seconds) ? seconds : 0);
@@ -552,6 +639,125 @@ function renderOccurrences(report) {
   const delta = currentRows.length - previousRows.length;
   const percent = previousRows.length ? (delta / previousRows.length) * 100 : null;
   const comparisonClass = !previousRows.length ? "neutral" : delta <= 0 ? "good" : "bad";
+  return { currentRows, previousRows, city, reason, reasonRanking, offlineSeconds, delta, percent, comparisonClass };
+}
+
+function renderCharts(report) {
+  renderAdherenceChart("weekly", els.weeklyChart, report.weekly);
+  renderAdherenceChart("monthly", els.monthlyChart, report.monthly);
+  renderOccurrenceCharts(report);
+}
+
+function renderAdherenceChart(key, canvas, rows) {
+  if (!canvas || !window.Chart) return;
+  destroyChart(key);
+  const colors = { tma: "#1f7ea8", tmr: "#dd8b18", csat: "#00a66f" };
+  const datasets = METRICS.map((config) => ({
+    label: config.label,
+    data: rows.map((row) => metricAdherence(row.values[config.key], config)),
+    borderColor: colors[config.key],
+    backgroundColor: colors[config.key],
+    borderWidth: 2.5,
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    tension: 0.25,
+    spanGaps: true
+  }));
+  datasets.push({
+    label: "Meta",
+    data: rows.map(() => 100),
+    borderColor: "#6a7d89",
+    borderDash: [5, 5],
+    borderWidth: 1.5,
+    pointRadius: 0,
+    tension: 0
+  });
+  state.charts[key] = new Chart(canvas, {
+    type: "line",
+    data: { labels: rows.map((row) => compactPeriodLabel(row.label)), datasets },
+    options: baseChartOptions({
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+        y: { beginAtZero: true, suggestedMax: 130, ticks: { callback: (value) => `${value}%` }, grid: { color: "#dfe9ed" } }
+      }
+    })
+  });
+}
+
+function renderOccurrenceCharts(report) {
+  if (!window.Chart) return;
+  const selectedSort = currentMonth()?.sortKey || Infinity;
+  const monthlyRows = (state.workbook.monthOrder || [])
+    .map((monthId) => state.workbook.months[monthId])
+    .filter((month) => (month?.sortKey || 0) <= selectedSort)
+    .slice(-12)
+    .map((month) => ({ label: month.label, total: occurrencesInRange(monthDateRange(month)).length }));
+
+  destroyChart("occurrenceTrend");
+  if (els.occurrenceTrendChart) {
+    state.charts.occurrenceTrend = new Chart(els.occurrenceTrendChart, {
+      type: "line",
+      data: {
+        labels: monthlyRows.map((row) => compactMonthLabel(row.label)),
+        datasets: [{ label: "Ocorrências", data: monthlyRows.map((row) => row.total), borderColor: "#1f7ea8", backgroundColor: "rgba(31, 126, 168, 0.12)", fill: true, borderWidth: 2.5, pointRadius: 3, tension: 0.28 }]
+      },
+      options: baseChartOptions({ scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#dfe9ed" } } } })
+    });
+  }
+
+  destroyChart("occurrenceReason");
+  const reasons = report.occurrence.reasonRanking.slice(0, 6).reverse();
+  if (els.occurrenceReasonChart) {
+    state.charts.occurrenceReason = new Chart(els.occurrenceReasonChart, {
+      type: "bar",
+      data: {
+        labels: reasons.map((row) => truncateLabel(row.name, 24)),
+        datasets: [{ label: "Ocorrências", data: reasons.map((row) => row.total), backgroundColor: reasons.map((_, index) => index === reasons.length - 1 ? "#dd8b18" : "#4bb493"), borderRadius: 3 }]
+      },
+      options: baseChartOptions({ indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#dfe9ed" } }, y: { grid: { display: false } } } })
+    });
+  }
+}
+
+function baseChartOptions(overrides = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8, padding: 14, color: "#29475b", font: { size: 11, weight: 700 } } },
+      tooltip: { backgroundColor: "#10283c", padding: 10, titleFont: { weight: 800 } }
+    },
+    ...overrides,
+    plugins: { ...{
+      legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8, padding: 14, color: "#29475b", font: { size: 11, weight: 700 } } },
+      tooltip: { backgroundColor: "#10283c", padding: 10, titleFont: { weight: 800 } }
+    }, ...(overrides.plugins || {}) }
+  };
+}
+
+function metricAdherence(value, config) {
+  if (!hasValue(value)) return null;
+  const current = comparableValue(value, config.type);
+  const goal = comparableValue(state.goals[config.goalKey] ?? DEFAULT_GOALS[config.goalKey], config.type);
+  if (!Number.isFinite(current) || !Number.isFinite(goal) || current < 0 || goal <= 0) return null;
+  const score = config.direction === "down" ? (goal / Math.max(current, 0.000001)) * 100 : (current / goal) * 100;
+  return Math.round(Math.min(180, score) * 10) / 10;
+}
+
+function destroyChart(key) {
+  state.charts[key]?.destroy?.();
+  delete state.charts[key];
+}
+
+function resizeCharts() {
+  window.setTimeout(() => Object.values(state.charts).forEach((chart) => chart?.resize?.()), 50);
+}
+
+function renderOccurrences(report) {
+  if (!els.occurrenceCards || !els.occurrenceNarrative) return;
+  const { currentRows, previousRows, city, reason, offlineSeconds, delta, percent, comparisonClass } = report.occurrence;
 
   els.occurrencePeriodLabel.textContent = report.selection.label;
   els.occurrenceCards.innerHTML = [
@@ -595,6 +801,53 @@ function renderDecisionLists(report) {
     : "<li>Nenhum dos principais indicadores apresentou deterioração no período.</li>";
 }
 
+function renderRecommendations(report) {
+  if (!els.recommendations) return;
+  const actions = [];
+  report.indicators
+    .filter((item) => hasValue(item.current) && (!item.goalMet || item.trend === "bad"))
+    .sort((a, b) => Number(a.goalMet) - Number(b.goalMet) || byVariationMagnitude(a, b))
+    .forEach((item) => {
+      const texts = {
+        tma: "Revisar distribuição da fila, complexidade das tratativas e etapas que elevam o tempo médio. Definir responsável e reavaliar no próximo fechamento.",
+        tmr: "Atuar sobre o tempo de primeira resposta, cobertura da fila e priorização dos contatos. Acompanhar diariamente até retornar ao limite configurado.",
+        csat: "Auditar atendimentos com notas baixas, identificar causas recorrentes e transformar os achados em orientação prática para a equipe."
+      };
+      actions.push({
+        level: item.goalMet ? "Média" : "Alta",
+        className: item.goalMet ? "priority-medium" : "priority-high",
+        title: `${item.label}: recuperar aderência`,
+        text: texts[item.key]
+      });
+    });
+
+  if (report.occurrence.previousRows.length && report.occurrence.delta > 0) {
+    actions.push({
+      level: "Alta",
+      className: "priority-high",
+      title: "Reduzir recorrência operacional",
+      text: `Concentrar a análise em ${report.occurrence.city?.name || "local não informado"} e na causa ${report.occurrence.reason?.name || "não informada"}, que lideram o recorte atual.`
+    });
+  }
+
+  if (!actions.length) {
+    actions.push({
+      level: "Manutenção",
+      className: "priority-maintain",
+      title: "Sustentar o padrão atual",
+      text: "Manter a rotina de acompanhamento, registrar desvios e preservar as práticas que conduziram os indicadores ao objetivo."
+    });
+  }
+
+  els.recommendations.innerHTML = actions.slice(0, 3).map((action, index) => `
+    <article class="recommendation-item ${action.className}">
+      <header><span>Prioridade ${escapeHtml(action.level)}</span><strong>${String(index + 1).padStart(2, "0")}</strong></header>
+      <h3>${escapeHtml(action.title)}</h3>
+      <p>${escapeHtml(action.text)}</p>
+    </article>
+  `).join("");
+}
+
 function renderConclusion(report) {
   const available = report.indicators.filter((item) => hasValue(item.current));
   const met = available.filter((item) => item.goalMet);
@@ -605,15 +858,46 @@ function renderConclusion(report) {
     return;
   }
   els.conclusionTitle.textContent = report.className === "good" ? "Resultado favorável" : report.className === "warn" ? "Resultado requer acompanhamento" : "Prioridade de atuação";
-  els.conclusion.textContent = `${report.selection.label} encerrou com ${met.length} de ${available.length} metas atingidas. ${met.length ? `${met.map((item) => item.label).join(", ")} ${met.length === 1 ? "permaneceu" : "permaneceram"} dentro do objetivo.` : "Nenhum indicador principal atingiu a meta."} ${outside.length ? `${outside.map((item) => item.label).join(", ")} ${outside.length === 1 ? "deve" : "devem"} receber atenção no próximo ciclo.` : "A operação deve manter o padrão atual e acompanhar a consistência nas próximas semanas."}`;
+  const occurrenceText = report.occurrence.currentRows.length
+    ? ` Foram registradas ${report.occurrence.currentRows.length} ocorrências, com maior concentração em ${report.occurrence.city?.name || "local não informado"}.`
+    : " Não houve ocorrência registrada no recorte selecionado.";
+  els.conclusion.textContent = `${report.selection.label} encerrou com ${met.length} de ${available.length} metas atingidas. ${met.length ? `${met.map((item) => item.label).join(", ")} ${met.length === 1 ? "permaneceu" : "permaneceram"} dentro do objetivo.` : "Nenhum indicador principal atingiu a meta."} ${outside.length ? `${outside.map((item) => item.label).join(", ")} ${outside.length === 1 ? "deve" : "devem"} receber atenção no próximo ciclo.` : "A operação deve manter o padrão atual e acompanhar a consistência nas próximas semanas."}${occurrenceText}`;
+}
+
+function byVariationMagnitude(a, b) {
+  return Math.abs(b.percent || 0) - Math.abs(a.percent || 0);
+}
+
+function priorityDetail(item) {
+  if (!item.goalMet) return `${item.status}. ${changeExplanation(item)}`;
+  return changeExplanation(item);
+}
+
+function compactPeriodLabel(label) {
+  const text = fixMojibake(label || "");
+  const range = text.match(/\((\d{2}\/\d{2})\s+a\s+(\d{2}\/\d{2})\)/i);
+  const name = text.replace(/\s*\([^)]*\)\s*$/, "").replace(/SEMANA/gi, "Sem.").trim();
+  return range ? `${name} ${range[1]}-${range[2]}` : name;
+}
+
+function compactMonthLabel(label) {
+  const [month = "", year = ""] = fixMojibake(label || "").split(/\s+/);
+  return `${month.slice(0, 3)}${year ? `/${year.slice(-2)}` : ""}`;
+}
+
+function truncateLabel(value, maxLength) {
+  const text = fixMojibake(value || "");
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
 function weeklyTimeline() {
   const month = currentMonth();
-  return weeklyPeriods(month).map((period) => {
-    const values = Object.fromEntries(METRICS.map((config) => [config.key, metricPeriodValue(month, period, config)]));
-    return { label: periodDisplayLabel(period), values, status: periodStatus(values) };
-  });
+  return weeklyPeriods(month)
+    .map((period) => {
+      const values = Object.fromEntries(METRICS.map((config) => [config.key, metricPeriodValue(month, period, config)]));
+      return { label: periodDisplayLabel(period), values, status: periodStatus(values) };
+    })
+    .filter((row) => METRICS.some((config) => hasValue(row.values[config.key])));
 }
 
 function monthlyTimeline() {
@@ -918,9 +1202,14 @@ function metricWeight(key) {
 
 function togglePresentationMode() {
   const active = document.body.classList.toggle("presentation-mode");
-  els.presentationButton.textContent = active ? "Sair da apresentação" : "Modo apresentação";
+  setButtonLabel(els.presentationButton, active ? "Sair da apresentação" : "Apresentar");
   if (active && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
   if (!active && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function setButtonLabel(button, label) {
+  const textNode = button?.querySelector("span");
+  if (textNode) textNode.textContent = label;
 }
 
 function printExecutiveReport() {
@@ -1022,6 +1311,12 @@ function renderEmpty(message) {
   els.resultStatus.textContent = "Sem dados";
   els.executiveSummary.textContent = "Cadastre ou sincronize os indicadores no SGP para gerar a leitura executiva.";
   els.cards.innerHTML = METRICS.map((metric) => `<article class="metric-card"><h3>${metric.label}</h3><div class="metric-value">-</div></article>`).join("");
+  els.snapshot.innerHTML = "";
+  els.weeklyHighlights.innerHTML = "";
+  els.goalScore.textContent = "0/3";
+  els.recommendations.innerHTML = '<article class="recommendation-item priority-maintain"><header><span>Aguardando dados</span><strong>01</strong></header><h3>Sincronizar indicadores</h3><p>Cadastre ou sincronize os dados para gerar encaminhamentos executivos.</p></article>';
+  Object.keys(state.charts).forEach(destroyChart);
+  window.lucide?.createIcons();
 }
 
 function isValidWorkbook(workbook) {

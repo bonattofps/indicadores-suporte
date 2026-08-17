@@ -317,7 +317,7 @@ function evaluateGoal(value, type, definition, goals) {
   const goalLabel = type === "percent" ? `${Number(rawGoal).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : String(rawGoal);
   return {
     status: isGood ? "good" : "bad",
-    text: isGood ? `Dentro da meta (${goalLabel}).` : `Fora da meta (${goalLabel}).`
+    text: isGood ? `Dentro da Meta (${goalLabel}).` : `Fora da meta (${goalLabel}).`
   };
 }
 

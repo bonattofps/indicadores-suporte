@@ -200,13 +200,14 @@ select {
 
 .badge {
   width: fit-content;
-  min-width: 82px;
+  min-width: 116px;
   padding: 7px 12px;
   border-radius: 999px;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 900;
   text-align: center;
+  white-space: nowrap;
 }
 
 .badge.good { background: var(--green); }
@@ -970,7 +971,7 @@ body[data-theme="dark"] .tv-card p {
   }
 
   .badge {
-    min-width: 56px;
+    min-width: 82px;
     padding: 4px 7px;
     color: #fff !important;
     font-size: 8px;

@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function bindEvents() {
-  els.fileInput.addEventListener("change", handleImport);
+  els.fileInput?.addEventListener("change", handleImport);
   els.clearButton.addEventListener("click", clearImportedData);
   els.teamTabs.addEventListener("click", handleTeamChange);
   els.monthSelect.addEventListener("change", handleMonthChange);
@@ -222,6 +222,7 @@ async function loadManualCollaboratorWorkbook() {
     const saved = await window.SGPAuth?.loadManualIndicators?.();
     const workbook = saved?.collaboratorWorkbook;
     if (!isValidCollaboratorWorkbook(workbook)) return false;
+    attachPeriodMetadata(workbook, saved?.generalWorkbook);
 
     localStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
     sessionStorage.setItem(STORAGE_KEYS.parsedWorkbook, JSON.stringify(workbook));
@@ -244,6 +245,21 @@ function isValidCollaboratorWorkbook(workbook) {
       Object.values(team?.rowsByWeek || {}).some((rows) => Array.isArray(rows) && rows.length)
     );
   });
+}
+
+function attachPeriodMetadata(workbook, generalWorkbook) {
+  (workbook.monthOrder || []).forEach((monthId) => {
+    const periods = generalWorkbook?.months?.[monthId]?.periods;
+    if (!periods?.length || !workbook.months?.[monthId]) return;
+    workbook.months[monthId].periods = periods.map((period) => ({
+      key: period.key,
+      week: period.week || "",
+      label: period.label || "",
+      startDate: period.startDate || "",
+      endDate: period.endDate || ""
+    }));
+  });
+  return workbook;
 }
 
 function handleExternalWorkbookSync(event) {
@@ -676,7 +692,7 @@ function renderWeekTabs() {
   els.weekTabs.innerHTML = WEEK_ORDER.map((weekKey) => {
     const active = state.currentWeek === weekKey ? "active" : "";
     const emptyClass = hasDataForWeek(weekKey) ? "" : " is-empty";
-    return `<button class="${active}${emptyClass}" type="button" data-week="${weekKey}">${WEEK_LABELS[weekKey]}</button>`;
+    return `<button class="${active}${emptyClass}" type="button" data-week="${weekKey}">${escapeHtml(weekLabel(weekKey))}</button>`;
   }).join("");
 }
 
@@ -712,7 +728,7 @@ function renderKpis() {
 
   els.kpiBoard.innerHTML = [
     [`Colaboradores avaliados - ${activePeriodLabel()}`, scored.length],
-    ["Dentro da meta", good],
+    ["Dentro da Meta", good],
     ["Criticos", bad],
     ["Melhor desempenho", best]
   ].map(([label, value]) => `
@@ -774,7 +790,7 @@ function renderTable() {
       <tr>
         ${headers.map((header) => `<td class="${cellClass(row, header)}">${header === "Colaborador" ? collaboratorButton(row.Colaborador) : escapeHtml(formatCell(row[header]))}</td>`).join("")}
         <td class="neutral-cell"><span class="badge ${statusClass}">${status}</span></td>
-        <td class="neutral-cell">${escapeHtml(result.misses.join(", ") || "Dentro da meta")}</td>
+        <td class="neutral-cell">${escapeHtml(result.misses.join(", ") || "Dentro da Meta")}</td>
       </tr>
     `;
   }).join("");
@@ -802,7 +818,7 @@ function renderMiniList(items, emptyText) {
   return items.map((item) => `
     <div class="improve-item" data-history-name="${escapeHtml(item.row.Colaborador)}" data-history-team="${state.currentTeam}" role="button" tabindex="0">
       <strong>${escapeHtml(item.row.Colaborador)}</strong>
-      <span>${escapeHtml(item.result.misses.join(", ") || "Dentro da meta")}</span>
+      <span>${escapeHtml(item.result.misses.join(", ") || "Dentro da Meta")}</span>
     </div>
   `).join("");
 }
@@ -893,7 +909,7 @@ function collaboratorWeeklyHistory(teamKey, name) {
   return WEEK_ORDER
     .filter((weekKey) => weekKey !== "ultima")
     .map((weekKey) => rowObjectFromTeamRow(teamKey, findCollaboratorRow(team, teamKey, weekKey, name), {
-      label: WEEK_LABELS[weekKey],
+      label: weekLabel(weekKey),
       period: "Semana"
     }))
     .filter(Boolean);
@@ -1221,8 +1237,72 @@ function compareWorstRows(a, b) {
 }
 
 function activePeriodLabel() {
-  if (state.currentWeek === "ultima") return WEEK_LABELS.ultima;
-  return WEEK_LABELS[state.currentWeek];
+  return weekLabel(state.currentWeek);
+}
+
+function weekLabel(weekKey) {
+  const fallback = WEEK_LABELS[weekKey] || weekKey || "Semana";
+  const period = periodForWeek(state.currentMonth, weekKey);
+  const range = periodRange(period);
+  return range && !/\(\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\)/i.test(fallback)
+    ? `${fallback} ${range}`
+    : fallback;
+}
+
+function periodForWeek(monthId, weekKey) {
+  const month = metadataMonth(monthId);
+  const direct = (month?.periods || []).find((period) => periodWeekKey(period) === weekKey);
+  if (direct && (periodRange(direct) || weekKey !== "ultima")) return direct;
+  if (weekKey !== "ultima") return direct || null;
+
+  const monthOrder = metadataMonthOrder();
+  const index = monthOrder.indexOf(monthId);
+  const previous = index > 0 ? metadataMonth(monthOrder[index - 1]) : null;
+  return [...(previous?.periods || [])]
+    .reverse()
+    .find((period) => /^s[1-5]$/.test(periodWeekKey(period)) && periodRange(period)) || direct || null;
+}
+
+function metadataMonth(monthId) {
+  const own = state.months?.[monthId];
+  if (own?.periods?.length) return own;
+  const general = storedGeneralWorkbook();
+  return general?.months?.[monthId] || own || null;
+}
+
+function metadataMonthOrder() {
+  const general = storedGeneralWorkbook();
+  return general?.monthOrder?.length ? general.monthOrder : state.monthOrder;
+}
+
+function storedGeneralWorkbook() {
+  try {
+    return JSON.parse(localStorage.getItem("indicadoresGeneralWorkbookV2") || sessionStorage.getItem("indicadoresGeneralWorkbookV2") || "null");
+  } catch (_) {
+    return null;
+  }
+}
+
+function periodWeekKey(period) {
+  if (period?.week) return period.week;
+  if (/^s[1-5]$/.test(period?.key || "")) return period.key;
+  const label = normalize(period?.label || "");
+  if (label.includes("ULTIMA SEMANA")) return "ultima";
+  const match = label.match(/([1-5])\s*(?:A|ª)?\s*SEMANA/);
+  return match ? `s${match[1]}` : "";
+}
+
+function periodRange(period) {
+  const start = shortPeriodDate(period?.startDate);
+  const end = shortPeriodDate(period?.endDate);
+  if (start || end) return `(${start || end} a ${end || start})`;
+  const match = String(period?.label || "").match(/\((\d{2}\/\d{2})\s+a\s+(\d{2}\/\d{2})\)/i);
+  return match ? `(${match[1]} a ${match[2]})` : "";
+}
+
+function shortPeriodDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}` : "";
 }
 
 function hasDataForWeek(weekKey) {

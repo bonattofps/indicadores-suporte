@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGP - Sistema Gestão do Suporte</title>
-    <script type="module" src="auth.js?v=20260715-2"></script>
+    <script type="module" src="auth.js?v=20260813-3"></script>
     <script type="module" src="assistant.js?v=20260701-2"></script>
 <link rel="stylesheet" href="apresentacao.css?v=20260701-2" />
     <link rel="stylesheet" href="brand.css?v=20260701-2" />
@@ -21,6 +21,7 @@
           <h1>Indicadores Gerais</h1>
         </div>
         <div class="view-switcher">
+          <a href="direx.html">Relatório Executivo</a>
           <a class="active" href="apresentacao.html">Indicadores Gerais</a>
           <a href="colaboradores.html">Colaboradores</a>
           <a href="feedback.html">Feedback</a>
@@ -37,10 +38,6 @@
         <div class="week-tabs" id="weekTabs">
           <button class="active" type="button" disabled>Sem períodos</button>
         </div>
-        <label class="file-action">
-          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
-          Importar CSV/XLSX
-        </label>
       </header>
 
       <section class="notice" id="importStatus">Nenhuma planilha importada neste navegador.</section>
@@ -109,7 +106,7 @@
     <script src="indicadores-junho-seed.js?v=20260701-2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="apresentacao.js?v=20260731-1"></script>
+    <script src="apresentacao.js?v=20260813-1"></script>
   </body>
 </html>
 

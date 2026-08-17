@@ -166,7 +166,9 @@ async function loadWorkbook() {
 
   try {
     const saved = await window.SGPAuth?.loadManualIndicators?.();
-    if (isValidWorkbook(saved?.collaboratorWorkbook)) return saved.collaboratorWorkbook;
+    if (isValidWorkbook(saved?.collaboratorWorkbook)) {
+      return attachPeriodMetadata(saved.collaboratorWorkbook, saved.generalWorkbook);
+    }
   } catch (error) {
     console.warn(error);
   }
@@ -189,6 +191,21 @@ async function waitForAuth() {
 
 function isValidWorkbook(workbook) {
   return workbook?.version === 5 && workbook?.months && Array.isArray(workbook.monthOrder) && workbook.monthOrder.length;
+}
+
+function attachPeriodMetadata(workbook, generalWorkbook) {
+  (workbook.monthOrder || []).forEach((monthId) => {
+    const periods = generalWorkbook?.months?.[monthId]?.periods;
+    if (!periods?.length || !workbook.months?.[monthId]) return;
+    workbook.months[monthId].periods = periods.map((period) => ({
+      key: period.key,
+      week: period.week || "",
+      label: period.label || "",
+      startDate: period.startDate || "",
+      endDate: period.endDate || ""
+    }));
+  });
+  return workbook;
 }
 
 function syncCollaboratorSelection() {
@@ -230,7 +247,7 @@ function renderModeControls() {
   if (els.monthlyPanel) els.monthlyPanel.hidden = !isMonthly;
 
   const options = comparisonOptions()
-    .map((weekKey) => `<option value="${weekKey}">${escapeHtml(WEEK_LABELS[weekKey] || weekKey)}</option>`)
+    .map((weekKey) => `<option value="${weekKey}">${escapeHtml(weekLabel(weekKey))}</option>`)
     .join("");
 
   if (els.compareWeek) {
@@ -296,7 +313,7 @@ function renderFeedback() {
   const bad = metrics.filter((item) => item.status === "bad");
   const warn = metrics.filter((item) => item.status === "warn");
   const good = metrics.filter((item) => item.status === "good");
-  const status = bad.length ? "Evoluir" : warn.length ? "Atenção" : "Dentro";
+  const status = bad.length ? "Evoluir" : warn.length ? "Atenção" : "Dentro da Meta";
   const statusClass = bad.length ? "bad" : warn.length ? "warn" : "good";
 
   els.status.textContent = row
@@ -307,14 +324,14 @@ function renderFeedback() {
     <div class="profile-item">
       <span class="eyebrow">Colaborador</span>
       <strong>${escapeHtml(row?.Colaborador || "-")}</strong>
-      <span class="muted">${escapeHtml(state.team)} - ${escapeHtml(month?.label || "-")} - ${escapeHtml(WEEK_LABELS[state.week] || state.week)}</span>
+      <span class="muted">${escapeHtml(state.team)} - ${escapeHtml(month?.label || "-")} - ${escapeHtml(weekLabel(state.week))}</span>
     </div>
     <div class="profile-item">
       <span class="eyebrow">Status</span>
       <span class="badge ${statusClass}">${status}</span>
     </div>
     <div class="profile-item">
-      <span class="eyebrow">Dentro</span>
+      <span class="eyebrow">Dentro da Meta</span>
       <strong>${good.length}</strong>
     </div>
     <div class="profile-item">
@@ -410,8 +427,8 @@ function renderComparison() {
     </tr>
   `).join("");
 
-  const currentLabel = WEEK_LABELS[state.week] || state.week;
-  const previousLabel = WEEK_LABELS[state.compareWeek] || state.compareWeek || "semana anterior";
+  const currentLabel = weekLabel(state.week);
+  const previousLabel = state.compareWeek ? weekLabel(state.compareWeek) : "semana anterior";
   const attention = [...worsened, ...missing].slice(0, 4);
 
   els.comparisonText.innerHTML = `
@@ -470,8 +487,8 @@ function renderComparison() {
   const worsened = comparisons.filter((item) => item.trend === "worse");
   const stable = comparisons.filter((item) => item.trend === "same");
   const missing = comparisons.filter((item) => item.trend === "missing");
-  const currentLabel = WEEK_LABELS[state.week] || state.week;
-  const previousLabel = WEEK_LABELS[state.compareWeek] || state.compareWeek || "semana anterior";
+  const currentLabel = weekLabel(state.week);
+  const previousLabel = state.compareWeek ? weekLabel(state.compareWeek) : "semana anterior";
   const attention = [...worsened, ...missing].slice(0, 4);
 
   els.comparisonBoards.innerHTML = `
@@ -631,7 +648,7 @@ function renderMonthlyWeekBoard(weekRows, metrics, goals) {
           <thead>
             <tr>
               <th>Indicador</th>
-              ${weekRows.map((item) => `<th>${escapeHtml(WEEK_LABELS[item.weekKey] || item.weekKey)}</th>`).join("")}
+              ${weekRows.map((item) => `<th>${escapeHtml(weekLabel(item.weekKey))}</th>`).join("")}
               <th>Mensal</th>
             </tr>
           </thead>
@@ -831,6 +848,71 @@ function renderEmpty() {
 
 function currentMonth() {
   return state.workbook?.months?.[state.month] || null;
+}
+
+function weekLabel(weekKey) {
+  const fallback = WEEK_LABELS[weekKey] || weekKey || "Semana";
+  const period = periodForWeek(state.month, weekKey);
+  const range = periodRange(period);
+  return range && !/\(\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\)/i.test(fallback)
+    ? `${fallback} ${range}`
+    : fallback;
+}
+
+function periodForWeek(monthId, weekKey) {
+  const month = metadataMonth(monthId);
+  const direct = (month?.periods || []).find((period) => periodWeekKey(period) === weekKey);
+  if (direct && (periodRange(direct) || weekKey !== "ultima")) return direct;
+  if (weekKey !== "ultima") return direct || null;
+
+  const monthOrder = metadataMonthOrder();
+  const index = monthOrder.indexOf(monthId);
+  const previous = index > 0 ? metadataMonth(monthOrder[index - 1]) : null;
+  return [...(previous?.periods || [])]
+    .reverse()
+    .find((period) => /^s[1-5]$/.test(periodWeekKey(period)) && periodRange(period)) || direct || null;
+}
+
+function metadataMonth(monthId) {
+  const own = state.workbook?.months?.[monthId];
+  if (own?.periods?.length) return own;
+  const general = storedGeneralWorkbook();
+  return general?.months?.[monthId] || own || null;
+}
+
+function metadataMonthOrder() {
+  const general = storedGeneralWorkbook();
+  return general?.monthOrder?.length ? general.monthOrder : state.workbook?.monthOrder || [];
+}
+
+function storedGeneralWorkbook() {
+  try {
+    return JSON.parse(localStorage.getItem("indicadoresGeneralWorkbookV2") || sessionStorage.getItem("indicadoresGeneralWorkbookV2") || "null");
+  } catch (_) {
+    return null;
+  }
+}
+
+function periodWeekKey(period) {
+  if (period?.week) return period.week;
+  if (/^s[1-5]$/.test(period?.key || "")) return period.key;
+  const label = normalize(period?.label || "");
+  if (label.includes("ULTIMA SEMANA")) return "ultima";
+  const match = label.match(/([1-5])\s*(?:A|ª)?\s*SEMANA/);
+  return match ? `s${match[1]}` : "";
+}
+
+function periodRange(period) {
+  const start = shortPeriodDate(period?.startDate);
+  const end = shortPeriodDate(period?.endDate);
+  if (start || end) return `(${start || end} a ${end || start})`;
+  const match = String(period?.label || "").match(/\((\d{2}\/\d{2})\s+a\s+(\d{2}\/\d{2})\)/i);
+  return match ? `(${match[1]} a ${match[2]})` : "";
+}
+
+function shortPeriodDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}` : "";
 }
 
 function currentRows(weekKey = state.week) {
@@ -1097,8 +1179,8 @@ function printReportForMode(mode, afterPrintCallback) {
   const row = selectedRowObject();
   const collaborator = row?.Colaborador || state.collaborator || "Colaborador";
   const month = currentMonth()?.label || state.month || "Periodo";
-  const week = WEEK_LABELS[state.week] || state.week || "Semana";
-  const compareWeek = WEEK_LABELS[state.compareWeek] || state.compareWeek || "Semana anterior";
+  const week = weekLabel(state.week);
+  const compareWeek = state.compareWeek ? weekLabel(state.compareWeek) : "Semana anterior";
   const titlePrefix = mode === "monthly" ? "SGP - Mensal" : mode === "comparison" || mode === "comparison-complete" ? "SGP - Feedback e Comparativo" : "SGP - Feedback";
   const titleSuffix = mode === "monthly" ? "Fechamento mensal" : mode === "comparison" || mode === "comparison-complete" ? `${compareWeek} x ${week}` : week;
   const suggestedTitle = filenameSafe(`${titlePrefix} - ${collaborator} - ${titleSuffix} - ${month}`);
@@ -1281,7 +1363,7 @@ function goalLabel(goal, metric = "") {
 function statusLabel(status) {
   if (state.team === "N2") return "";
   if (status === "neutral") return "";
-  return status === "good" ? "Dentro" : status === "warn" ? "Atenção" : "Evoluir";
+  return status === "good" ? "Dentro da Meta" : status === "warn" ? "Atenção" : "Evoluir";
 }
 
 function formatCell(value) {

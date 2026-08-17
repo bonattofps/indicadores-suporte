@@ -961,6 +961,14 @@ function ensurePreviousMonthLatestWeekForMonth(monthId) {
 
   let changed = false;
   targetPeriods.forEach((targetPeriod) => {
+    if (sourcePeriod.startDate && targetPeriod.startDate !== sourcePeriod.startDate) {
+      targetPeriod.startDate = sourcePeriod.startDate;
+      changed = true;
+    }
+    if (sourcePeriod.endDate && targetPeriod.endDate !== sourcePeriod.endDate) {
+      targetPeriod.endDate = sourcePeriod.endDate;
+      changed = true;
+    }
     GENERAL_METRICS.forEach((metric) => {
       target.values[metric.key] ||= {};
       source.values[metric.key] ||= {};
@@ -1558,6 +1566,7 @@ function buildGeneralWorkbook(manualData) {
       periods: workbookPeriods.map((period) => ({
         key: period.key,
         label: period.label,
+        week: period.week || "",
         startDate: period.startDate || "",
         endDate: period.endDate || ""
       })),
@@ -1583,6 +1592,7 @@ function generalWorkbookPeriods(month) {
     .map((period) => ({
       key: period.key,
       label: periodDisplayLabel(period),
+      week: period.week || inferWeekFromPeriodLabel(period.label),
       startDate: period.startDate || "",
       endDate: period.endDate || ""
     }));
@@ -1596,6 +1606,7 @@ function generalWorkbookPeriods(month) {
   periods.push({
     key: "mensal",
     label: range ? `MENSAL ${range}` : "MENSAL",
+    week: "mensal",
     startDate: first?.startDate || "",
     endDate: last?.endDate || ""
   });
@@ -1636,6 +1647,7 @@ function buildCollaboratorWorkbook(manualData) {
       label: month.label,
       sortKey: month.sortKey,
       sourceName: "Lançamento manual",
+      periods: collaboratorWorkbookPeriods(month),
       teams: {
         N1: {
           rowsByWeek: Object.fromEntries(WEEK_OPTIONS.map((week) => [week.key, (month.collaborators.N1[week.key] || []).map(n1Row)])),
@@ -1649,6 +1661,22 @@ function buildCollaboratorWorkbook(manualData) {
     };
   });
   return { version: 5, months, monthOrder: manualData.monthOrder };
+}
+
+function collaboratorWorkbookPeriods(month) {
+  const seen = new Set();
+  return (month.periods || []).flatMap((period) => {
+    const week = period.week || inferWeekFromPeriodLabel(period.label);
+    if (!TEAM_WEEK_KEYS.includes(week) || seen.has(week)) return [];
+    seen.add(week);
+    return [{
+      key: week,
+      week,
+      label: periodDisplayLabel(period),
+      startDate: period.startDate || "",
+      endDate: period.endDate || ""
+    }];
+  });
 }
 
 function n1Row(row) {

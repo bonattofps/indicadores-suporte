@@ -73,7 +73,7 @@ const state = {
 
 document.addEventListener("DOMContentLoaded", async () => {
   setupTheme();
-  document.querySelector("#fileInput").addEventListener("change", handleImport);
+  document.querySelector("#fileInput")?.addEventListener("change", handleImport);
   document.querySelector("#clearButton").addEventListener("click", clearImportedData);
   document.querySelector("#monthSelect").addEventListener("change", handleMonthChange);
   document.querySelector("#weekTabs").addEventListener("click", handlePeriodChange);
@@ -454,7 +454,7 @@ function renderPeriodTabs() {
   container.innerHTML = periods.length
     ? periods.map((period) => `
       <button class="${period.key === state.selectedPeriod ? "active" : ""}" type="button" data-period="${period.key}">
-        ${period.label}
+        ${escapeHtml(periodLabel(period.key))}
       </button>
     `).join("")
     : '<button class="active" type="button" disabled>Sem períodos</button>';
@@ -695,7 +695,7 @@ function renderTable() {
   document.querySelector("#tableHead").innerHTML = `
     <tr>
       <th>Indicador</th>
-      ${periods.map((period) => `<th>${period.label}</th>`).join("")}
+      ${periods.map((period) => `<th>${escapeHtml(displayPeriodLabel(period, getCurrentMonth()))}</th>`).join("")}
     </tr>
   `;
 
@@ -807,12 +807,14 @@ function renderWeeklyComparison() {
     const delta = monthlyDelta(currentValue, previousValue, metric.type, metric.name);
     return { metric, previousValue, currentValue, delta };
   }).filter((row) => row.previousValue !== "" || row.currentValue !== "");
+  const currentLabel = displayPeriodLabel(currentPeriod, month);
+  const previousLabel = displayPeriodLabel(previousPeriod, month);
 
   container.innerHTML = `
     <div class="monthly-cards">
       ${renderMonthlyCard("Mês", month.label)}
-      ${renderMonthlyCard("Semana atual", currentPeriod.label)}
-      ${renderMonthlyCard("Semana anterior", previousPeriod.label)}
+      ${renderMonthlyCard("Semana atual", currentLabel)}
+      ${renderMonthlyCard("Semana anterior", previousLabel)}
       ${renderMonthlyCard("Indicadores comparados", rows.length)}
     </div>
     <div class="table-scroll monthly-table">
@@ -820,8 +822,8 @@ function renderWeeklyComparison() {
         <thead>
           <tr>
             <th>Indicador</th>
-            <th>${previousPeriod.label}</th>
-            <th>${currentPeriod.label}</th>
+            <th>${escapeHtml(previousLabel)}</th>
+            <th>${escapeHtml(currentLabel)}</th>
             <th>Variação</th>
           </tr>
         </thead>
@@ -922,26 +924,26 @@ function goalStatus(metric) {
 
   const number = toNumber(value);
   if (metric.type === "time") {
-    if (timeToSeconds(value) <= 45 * 60) return { label: "Dentro", className: "good" };
+    if (timeToSeconds(value) <= 45 * 60) return { label: "Dentro da Meta", className: "good" };
     if (timeToSeconds(value) <= 55 * 60) return { label: "Aten\u00e7\u00e3o", className: "warn" };
     return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.name.includes("Taxa de Cliente")) {
-    if (number <= 0.03) return { label: "Dentro", className: "good" };
+    if (number <= 0.03) return { label: "Dentro da Meta", className: "good" };
     if (number <= 0.04) return { label: "Aten\u00e7\u00e3o", className: "warn" };
     return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.type === "percent") {
-    if (number >= 0.99) return { label: "Dentro", className: "good" };
+    if (number >= 0.99) return { label: "Dentro da Meta", className: "good" };
     if (number >= 0.97) return { label: "Aten\u00e7\u00e3o", className: "warn" };
     return { label: "Cr\u00edtico", className: "bad" };
   }
   if (metric.type === "score") {
-    if (number >= 4.5) return { label: "Dentro", className: "good" };
+    if (number >= 4.5) return { label: "Dentro da Meta", className: "good" };
     if (number >= 4.3) return { label: "Aten\u00e7\u00e3o", className: "warn" };
     return { label: "Cr\u00edtico", className: "bad" };
   }
-  return number > 0 ? { label: "Dentro", className: "good" } : { label: "Aten\u00e7\u00e3o", className: "warn" };
+  return number > 0 ? { label: "Dentro da Meta", className: "good" } : { label: "Aten\u00e7\u00e3o", className: "warn" };
 }
 
 function configuredGoalStatus(metric, value) {
@@ -954,7 +956,7 @@ function configuredGoalStatus(metric, value) {
   if (!Number.isFinite(valueNumber) || !Number.isFinite(goalNumber)) return null;
 
   const good = config.direction === "max" ? valueNumber <= goalNumber : valueNumber >= goalNumber;
-  if (good) return { label: "Dentro", className: "good" };
+  if (good) return { label: "Dentro da Meta", className: "good" };
 
   const warnLimit = config.direction === "max" ? goalNumber * 1.12 : goalNumber * 0.92;
   const warn = config.direction === "max" ? valueNumber <= warnLimit : valueNumber >= warnLimit;
@@ -1401,8 +1403,11 @@ function collaboratorRegistryTotalMetricForMonth(month) {
   const collaboratorMonth = collaboratorMonthForDashboard(month);
 
   (month?.periods || []).forEach((period) => {
-    const weekKey = collaboratorWeekKeyFromPeriod(period.label, collaboratorMonth?.teams?.N1?.rowsByWeek);
-    const rows = collaboratorMonth?.teams?.N1?.rowsByWeek?.[weekKey] || [];
+    const rowsByWeek = collaboratorMonth?.teams?.N1?.rowsByWeek || {};
+    const label = normalizeText(period.label);
+    const rows = label.includes("MENSAL")
+      ? ["s1", "s2", "s3", "s4", "s5"].flatMap((weekKey) => rowsByWeek[weekKey] || [])
+      : rowsByWeek[collaboratorWeekKeyFromPeriod(period, rowsByWeek)] || [];
     values[period.key] = splitRowsHaveData(rows) ? splitRowsTotal(rows) : "";
   });
 
@@ -1423,7 +1428,7 @@ function collaboratorCallsTotalMetricForMonth(month) {
     const label = normalizeText(period.label);
     const rows = label.includes("MENSAL")
       ? ["s1", "s2", "s3", "s4", "s5"].flatMap((weekKey) => rowsByWeek[weekKey] || [])
-      : rowsByWeek[collaboratorWeekKeyFromPeriod(period.label, rowsByWeek)] || [];
+      : rowsByWeek[collaboratorWeekKeyFromPeriod(period, rowsByWeek)] || [];
     values[period.key] = callsRowsHaveData(rows) ? callsRowsTotal(rows) : "";
   });
 
@@ -1533,9 +1538,11 @@ function nearestCollaboratorMonth(workbook, currentMonth) {
   return [...months].reverse().find((item) => (item.sortKey || 0) <= currentSort) || months[0];
 }
 
-function collaboratorWeekKeyFromPeriod(label, rowsByWeek = null) {
-  const normalized = normalizeText(label);
-  if (normalized.includes("ULTIMA")) return latestFilledCollaboratorWeek(rowsByWeek) || "ultima";
+function collaboratorWeekKeyFromPeriod(period, rowsByWeek = null) {
+  const technicalWeek = period?.week || (/^s[1-5]$/.test(period?.key || "") ? period.key : "");
+  if (technicalWeek === "ultima" || /^s[1-5]$/.test(technicalWeek)) return technicalWeek;
+  const normalized = normalizeText(typeof period === "string" ? period : period?.label);
+  if (normalized.includes("ULTIMA")) return "ultima";
   const weekMatch = normalized.match(/\b([1-5])\s*(?:A|O|ª|º|°)?\s*SEMANA\b/);
   if (weekMatch) return `s${weekMatch[1]}`;
   return "ultima";
@@ -1559,7 +1566,46 @@ function currentPeriodLabel() {
 }
 
 function periodLabel(periodKey) {
-  return getPeriods().find((period) => period.key === periodKey)?.label || "-";
+  const period = getPeriods().find((item) => item.key === periodKey);
+  if (!period) return "-";
+  return displayPeriodLabel(period, getCurrentMonth());
+}
+
+function displayPeriodLabel(period, month) {
+  const label = period.label || "-";
+  if (!isPreviousMonthCarryPeriod(period) || /\(\d{2}\/\d{2}\s+a\s+\d{2}\/\d{2}\)/i.test(label)) return label;
+  const source = period.startDate || period.endDate
+    ? period
+    : latestFilledPeriodForMonth(previousMonthFor(month));
+  const range = periodDateRange(source);
+  return range ? `${label} ${range}` : label;
+}
+
+function latestFilledPeriodForMonth(month) {
+  if (!month) return null;
+  const weekly = (month.periods || []).filter((period) => {
+    const label = normalizeText(period.label);
+    return !label.includes("ULTIMA") && !label.includes("MENSAL");
+  });
+  return [...weekly].reverse().find((period) =>
+    (month.metrics || []).some((metric) => !isBlankMetricValue(metric.values?.[period.key]))
+  ) || weekly.at(-1) || null;
+}
+
+function periodDateRange(period) {
+  if (!period) return "";
+  const start = shortPeriodDate(period.startDate);
+  const end = shortPeriodDate(period.endDate);
+  if (!start && !end) {
+    const match = String(period.label || "").match(/\((\d{2}\/\d{2})\s+a\s+(\d{2}\/\d{2})\)/i);
+    return match ? `(${match[1]} a ${match[2]})` : "";
+  }
+  return `(${start || end} a ${end || start})`;
+}
+
+function shortPeriodDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}` : "";
 }
 
 function isSelectedPeriodMonthly() {

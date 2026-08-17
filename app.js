@@ -378,19 +378,19 @@ function getGoalStatus(name, rawValue) {
   const isSupportRate = includesText(name, "CLIENTE QUE ENTROU");
 
   if (isTime) {
-    if (value <= 0.025) return { label: "Dentro da meta", className: "status-good" };
+    if (value <= 0.025) return { label: "Dentro da Meta", className: "status-good" };
     if (value <= 0.05) return { label: "Atenção", className: "status-warn" };
     return { label: "Crítico", className: "status-bad" };
   }
 
   if (isQuality) {
-    if (value >= 0.95 || value >= 4.5) return { label: "Dentro da meta", className: "status-good" };
+    if (value >= 0.95 || value >= 4.5) return { label: "Dentro da Meta", className: "status-good" };
     if (value >= 0.9 || value >= 4.0) return { label: "Atenção", className: "status-warn" };
     return { label: "Crítico", className: "status-bad" };
   }
 
   if (isSupportRate) {
-    if (value <= 0.03) return { label: "Dentro da meta", className: "status-good" };
+    if (value <= 0.03) return { label: "Dentro da Meta", className: "status-good" };
     if (value <= 0.04) return { label: "Atenção", className: "status-warn" };
     return { label: "Crítico", className: "status-bad" };
   }

@@ -322,7 +322,7 @@ body[data-theme="dark"] td {
 
 .macro-status {
   flex: 0 0 auto;
-  min-width: 78px;
+  min-width: 110px;
   padding: 6px 9px;
   border-radius: 999px;
   text-align: center;

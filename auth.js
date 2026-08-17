@@ -59,8 +59,8 @@ const protectedRoleKeys = new Set(roleOptions.map((role) => role.key));
 const dashboardOptions = [
   { page: "sem-acesso.html", label: "Sem acesso", systemOnly: true },
   { page: "index.html", label: "Início" },
-  { page: "direx.html", label: "Relatório Executivo" },
   { page: "apresentacao.html", label: "Indicadores Gerais" },
+  { page: "direx.html", label: "Relatório Executivo" },
   { page: "colaboradores.html", label: "Colaboradores" },
   { page: "feedback.html", label: "Feedback Individual" },
   { page: "operacional.html", label: "Reincidência" },

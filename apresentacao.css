@@ -93,6 +93,11 @@ button:hover,
   background: rgba(239, 91, 91, 0.22);
 }
 
+.trend-warn {
+  color: #745000;
+  background: rgba(245, 179, 51, 0.24);
+}
+
 .trend-neutral {
   color: #26516d;
   background: rgba(86, 112, 134, 0.16);
@@ -558,6 +563,7 @@ body[data-theme="dark"] .compare-heading {
 }
 
 .change.trend-good { color: #009c67; font-weight: 800; }
+.change.trend-warn { color: #8b5d00; font-weight: 800; }
 .change.trend-bad { color: #d64545; font-weight: 800; }
 .change.trend-neutral { color: #567086; }
 

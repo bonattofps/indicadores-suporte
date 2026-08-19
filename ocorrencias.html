@@ -7,7 +7,7 @@
     <script type="module" src="auth.js?v=20260813-3"></script>
     <script type="module" src="assistant.js?v=20260701-3"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="ocorrencias.css?v=20260701-3" />
+    <link rel="stylesheet" href="ocorrencias.css?v=20260818-12" />
     <link rel="stylesheet" href="brand.css?v=20260701-3" />
     <link rel="stylesheet" href="assistant.css?v=20260701-3" />
   </head>
@@ -29,12 +29,19 @@
           <a href="lancamentos-ocorrencias.html" hidden style="display: none">Lançar Ocorrências</a>
           <a href="jornada.html">Jornadas do Suporte</a>
           <a href="usuarios.html" hidden style="display: none">Configurações</a>
-          <button id="themeToggle" type="button" aria-label="Alternar tema">â˜¾</button>
+          <button id="themeToggle" type="button" aria-label="Alternar tema">Tema</button>
           <button id="clearButton" type="button">Limpar</button>
         </div>
       </header>
 
       <section class="notice" id="importStatus">Carregando ocorrências da planilha sincronizada e dos lançamentos manuais.</section>
+
+      <nav class="occurrence-tabs no-print" aria-label="Módulos de ocorrências">
+        <button class="active" type="button" data-occurrence-view="dashboard" aria-selected="true">Ocorrências</button>
+        <button type="button" data-occurrence-view="reports" aria-selected="false">Relatório Executivo</button>
+      </nav>
+
+      <div id="occurrenceDashboardView">
 
       <section class="filters">
         <label>
@@ -121,13 +128,125 @@
           </div>
         </article>
       </section>
+      </div>
+
+      <section class="occurrence-report-view" id="occurrenceReportView" hidden>
+        <header class="report-module-head">
+          <div>
+            <p class="eyebrow">Visão executiva</p>
+            <h2>Relatório Executivo de Ocorrências</h2>
+            <p>Documento consolidado para Diretoria, Gerência e Liderança.</p>
+          </div>
+          <div class="report-export-actions no-print" aria-label="Exportar relatório">
+            <button type="button" data-report-export="pdf">Imprimir/PDF</button>
+          </div>
+        </header>
+
+        <div class="report-print-heading">
+          <img src="logo.png" alt="Uni Internet" />
+          <div><strong>Relatório de Ocorrências</strong><span id="reportPrintPeriod">Período selecionado</span></div>
+        </div>
+
+        <section class="report-filter-panel no-print" aria-labelledby="reportFilterTitle">
+          <div class="report-filter-heading">
+            <div><p class="eyebrow">Recorte</p><h3 id="reportFilterTitle">Período e filtros</h3></div>
+            <div class="report-date-actions">
+              <label>Data inicial<input id="reportDateStart" type="date" /></label>
+              <label>Data final<input id="reportDateEnd" type="date" /></label>
+              <button class="report-generate" id="generateOccurrenceReport" type="button">Gerar relatório executivo</button>
+            </div>
+          </div>
+          <div class="report-shortcuts" aria-label="Atalhos de período">
+            <button type="button" data-report-range="today">Hoje</button>
+            <button type="button" data-report-range="yesterday">Ontem</button>
+            <button type="button" data-report-range="7">Últimos 7 dias</button>
+            <button type="button" data-report-range="15">Últimos 15 dias</button>
+            <button type="button" data-report-range="30">Últimos 30 dias</button>
+            <button type="button" data-report-range="month">Este mês</button>
+            <button type="button" data-report-range="previous-month">Mês anterior</button>
+          </div>
+          <div class="report-complementary-filters">
+            <label>Cidade<select id="reportCityFilter"><option value="">Todas</option></select></label>
+            <label>Localidade<select id="reportLocalityFilter"><option value="">Todas</option></select></label>
+            <label>Motivo<select id="reportReasonFilter"><option value="">Todos</option></select></label>
+            <label>Tipo<select id="reportTypeFilter"><option value="">Todos</option></select></label>
+            <label>Status<select id="reportStatusFilter"><option value="">Todos</option></select></label>
+            <label>Responsável<select id="reportResponsibleFilter"><option value="">Todos</option></select></label>
+          </div>
+          <p class="report-generation-status" id="reportGenerationStatus" role="status" aria-live="polite">Defina o período e clique em Gerar relatório.</p>
+        </section>
+
+        <section class="report-empty-state" id="reportEmptyState" hidden>Nenhuma ocorrência encontrada para o período selecionado.</section>
+
+        <div id="occurrenceReportContent">
+          <section class="report-summary-cards" id="reportSummaryCards" aria-label="Resumo do relatório"></section>
+
+          <section class="panel report-period-summary">
+            <div class="panel-head"><div><p class="eyebrow">Resumo automático</p><h2>Resumo do período</h2></div><span id="reportActivePeriod">-</span></div>
+            <p id="reportNarrative">Selecione um período para gerar a análise.</p>
+          </section>
+
+          <section class="report-feature-grid" id="reportFeatureGrid" aria-label="Principais concentrações"></section>
+
+          <section class="panel report-attention-panel">
+            <div class="panel-head"><div><p class="eyebrow">Prioridades</p><h2>Pontos de atenção</h2></div></div>
+            <div class="report-attention-list" id="reportAttentionList"></div>
+          </section>
+
+          <section class="report-ranking-grid">
+            <article class="panel report-ranking-panel">
+              <div class="panel-head"><div><p class="eyebrow">Ranking</p><h2>Cidades mais afetadas</h2></div></div>
+              <div class="report-table-wrap"><table><thead><tr><th>Posição</th><th>Cidade</th><th>Ocorrências</th><th>%</th></tr></thead><tbody id="reportCityBody"></tbody></table></div>
+            </article>
+            <article class="panel report-ranking-panel">
+              <div class="panel-head"><div><p class="eyebrow">Ranking</p><h2>Localidades mais afetadas</h2></div></div>
+              <div class="report-table-wrap"><table><thead><tr><th>Posição</th><th>Localidade</th><th>Cidade</th><th>Ocorrências</th></tr></thead><tbody id="reportLocalityBody"></tbody></table></div>
+            </article>
+            <article class="panel report-ranking-panel">
+              <div class="panel-head"><div><p class="eyebrow">Ranking</p><h2>Principais motivos</h2></div></div>
+              <div class="report-table-wrap"><table><thead><tr><th>Motivo</th><th>Ocorrências</th><th>%</th></tr></thead><tbody id="reportReasonBody"></tbody></table></div>
+            </article>
+          </section>
+
+          <section class="report-daily-grid">
+            <article class="panel report-daily-chart-panel">
+              <div class="panel-head"><div><p class="eyebrow">Evolução diária</p><h2>Ocorrências por dia</h2></div></div>
+              <div class="report-daily-chart"><canvas id="reportDailyChart" aria-label="Gráfico de ocorrências por dia"></canvas></div>
+            </article>
+            <article class="panel report-ranking-panel">
+              <div class="panel-head"><div><p class="eyebrow">Dias críticos</p><h2>Ranking por data</h2></div></div>
+              <div class="report-table-wrap report-day-table"><table><thead><tr><th>Data</th><th>Ocorrências</th></tr></thead><tbody id="reportDayBody"></tbody></table></div>
+            </article>
+          </section>
+
+          <section class="panel report-detail-panel">
+            <div class="panel-head"><div><p class="eyebrow">Detalhamento</p><h2>Ocorrências encontradas</h2></div><strong id="reportResultCount">0 registros</strong></div>
+            <div class="report-table-wrap report-detail-scroll">
+              <table class="report-detail-table">
+                <thead><tr><th>Data</th><th>Município</th><th>Localidade</th><th>Descrição</th><th>Motivo</th><th>Horário</th><th>Duração</th></tr></thead>
+                <tbody id="reportDetailBody"></tbody>
+              </table>
+            </div>
+            <footer class="report-pagination no-print">
+              <label>Por página<select id="reportPageSize"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></label>
+              <span id="reportPageInfo">Página 1 de 1</span>
+              <div><button id="reportPreviousPage" type="button">Anterior</button><button id="reportNextPage" type="button">Próxima</button></div>
+            </footer>
+          </section>
+        </div>
+
+        <div class="executive-report-view" id="executiveReportView" hidden>
+          <article class="executive-document" id="executiveReportDocument" aria-label="Relatório Executivo de Ocorrências"></article>
+        </div>
+      </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    <script src="ocorrencias.js?v=20260701-7"></script>
+    <script src="ocorrencias.js?v=20260818-9"></script>
+    <script src="ocorrencias-relatorio.js?v=20260818-13"></script>
   </body>
 </html>
 

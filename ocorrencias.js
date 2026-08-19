@@ -96,6 +96,9 @@ const els = {
 
 document.addEventListener("DOMContentLoaded", () => {
   setupTheme();
+  const today = dateInputValue(new Date());
+  els.dateStart.max = today;
+  els.dateEnd.max = today;
   els.fileInput?.addEventListener("change", handleImport);
   els.clearButton.addEventListener("click", clearData);
   els.monthSelect.addEventListener("change", () => {
@@ -255,7 +258,11 @@ function parseWorkbook(content, type) {
         date: firstFilled(record.data),
         branch: firstFilled(record.filial) || "-",
         city,
+        locality: firstFilled(record.localidade, record.regiao, record.bairro, record.distrito),
         reason: reason || "-",
+        type: firstFilled(record.tipo),
+        status: firstFilled(record.status),
+        responsible: firstFilled(record.responsavel, record.responsavel_pela_ocorrencia),
         downtime,
         downtimeDuration: offlineDurationLabel(downtime)
       });
@@ -272,7 +279,7 @@ function parseWorkbook(content, type) {
 function applyWorkbook(parsed, message) {
   occurrenceState.workbook = parsed.workbook;
   occurrenceState.monthOrder = parsed.monthOrder;
-  occurrenceState.selectedMonth = parsed.monthOrder.at(-1) || "";
+  occurrenceState.selectedMonth = defaultOccurrenceMonth(parsed.monthOrder);
   occurrenceState.selectedCity = "";
   occurrenceState.selectedReason = "";
   occurrenceState.dateStart = "";
@@ -289,13 +296,18 @@ function render() {
   occurrenceState.filteredRows = filterRows();
   renderActiveFilters();
   renderSummary();
-  renderCharts();
+  if (!document.querySelector("#occurrenceDashboardView")?.hidden) renderCharts();
   renderTable();
+  window.SGPOccurrenceReport?.sync?.();
 }
 
 function renderMonthOptions() {
-  els.monthSelect.innerHTML = occurrenceState.monthOrder.length
-    ? occurrenceState.monthOrder.map((key) => `<option value="${key}">${occurrenceState.workbook[key].label}</option>`).join("")
+  const visibleMonths = visibleOccurrenceMonths(occurrenceState.monthOrder);
+  if (!visibleMonths.includes(occurrenceState.selectedMonth)) {
+    occurrenceState.selectedMonth = defaultOccurrenceMonth(visibleMonths);
+  }
+  els.monthSelect.innerHTML = visibleMonths.length
+    ? visibleMonths.map((key) => `<option value="${key}">${occurrenceState.workbook[key].label}</option>`).join("")
     : '<option value="">Selecione o mês</option>';
   els.monthSelect.value = occurrenceState.selectedMonth;
 }
@@ -305,12 +317,13 @@ function filterRows() {
   const search = normalizeText(els.searchInput.value);
   if (!month) return [];
   return month.records.filter((row) => {
+    if (isFutureOccurrence(row.date)) return false;
     if (!dateBelongsToSelectedMonth(row.date)) return false;
     if (occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
-    return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
+    return [row.occurrence, row.branch, row.city, row.locality, row.reason, row.type, row.status, row.responsible, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
   }).sort(compareOccurrenceDateAsc);
 }
 
@@ -493,7 +506,9 @@ function renderCityHeatmap() {
     });
   });
 
-  requestAnimationFrame(() => renderRondoniaMap(mappedRows, max));
+  requestAnimationFrame(() => {
+    if (!document.querySelector("#occurrenceDashboardView")?.hidden) renderRondoniaMap(mappedRows, max);
+  });
 }
 
 function renderCityFallbackHeatmap(rows) {
@@ -794,12 +809,12 @@ function renderReasonVolumeChart() {
 }
 
 function trendRows() {
-  return occurrenceState.monthOrder.map((key) => {
+  return visibleOccurrenceMonths(occurrenceState.monthOrder).map((key) => {
     const month = occurrenceState.workbook[key];
     return {
       key,
       label: shortMonthLabel(month?.label || key),
-      total: month?.records?.length || 0
+      total: (month?.records || []).filter((row) => !isFutureOccurrence(row.date)).length
     };
   });
 }
@@ -869,12 +884,13 @@ function baseRowsForCharts(ignoreKey) {
   const search = normalizeText(els.searchInput.value);
   if (!month) return [];
   return month.records.filter((row) => {
+    if (isFutureOccurrence(row.date)) return false;
     if (!dateBelongsToSelectedMonth(row.date)) return false;
     if (ignoreKey !== "city" && occurrenceState.selectedCity && row.city !== occurrenceState.selectedCity) return false;
     if (ignoreKey !== "reason" && occurrenceState.selectedReason && row.reason !== occurrenceState.selectedReason) return false;
     if (!dateMatches(row.date)) return false;
     if (!search) return true;
-    return [row.occurrence, row.branch, row.city, row.reason, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
+    return [row.occurrence, row.branch, row.city, row.locality, row.reason, row.type, row.status, row.responsible, row.downtime, offlineDurationLabel(row.downtime)].some((value) => normalizeText(value).includes(search));
   }).sort(compareOccurrenceDateAsc);
 }
 
@@ -1033,7 +1049,11 @@ function normalizeOccurrenceRecord(record) {
     date: clean(record?.date),
     branch: clean(record?.branch) || "-",
     city: normalizeCity(record?.city),
+    locality: clean(record?.locality),
     reason: clean(record?.reason) || "-",
+    type: clean(record?.type),
+    status: clean(record?.status),
+    responsible: clean(record?.responsible),
     downtime,
     downtimeDuration: offlineDurationLabel(downtime)
   };
@@ -1064,6 +1084,21 @@ function monthLabelFromDate(value) {
 
 function sortMonthKeys(keys) {
   return [...keys].sort((a, b) => monthSortValue(a) - monthSortValue(b));
+}
+
+function visibleOccurrenceMonths(keys) {
+  const today = new Date();
+  const currentMonthValue = today.getFullYear() * 100 + today.getMonth() + 1;
+  return sortMonthKeys(keys).filter((key) => {
+    const value = monthSortValue(key);
+    return value === 999999 || value <= currentMonthValue;
+  });
+}
+
+function defaultOccurrenceMonth(keys) {
+  const visibleMonths = visibleOccurrenceMonths(keys || []);
+  const currentMonthKey = monthKeyFromDate(new Date());
+  return visibleMonths.includes(currentMonthKey) ? currentMonthKey : visibleMonths.at(-1) || "";
 }
 
 function monthSortValue(key) {
@@ -1142,6 +1177,21 @@ function formatDate(value) {
   const date = parseDate(value);
   if (!date) return value || "-";
   return date.toLocaleDateString("pt-BR");
+}
+
+function isFutureOccurrence(value) {
+  const date = parseDate(value);
+  if (!date) return false;
+  const today = new Date();
+  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  return date > endOfToday;
+}
+
+function dateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function dateBelongsToSelectedMonth(value) {
@@ -1268,13 +1318,14 @@ function formatInputDate(value) {
 function setupTheme() {
   const savedTheme = localStorage.getItem("indicadores-theme") || "light";
   document.body.dataset.theme = savedTheme;
-  els.themeToggle.textContent = savedTheme === "dark" ? "?" : "☾";
+  els.themeToggle.textContent = savedTheme === "dark" ? "Claro" : "Escuro";
   els.themeToggle.addEventListener("click", () => {
     const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
     document.body.dataset.theme = nextTheme;
     localStorage.setItem("indicadores-theme", nextTheme);
-    els.themeToggle.textContent = nextTheme === "dark" ? "?" : "☾";
-    renderCharts();
+    els.themeToggle.textContent = nextTheme === "dark" ? "Claro" : "Escuro";
+    if (!document.querySelector("#occurrenceDashboardView")?.hidden) renderCharts();
+    window.SGPOccurrenceReport?.sync?.();
   });
 }
 
@@ -1328,7 +1379,7 @@ function normalizeText(value) {
 }
 
 function shorten(value, size) {
-  return value.length > size ? `${value.slice(0, size - 1)}?` : value;
+  return value.length > size ? `${value.slice(0, size - 1)}…` : value;
 }
 
 function escapeHtml(value) {

@@ -1,0 +1,99 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SGP - Relatorio PDF</title>
+    <script type="module" src="auth.js?v=20260813-3"></script>
+    <link rel="stylesheet" href="brand.css?v=20260701-2" />
+    <link rel="stylesheet" href="relatorio.css?v=20260701-2" />
+  </head>
+  <body>
+    <main class="report-screen">
+      <header class="report-header">
+        <div>
+          <a class="uni-brand uni-brand--small" href="index.html" aria-label="Uni Internet">
+            <img src="logo.png" alt="Uni Internet" />
+          </a>
+          <p class="eyebrow">SGP - Sistema Gestao do Suporte</p>
+          <h1>Relat&oacute;rio mensal</h1>
+          <p class="subtitle">Indicadores, ocorr&ecirc;ncias, gr&aacute;ficos e pontos cr&iacute;ticos para acompanhamento gerencial.</p>
+        </div>
+        <div class="report-actions">
+          <a href="index.html">In&iacute;cio</a>
+          <a href="apresentacao.html">Indicadores</a>
+          <a href="ocorrencias.html">Ocorr&ecirc;ncias</a>
+          <button id="printButton" type="button">Exportar PDF</button>
+        </div>
+      </header>
+
+      <section class="report-toolbar">
+        <label>
+          <span>M&ecirc;s dos indicadores</span>
+          <select id="indicatorMonthSelect"></select>
+        </label>
+        <label>
+          <span>Per&iacute;odo dos indicadores</span>
+          <select id="indicatorPeriodSelect"></select>
+        </label>
+        <label>
+          <span>M&ecirc;s das ocorr&ecirc;ncias</span>
+          <select id="occurrenceMonthSelect"></select>
+        </label>
+      </section>
+
+      <section class="notice" id="reportStatus">Carregando dados do relat&oacute;rio...</section>
+
+      <section class="summary-grid" id="summaryGrid"></section>
+
+      <section class="report-grid">
+        <article class="panel wide">
+          <div class="panel-head">
+            <p class="eyebrow">Indicadores</p>
+            <h2>Evolu&ccedil;&atilde;o semanal</h2>
+          </div>
+          <div class="chart-box"><canvas id="indicatorTrendChart"></canvas></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <p class="eyebrow">Pontos cr&iacute;ticos</p>
+            <h2>Prioridades do m&ecirc;s</h2>
+          </div>
+          <div class="critical-list" id="criticalList"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <p class="eyebrow">Ocorr&ecirc;ncias</p>
+            <h2>Principais motivos</h2>
+          </div>
+          <div class="chart-box compact"><canvas id="reasonChart"></canvas></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <p class="eyebrow">Cidade cr&iacute;tica</p>
+            <h2>Ranking por impacto</h2>
+          </div>
+          <div class="chart-box compact"><canvas id="cityChart"></canvas></div>
+        </article>
+      </section>
+
+      <section class="panel print-table">
+        <div class="panel-head">
+          <p class="eyebrow">Resumo executivo</p>
+          <h2>S&iacute;ntese para envio</h2>
+        </div>
+        <div id="executiveText" class="executive-text"></div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="relatorio.js?v=20260701-2"></script>
+  </body>
+</html>
+
+
+
+

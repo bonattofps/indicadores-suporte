@@ -478,8 +478,10 @@ function renderExecutiveSummary() {
     const comparison = comparisonForMetric(metric, basePeriod);
     const base = comparison.value;
     const delta = deltaValue(current, base, metric.type, metric.name);
-    const trendClass = trendStatus(delta, metric);
     const status = goalStatus(metric);
+    const comparisonClass = status.className === "good"
+      ? "trend-good"
+      : status.className === "warn" ? "trend-warn" : status.className === "bad" ? "trend-bad" : "trend-neutral";
 
     return `
       <article class="insight-card macro-card status-${status.className}">
@@ -489,7 +491,7 @@ function renderExecutiveSummary() {
         </div>
         <strong>${format(current, metric.type)}</strong>
         <small>Anterior: ${format(base, metric.type)}</small>
-        <div class="change ${trendClass}">${deltaLabel(delta, metric.type)} vs. ${comparison.label}</div>
+        <div class="change ${comparisonClass}">${deltaLabel(delta, metric.type)} vs. ${comparison.label}</div>
       </article>
     `;
   }).join("");

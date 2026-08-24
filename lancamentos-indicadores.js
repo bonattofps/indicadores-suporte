@@ -144,9 +144,9 @@ function bindEvents() {
   els.addPeriodButton.addEventListener("click", addPeriodColumn);
   els.removePeriodButton.addEventListener("click", removePeriodColumn);
   els.calculateButton.addEventListener("click", () => {
-    calculateGeneralFromCollaborators();
+    calculateGeneralFromCollaborators(state.currentWeek);
     renderGeneralBody();
-    setStatus("Médias e totais aplicados nas métricas gerais. Revise e salve para sincronizar.", "success");
+    setStatus("Médias e totais aplicados somente na semana selecionada. Revise e salve para sincronizar.", "success");
   });
   els.saveButton.addEventListener("click", saveData);
   els.addN1Button.addEventListener("click", () => addCollaborator("N1"));
@@ -810,20 +810,17 @@ function normalizeCollaboratorTeam(month, teamKey) {
     rowsByWeek[weekKey] = rowsByWeek[weekKey].filter((row) => !isRemovedCollaborator(month, teamKey, row));
   });
 
-  const masterRows = [];
-  const seen = new Set();
+  const activeRoster = new Map();
   TEAM_WEEK_KEYS.forEach((weekKey) => {
+    const currentById = new Map();
     rowsByWeek[weekKey].forEach((row) => {
       if (!row._id) row._id = collaboratorIdFromName(teamKey, row.name);
-      if (!row._id || seen.has(row._id)) return;
-      seen.add(row._id);
-      masterRows.push({ _id: row._id, name: row.name || "" });
+      if (!row._id || currentById.has(row._id)) return;
+      currentById.set(row._id, row);
+      activeRoster.set(row._id, { _id: row._id, name: row.name || "" });
     });
-  });
 
-  TEAM_WEEK_KEYS.forEach((weekKey) => {
-    const currentById = new Map(rowsByWeek[weekKey].map((row) => [row._id, row]));
-    rowsByWeek[weekKey] = masterRows.map((master) => {
+    rowsByWeek[weekKey] = Array.from(activeRoster.values()).map((master) => {
       const current = currentById.get(master._id);
       return {
         ...createBlankCollaboratorRow(teamKey, master.name, master._id),
@@ -831,6 +828,26 @@ function normalizeCollaboratorTeam(month, teamKey) {
         _id: master._id,
         name: current?.name || master.name
       };
+    });
+  });
+}
+
+function sortCollaboratorRows(rows) {
+  rows.sort((left, right) => {
+    const leftName = String(left?.name || "").trim();
+    const rightName = String(right?.name || "").trim();
+    if (!leftName && rightName) return 1;
+    if (leftName && !rightName) return -1;
+    return leftName.localeCompare(rightName, "pt-BR", { sensitivity: "base", numeric: true });
+  });
+}
+
+function sortAllCollaboratorRows() {
+  Object.values(state.months).forEach((month) => {
+    ["N1", "N2"].forEach((teamKey) => {
+      TEAM_WEEK_KEYS.forEach((weekKey) => {
+        sortCollaboratorRows(month.collaborators?.[teamKey]?.[weekKey] || []);
+      });
     });
   });
 }
@@ -1081,11 +1098,13 @@ function addPeriodColumn() {
   const label = window.prompt("Nome da nova coluna", nextPeriodLabel(month));
   if (!label) return;
   const key = nextPeriodKey(month.periods);
-  month.periods.push({ key, label, week: inferWeekFromPeriodLabel(label), startDate: "", endDate: "" });
+  const week = inferWeekFromPeriodLabel(label);
+  month.periods.push({ key, label, week, startDate: "", endDate: "" });
   GENERAL_METRICS.forEach((metric) => {
     month.values[metric.key] ||= {};
     month.values[metric.key][key] = "";
   });
+  if (TEAM_WEEK_KEYS.includes(week)) state.currentWeek = week;
   normalizeMonthStructure(month);
   render();
   setStatus(`Coluna ${label} adicionada. Salve para sincronizar.`, "success");
@@ -1340,7 +1359,8 @@ function renderGeneralBody() {
       month.values[metric] ||= emptyPeriodValues(month.periods);
       month.values[metric][period] = input.value;
       if (metric === "totalClientes") {
-        calculateGeneralFromCollaborators();
+        const selectedPeriod = month.periods.find((item) => item.key === period);
+        calculateGeneralFromCollaborators(selectedPeriod?.week || "");
         syncGeneralInputsFromState();
       }
     });
@@ -1384,7 +1404,7 @@ function renderTeam(teamKey, columns, body, foot, summary) {
         syncCollaboratorName(input.dataset.team, row._id, input.value);
       }
       renderTeamFooters();
-      calculateGeneralFromCollaborators();
+      calculateGeneralFromCollaborators(state.currentWeek);
       syncGeneralInputsFromState();
     });
   });
@@ -1392,7 +1412,7 @@ function renderTeam(teamKey, columns, body, foot, summary) {
   body.querySelectorAll("[data-remove-row]").forEach((button) => {
     button.addEventListener("click", () => {
       removeCollaborator(button.dataset.removeTeam, button.dataset.removeId, Number(button.dataset.removeRow));
-      calculateGeneralFromCollaborators();
+      calculateGeneralFromCollaborators(state.currentWeek);
       renderCollaborators();
       syncGeneralInputsFromState();
     });
@@ -1424,10 +1444,11 @@ function addCollaborator(teamKey) {
   const month = currentMonth();
   normalizeMonthStructure(month);
   const row = createBlankCollaboratorRow(teamKey);
-  TEAM_WEEK_KEYS.forEach((weekKey) => {
+  const startIndex = Math.max(TEAM_WEEK_KEYS.indexOf(state.currentWeek), 0);
+  TEAM_WEEK_KEYS.slice(startIndex).forEach((weekKey) => {
     month.collaborators[teamKey][weekKey].push({ ...row });
   });
-  calculateGeneralFromCollaborators();
+  calculateGeneralFromCollaborators(state.currentWeek);
   renderCollaborators();
   syncGeneralInputsFromState();
 }
@@ -1456,10 +1477,12 @@ function removeCollaborator(teamKey, rowId, rowIndex) {
   });
 }
 
-function calculateGeneralFromCollaborators() {
+function calculateGeneralFromCollaborators(targetWeek = state.currentWeek) {
   const month = currentMonth();
   normalizeMonthStructure(month);
   month.periods.forEach((period) => {
+    const periodWeek = period.week || inferWeekFromPeriodLabel(period.label);
+    if (targetWeek && periodWeek !== targetWeek) return;
     const n1 = rowsForPeriod(month, "N1", period);
     const n2 = rowsForPeriod(month, "N2", period);
     const operacional = sumRowKeys(n1, ["operacional"]);
@@ -1503,6 +1526,7 @@ function syncGeneralInputsFromState() {
 
 async function saveData() {
   syncCurrentInputs();
+  sortAllCollaboratorRows();
   const manualData = normalizedManualData();
   const generalWorkbook = buildGeneralWorkbook(manualData);
   const collaboratorWorkbook = buildCollaboratorWorkbook(manualData);
@@ -1516,6 +1540,7 @@ async function saveData() {
       sourceName: "Lançamentos manuais SGP"
     });
     setLocalCopies(generalWorkbook, collaboratorWorkbook);
+    renderCollaborators();
     setStatus("Lançamentos salvos. Indicadores Gerais e Colaboradores já podem usar estes dados.", "success");
   } catch (error) {
     console.error(error);

@@ -230,7 +230,13 @@ function renderMonthOptions() {
     .join("");
   els.month.value = state.month;
   els.team.value = state.team;
+  const weeks = availableWeeks();
+  if (!weeks.includes(state.week)) state.week = weeks.at(-1) || "";
+  els.week.innerHTML = weeks.length
+    ? weeks.map((weekKey) => `<option value="${weekKey}">${escapeHtml(weekLabel(weekKey))}</option>`).join("")
+    : '<option value="">Sem semanas lançadas</option>';
   els.week.value = state.week;
+  els.week.disabled = !weeks.length;
   syncCompareWeek();
 }
 
@@ -258,7 +264,13 @@ function renderModeControls() {
 }
 
 function availableWeeks() {
-  const rowsByWeek = currentMonth()?.teams?.[state.team]?.rowsByWeek || {};
+  const month = currentMonth();
+  const launched = new Set((month?.periods || [])
+    .map(periodWeekKey)
+    .filter((weekKey) => WEEK_ORDER.includes(weekKey)));
+  if (launched.size) return WEEK_ORDER.filter((weekKey) => launched.has(weekKey));
+
+  const rowsByWeek = month?.teams?.[state.team]?.rowsByWeek || {};
   return WEEK_ORDER.filter((weekKey) => Array.isArray(rowsByWeek[weekKey]) && rowsByWeek[weekKey].length);
 }
 
